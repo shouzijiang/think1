@@ -19,6 +19,9 @@ Route::get('hello/:name', 'index/hello');
 
 // ==================== API 路由 ====================
 
+// 微信登录路由（公开接口，不需要认证）
+Route::any('auth/wechat/login', 'Auth/wechatLogin');
+
 // 需要JWT认证的路由组
 Route::group(function () {
     // 用户相关
