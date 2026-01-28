@@ -1,0 +1,3 @@
+# 每5分钟执行一次提醒任务
+*/5 * * * * curl -s https://thinkphp-nginx-vb16-219565-8-1258295797.sh.run.tcloudbase.com/cron/send-remind > /dev/null 2>&1
+

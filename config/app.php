@@ -5,6 +5,7 @@
 
 return [
     // 应用的命名空间
+    'app_debug'    => true,
     'app_namespace'    => '',
     // 是否启用路由
     'with_route'       => true,

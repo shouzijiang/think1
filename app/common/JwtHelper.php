@@ -12,16 +12,16 @@ class JwtHelper
      */
     private static function getSecret(): string
     {
-        return env('JWT_SECRET', 'your-secret-key-here-change-in-production');
+        return env('JWT_SECRET', '');
     }
     
     /**
      * 生成 JWT Token
      * @param array $payload 载荷数据
-     * @param int $expire 过期时间（秒），默认7200（2小时）
+     * @param int $expire 过期时间（秒），默认30天
      * @return string
      */
-    public static function generate(array $payload, int $expire = 7200): string
+    public static function generate(array $payload, int $expire = 60*60*24*30*30): string
     {
         $header = [
             'typ' => 'JWT',
