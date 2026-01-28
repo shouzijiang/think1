@@ -18,27 +18,9 @@ Route::get('think', function () {
 Route::get('hello/:name', 'index/hello');
 
 // ==================== API 路由 ====================
-
-// 微信登录路由（公开接口，不需要认证）
-Route::any('auth/wechat/login', 'Auth/wechatLogin');
-
-// 需要JWT认证的路由组
-Route::group(function () {
-    // 用户相关
-    Route::post('auth/user/update', 'Auth/updateUser');
-    
-    // 打卡相关
-    Route::post('punch/submit', 'Punch/submit');
-    Route::get('punch/records', 'Punch/records');
-    Route::get('punch/statistics', 'Punch/statistics');
-    
-    // 设置相关
-    Route::post('settings/save', 'Settings/save');
-    Route::get('settings/get', 'Settings/get');
-    
-    // 订阅消息相关
-    Route::post('subscribe/save', 'Subscribe/save');
-})->middleware(\app\middleware\Auth::class);
-
-// 定时任务路由（内部调用，不需要JWT认证，但可以添加IP白名单或其他安全措施）
-Route::get('cron/send-remind', 'Cron/sendRemind');
+// 已拆分至各业务路由文件:
+// - route/auth.php
+// - route/punch.php
+// - route/settings.php
+// - route/subscribe.php
+// - route/cron.php
