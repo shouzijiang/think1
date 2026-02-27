@@ -38,7 +38,7 @@ class Auth extends BaseController
             
             return ResponseHelper::success($result, '登录成功');
         } catch (\Exception $e) {
-            \think\facade\Log::error('微信登录异常', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            \think\facade\Log::error('微信登录异常 error=' . $e->getMessage() . ' trace=' . str_replace(["\r\n", "\n"], ' ', $e->getTraceAsString()));
             return ResponseHelper::error('登录异常：' . $e->getMessage(), 500);
         }
     }

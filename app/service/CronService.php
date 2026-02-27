@@ -57,14 +57,19 @@ class CronService
             }
             
             $templateId = $subscribe->template_id;
-            
-            // 发送订阅消息
+
+            // 发送订阅消息（字段名需与微信公众平台订阅消息模板一致：thing1/time1/thing3 等）
+            $timeStr = date('Y年m月d日 H:i');
             $messageData = [
+                'time1'  => ['value' => $timeStr],
+                'time2'  => ['value' => $timeStr],
                 'thing1' => ['value' => '久坐提醒'],
-                'time2' => ['value' => date('Y年m月d日 H:i')],
-                'thing3' => ['value' => '您已经坐了很久了，站起来活动一下吧！']
+                'thing3' => ['value' => '起来~~~~~~~'],
+                'thing4' => ['value' => '您已经坐了很久了，站起来活动一下吧！']
             ];
-            
+            // 若模板还有 time2，可取消下行注释
+            // $messageData['time2'] = ['value' => $timeStr];
+
             $result = WechatHelper::sendSubscribeMessage(
                 $user->openid,
                 $templateId,
@@ -96,10 +101,7 @@ class CronService
                 ]);
                 
                 $failCount++;
-                Log::error('发送订阅消息失败', [
-                    'user_id' => $user->id,
-                    'error' => $result['error'] ?? '未知错误'
-                ]);
+                Log::error('发送订阅消息失败 user_id=' . $user->id . ' error=' . ($result['error'] ?? '未知错误'));
             }
         }
         

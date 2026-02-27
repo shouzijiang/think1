@@ -27,7 +27,7 @@ class AuthService
         
         $wechatData = WechatHelper::code2Session($code);
         if (!$wechatData) {
-            \think\facade\Log::error('微信登录：code2Session返回false', ['code' => substr($code, 0, 10) . '...']);
+            \think\facade\Log::error('微信登录：code2Session返回false code=' . substr($code, 0, 10) . '...');
             return false;
         }
         $openid = $wechatData['openid'] ?? '';

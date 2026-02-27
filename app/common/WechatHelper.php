@@ -42,7 +42,7 @@ class WechatHelper
         $data = json_decode($response, true);
         
         if (isset($data['errcode']) && $data['errcode'] != 0) {
-            Log::error('微信登录失败', ['errcode' => $data['errcode'], 'errmsg' => $data['errmsg'] ?? '未知错误']);
+            Log::error('微信登录失败 errcode=' . ($data['errcode'] ?? '') . ' errmsg=' . ($data['errmsg'] ?? '未知错误'));
             return false;
         }
         
@@ -74,7 +74,7 @@ class WechatHelper
         $result = json_decode($response, true);
         
         if (!isset($result['access_token'])) {
-            Log::error('获取access_token失败', $result);
+            Log::error('获取access_token失败 ' . json_encode($result, JSON_UNESCAPED_UNICODE));
             return false;
         }
         
@@ -144,13 +144,13 @@ class WechatHelper
         curl_close($ch);
         
         if ($error) {
-            Log::error('HTTP请求失败', ['error' => $error, 'url' => $url, 'http_code' => $httpCode]);
+            Log::error('HTTP请求失败 error=' . $error . ' url=' . $url . ' http_code=' . $httpCode);
             return '';
         }
-        
+
         return $response;
     }
-    
+
     /**
      * HTTP POST 请求
      */
@@ -173,10 +173,10 @@ class WechatHelper
         curl_close($ch);
         
         if ($error) {
-            Log::error('HTTP请求失败', ['error' => $error, 'url' => $url, 'http_code' => $httpCode]);
+            Log::error('HTTP请求失败 error=' . $error . ' url=' . $url . ' http_code=' . $httpCode);
             return '';
         }
-        
+
         return $response;
     }
 }
