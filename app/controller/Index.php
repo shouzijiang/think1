@@ -9,8 +9,8 @@ class Index extends BaseController
 {
     public function index()
     {
-        Log::info('首页进入成功:' . 1);
-        return 'aaaa';
+        Log::info('首页进入成功 ip=' . request()->ip());
+        return '个人学习站点';
     }
 
     public function hello($name = 'ThinkPHP8')

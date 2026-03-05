@@ -104,7 +104,8 @@ class CronService
                 Log::error('发送订阅消息失败 user_id=' . $user->id . ' error=' . ($result['error'] ?? '未知错误'));
             }
         }
-        
+
+        Log::info('定时任务 执行完成 success_count=' . $successCount . ' fail_count=' . $failCount . ' total_checked=' . count($users));
         return [
             'success_count' => $successCount,
             'fail_count' => $failCount,
