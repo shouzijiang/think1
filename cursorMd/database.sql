@@ -74,3 +74,31 @@ CREATE TABLE `message_logs` (
 -- 初始化数据（可选）
 -- 如果需要默认数据，可以在这里插入
 
+-- ========== 谐音梗图游戏 pun ==========
+-- 6. 排行榜表（按闯关最高关排序，一用户一条）
+CREATE TABLE `pun_game_rank` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) unsigned NOT NULL COMMENT '用户id',
+  `nickname` varchar(64) DEFAULT NULL COMMENT '昵称冗余',
+  `avatar` varchar(512) DEFAULT NULL COMMENT '头像冗余',
+  `max_level` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '闯到的最高关卡号 1~253',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近一次通过关卡的时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_id` (`user_id`),
+  KEY `idx_max_level` (`max_level`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏排行榜';
+
+-- 7. 用户关卡进度表
+CREATE TABLE `pun_game_level_progress` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) unsigned NOT NULL COMMENT '用户id',
+  `level` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '关卡号 1~253',
+  `passed` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否已通过：0否 1是',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_level` (`user_id`,`level`),
+  KEY `idx_user_passed` (`user_id`,`passed`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏关卡进度';
+
+
