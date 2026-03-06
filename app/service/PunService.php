@@ -73,11 +73,15 @@ class PunService
     /**
      * 更新排行榜并写入/更新关卡进度
      */
+    /** 排行榜昵称/头像最大字符数，MySQL varchar 按字符计，取保守值兼容各环境 */
+    private const RANK_NICKNAME_MAX_CHARS = 60;
+    private const RANK_AVATAR_MAX_CHARS = 200;
+
     protected function updateRankAndProgress(int $userId, int $level): void
     {
         $user = User::find($userId);
-        $nickname = $user ? $user->nickname : '';
-        $avatar = $user ? $user->avatar : '';
+        $nickname = $user ? $this->truncateToChars($user->nickname ?? '', self::RANK_NICKNAME_MAX_CHARS) : '';
+        $avatar = $user ? $this->truncateToChars($user->avatar ?? '', self::RANK_AVATAR_MAX_CHARS) : '';
         $rank = PunGameRank::where('user_id', $userId)->find();
         if ($rank) {
             $rank->max_level = max($rank->max_level, $level);
@@ -122,5 +126,18 @@ class PunService
             'currentLevel' => $currentLevel,
             'passedLevels' => array_values($passedLevels),
         ];
+    }
+
+    /** 按字符数截断，与 MySQL varchar(N) 的“字符数”一致，避免 Data too long */
+    private function truncateToChars(string $s, int $maxChars): string
+    {
+        if ($maxChars <= 0) {
+            return '';
+        }
+        $len = mb_strlen($s, 'UTF-8');
+        if ($len <= $maxChars) {
+            return $s;
+        }
+        return mb_substr($s, 0, $maxChars, 'UTF-8');
     }
 }

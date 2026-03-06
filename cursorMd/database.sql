@@ -80,7 +80,7 @@ CREATE TABLE `pun_game_rank` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int(11) unsigned NOT NULL COMMENT '用户id',
   `nickname` varchar(64) DEFAULT NULL COMMENT '昵称冗余',
-  `avatar` varchar(512) DEFAULT NULL COMMENT '头像冗余',
+  `avatar` varchar(1024) DEFAULT NULL COMMENT '头像冗余',
   `max_level` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '闯到的最高关卡号 1~253',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近一次通过关卡的时间',
   PRIMARY KEY (`id`),
@@ -100,5 +100,8 @@ CREATE TABLE `pun_game_level_progress` (
   UNIQUE KEY `uk_user_level` (`user_id`,`level`),
   KEY `idx_user_passed` (`user_id`,`passed`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏关卡进度';
+
+-- 若线上已建表且报错 Data too long for column 'avatar'，可执行：
+-- ALTER TABLE `pun_game_rank` MODIFY COLUMN `avatar` varchar(1024) DEFAULT NULL COMMENT '头像冗余';
 
 

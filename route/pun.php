@@ -7,7 +7,7 @@ Route::group('pun', function () {
     Route::get('rank/list', 'Pun/rankList');
     // 以下需要登录
     Route::group(function () {
-        Route::any('answer/submit', 'Pun/submitAnswer');
+        Route::post('answer/submit', 'Pun/submitAnswer');
         Route::get('level/progress', 'Pun/levelProgress');
     })->middleware(\app\middleware\Auth::class);
 });

@@ -37,7 +37,6 @@ class Pun extends BaseController
      */
     public function submitAnswer(Request $request)
     {
-        echo 1;
         $userId = $request->user_id ?? 0;
         if (!$userId) {
             return ResponseHelper::unauthorized();
@@ -50,8 +49,13 @@ class Pun extends BaseController
         if ($level < 1 || $level > 253) {
             return ResponseHelper::badRequest('关卡号需在 1~253 之间');
         }
-        $result = $this->punService->submitAnswer($userId, $level, $userAnswer);
-        return ResponseHelper::success($result);
+        try {
+            $result = $this->punService->submitAnswer($userId, $level, $userAnswer);
+            return ResponseHelper::success($result);
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('pun/answer/submit 异常: ' . $e->getMessage() . ' trace: ' . $e->getTraceAsString());
+            return ResponseHelper::error('提交失败：' . $e->getMessage(), 500);
+        }
     }
 
     /**
