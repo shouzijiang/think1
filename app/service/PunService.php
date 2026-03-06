@@ -7,6 +7,7 @@ use app\model\PunGameRank;
 use app\model\PunGameLevelProgress;
 use app\model\PunGameFeedback;
 use think\facade\Config;
+use think\facade\Db;
 
 /**
  * 谐音梗图游戏 - 业务逻辑
@@ -80,39 +81,68 @@ class PunService
 
     protected function updateRankAndProgress(int $userId, int $level): void
     {
-        $user = User::find($userId);
-        $nickname = $user ? $this->truncateToChars($user->nickname ?? '', self::RANK_NICKNAME_MAX_CHARS) : '';
-        $avatar = $user ? $this->truncateToChars($user->avatar ?? '', self::RANK_AVATAR_MAX_CHARS) : '';
-        $rank = PunGameRank::where('user_id', $userId)->find();
-        if ($rank) {
-            $rank->max_level = max($rank->max_level, $level);
-            $rank->nickname = $nickname;
-            $rank->avatar = $avatar;
-            $rank->save();
-        } else {
-            PunGameRank::create([
-                'user_id'   => $userId,
-                'nickname'  => $nickname,
-                'avatar'    => $avatar,
-                'max_level' => $level,
-            ]);
+        Db::startTrans();
+        try {
+            $user = User::find($userId);
+            $nickname = $user ? $this->truncateToChars($user->nickname ?? '', self::RANK_NICKNAME_MAX_CHARS) : '';
+            $avatar = $user ? $this->truncateToChars($user->avatar ?? '', self::RANK_AVATAR_MAX_CHARS) : '';
+            $rank = PunGameRank::where('user_id', $userId)->find();
+            if ($rank) {
+                $rank->max_level = max($rank->max_level, $level);
+                $rank->nickname = $nickname;
+                $rank->avatar = $avatar;
+                $rank->save();
+            } else {
+                PunGameRank::create([
+                    'user_id'   => $userId,
+                    'nickname'  => $nickname,
+                    'avatar'    => $avatar,
+                    'max_level' => $level,
+                ]);
+            }
+            $progress = PunGameLevelProgress::where('user_id', $userId)->find();
+            $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels : null);
+            if (!in_array($level, $passedLevels, true)) {
+                $passedLevels[] = $level;
+                sort($passedLevels);
+            }
+            $passedLevels = array_values($passedLevels);
+            $jsonValue = json_encode($passedLevels, JSON_UNESCAPED_UNICODE);
+            if ($progress) {
+                Db::name('pun_game_level_progress')
+                    ->where('id', $progress->id)
+                    ->update(['passed_levels' => $jsonValue, 'updated_at' => date('Y-m-d H:i:s')]);
+            } else {
+                Db::name('pun_game_level_progress')->insert([
+                    'user_id'       => $userId,
+                    'passed_levels' => $jsonValue,
+                    'created_at'    => date('Y-m-d H:i:s'),
+                    'updated_at'    => date('Y-m-d H:i:s'),
+                ]);
+            }
+            Db::commit();
+        } catch (\Throwable $e) {
+            Db::rollback();
+            throw $e;
         }
-        $progress = PunGameLevelProgress::where('user_id', $userId)->find();
-        $passedLevels = $progress ? ($progress->passed_levels ?? []) : [];
-        $passedLevels = array_map('intval', $passedLevels);
-        if (!in_array($level, $passedLevels, true)) {
-            $passedLevels[] = $level;
-            sort($passedLevels);
+    }
+
+    /**
+     * 将 passed_levels 规范为 int[]（兼容 JSON 字符串、对象、数组）
+     */
+    private function normalizePassedLevels($value): array
+    {
+        if (is_array($value)) {
+            return array_map('intval', array_values($value));
         }
-        if ($progress) {
-            $progress->passed_levels = array_values($passedLevels);
-            $progress->save();
-        } else {
-            PunGameLevelProgress::create([
-                'user_id'       => $userId,
-                'passed_levels' => array_values($passedLevels),
-            ]);
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? array_map('intval', array_values($decoded)) : [];
         }
+        if (is_object($value)) {
+            return array_map('intval', array_values((array) $value));
+        }
+        return [];
     }
 
     /**
@@ -124,8 +154,7 @@ class PunService
     {
         $totalLevels = count(Config::get('pun_levels', []));
         $progress = PunGameLevelProgress::where('user_id', $userId)->find();
-        $passedLevels = $progress ? ($progress->passed_levels ?? []) : [];
-        $passedLevels = array_map('intval', $passedLevels);
+        $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels : null);
         $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 1));
         $currentLevel = empty($passedLevels) ? 1 : (min($totalLevels, max($passedLevels) + 1));
         return [
