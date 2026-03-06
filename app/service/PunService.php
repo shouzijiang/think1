@@ -5,6 +5,7 @@ namespace app\service;
 use app\model\User;
 use app\model\PunGameRank;
 use app\model\PunGameLevelProgress;
+use app\model\PunGameFeedback;
 use think\facade\Config;
 
 /**
@@ -96,36 +97,80 @@ class PunService
                 'max_level' => $level,
             ]);
         }
-        $progress = PunGameLevelProgress::where('user_id', $userId)->where('level', $level)->find();
+        $progress = PunGameLevelProgress::where('user_id', $userId)->find();
+        $passedLevels = $progress ? ($progress->passed_levels ?? []) : [];
+        $passedLevels = array_map('intval', $passedLevels);
+        if (!in_array($level, $passedLevels, true)) {
+            $passedLevels[] = $level;
+            sort($passedLevels);
+        }
         if ($progress) {
-            $progress->passed = 1;
+            $progress->passed_levels = array_values($passedLevels);
             $progress->save();
         } else {
             PunGameLevelProgress::create([
-                'user_id' => $userId,
-                'level'   => $level,
-                'passed'  => 1,
+                'user_id'       => $userId,
+                'passed_levels' => array_values($passedLevels),
             ]);
         }
     }
 
     /**
-     * 当前用户关卡进度：当前可玩关卡、已通过关卡列表
+     * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数
      * @param int $userId
-     * @return array ['currentLevel' => int, 'passedLevels' => int[]]
+     * @return array ['currentLevel' => int, 'passedLevels' => int[], 'totalLevels' => int]
      */
     public function getLevelProgress(int $userId): array
     {
-        $passedLevels = PunGameLevelProgress::where('user_id', $userId)
-            ->where('passed', 1)
-            ->order('level', 'asc')
-            ->column('level');
+        $totalLevels = count(Config::get('pun_levels', []));
+        $progress = PunGameLevelProgress::where('user_id', $userId)->find();
+        $passedLevels = $progress ? ($progress->passed_levels ?? []) : [];
         $passedLevels = array_map('intval', $passedLevels);
-        $currentLevel = empty($passedLevels) ? 1 : (max($passedLevels) + 1);
+        $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 1));
+        $currentLevel = empty($passedLevels) ? 1 : (min($totalLevels, max($passedLevels) + 1));
         return [
-            'currentLevel' => $currentLevel,
-            'passedLevels' => array_values($passedLevels),
+            'currentLevel'  => $currentLevel,
+            'passedLevels'  => $passedLevels,
+            'totalLevels'   => $totalLevels,
         ];
+    }
+
+    /**
+     * 提交意见反馈
+     * @param int $userId
+     * @param string $type 反馈类型：'' / bug / suggest / other
+     * @param string $content 反馈内容 2~500 字
+     * @param string $contact 联系方式 0~128 字
+     * @return array ['error' => string|null] 有 error 时表示校验失败
+     */
+    public function submitFeedback(int $userId, string $type, string $content, string $contact): array
+    {
+        $content = trim($content);
+        if ($content === '') {
+            return ['error' => '反馈内容不能为空'];
+        }
+        $len = mb_strlen($content, 'UTF-8');
+        if ($len < 2) {
+            return ['error' => '反馈内容至少 2 个字'];
+        }
+        if ($len > 500) {
+            return ['error' => '反馈内容最多 500 个字'];
+        }
+        $type = trim($type);
+        if ($type !== '' && !in_array($type, PunGameFeedback::allowedTypes(), true)) {
+            return ['error' => '反馈类型不合法'];
+        }
+        $contact = trim($contact);
+        if (mb_strlen($contact, 'UTF-8') > 128) {
+            return ['error' => '联系方式最多 128 个字'];
+        }
+        PunGameFeedback::create([
+            'user_id' => $userId,
+            'type'    => $type,
+            'content' => $content,
+            'contact' => $contact,
+        ]);
+        return [];
     }
 
     /** 按字符数截断，与 MySQL varchar(N) 的“字符数”一致，避免 Data too long */

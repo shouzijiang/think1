@@ -88,20 +88,32 @@ CREATE TABLE `pun_game_rank` (
   KEY `idx_max_level` (`max_level`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏排行榜';
 
--- 7. 用户关卡进度表
+-- 7. 用户关卡进度表（每用户一行，已通过关卡存 JSON 数组）
 CREATE TABLE `pun_game_level_progress` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int(11) unsigned NOT NULL COMMENT '用户id',
-  `level` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '关卡号 1~253',
-  `passed` tinyint(1) NOT NULL DEFAULT '0' COMMENT '是否已通过：0否 1是',
+  `passed_levels` json NOT NULL COMMENT '已通过关卡号数组 [1,2,3,...]',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_user_level` (`user_id`,`level`),
-  KEY `idx_user_passed` (`user_id`,`passed`)
+  UNIQUE KEY `uk_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏关卡进度';
+
+-- 8. 意见反馈表
+CREATE TABLE `pun_game_feedback` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) unsigned NOT NULL COMMENT '用户id',
+  `type` varchar(32) NOT NULL DEFAULT '' COMMENT '反馈类型：空=未选，bug/suggest/other',
+  `content` text NOT NULL COMMENT '反馈内容',
+  `contact` varchar(128) NOT NULL DEFAULT '' COMMENT '联系方式（选填）',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '提交时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏意见反馈';
 
 -- 若线上已建表且报错 Data too long for column 'avatar'，可执行：
 -- ALTER TABLE `pun_game_rank` MODIFY COLUMN `avatar` varchar(1024) DEFAULT NULL COMMENT '头像冗余';
 
-
+-- ========== 线上 pun_game_level_progress 表结构迁移（旧：一关一行 → 新：每用户一行 JSON）==========
+-- 见 cursorMd/pun_level_progress_migration.md 按步骤执行。

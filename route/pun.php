@@ -9,5 +9,6 @@ Route::group('pun', function () {
     Route::group(function () {
         Route::post('answer/submit', 'Pun/submitAnswer');
         Route::get('level/progress', 'Pun/levelProgress');
+        Route::post('feedback/submit', 'Pun/feedbackSubmit');
     })->middleware(\app\middleware\Auth::class);
 });

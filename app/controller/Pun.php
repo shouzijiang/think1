@@ -46,8 +46,9 @@ class Pun extends BaseController
         if (!is_array($userAnswer)) {
             $userAnswer = [];
         }
-        if ($level < 1 || $level > 253) {
-            return ResponseHelper::badRequest('关卡号需在 1~253 之间');
+        $totalLevels = count(\think\facade\Config::get('pun_levels', []));
+        if ($level < 1 || $level > $totalLevels) {
+            return ResponseHelper::badRequest('关卡号需在 1~' . $totalLevels . ' 之间');
         }
         try {
             $result = $this->punService->submitAnswer($userId, $level, $userAnswer);
@@ -69,5 +70,34 @@ class Pun extends BaseController
         }
         $result = $this->punService->getLevelProgress($userId);
         return ResponseHelper::success($result);
+    }
+
+    /**
+     * 提交意见反馈 POST /pun/feedback/submit
+     * Body: { "type"?: "bug"|"suggest"|"other", "content": "...", "contact"?: "..." }
+     */
+    public function feedbackSubmit(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+        $type = $request->post('type', '');
+        $content = $request->post('content', '');
+        $contact = $request->post('contact', '');
+        if (!is_string($type)) {
+            $type = '';
+        }
+        if (!is_string($content)) {
+            $content = '';
+        }
+        if (!is_string($contact)) {
+            $contact = '';
+        }
+        $result = $this->punService->submitFeedback($userId, $type, $content, $contact);
+        if (!empty($result['error'])) {
+            return ResponseHelper::badRequest($result['error']);
+        }
+        return ResponseHelper::success(null, '感谢反馈，我们会尽快处理');
     }
 }
