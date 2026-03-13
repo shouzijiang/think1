@@ -8,13 +8,16 @@ CREATE TABLE `users` (
   `openid` varchar(100) NOT NULL COMMENT '微信openid',
   `unionid` varchar(100) DEFAULT NULL COMMENT '微信unionid',
   `nickname` varchar(100) DEFAULT NULL COMMENT '用户昵称',
-  `avatar` varchar(255) DEFAULT NULL COMMENT '用户头像URL',
+  `avatar` mediumtext DEFAULT NULL COMMENT '用户头像URL或 base64 data URL',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_openid` (`openid`),
   KEY `idx_unionid` (`unionid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+
+-- 若线上 users 表已存在且需支持 base64 头像，可执行：
+-- ALTER TABLE `users` MODIFY COLUMN `avatar` mediumtext DEFAULT NULL COMMENT '用户头像URL或 base64 data URL';
 
 -- 2. 打卡记录表
 CREATE TABLE `punch_records` (

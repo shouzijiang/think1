@@ -74,11 +74,15 @@ class AuthService
         ];
     }
     
+    /** 头像（URL 或 base64）最大长度，对应 MySQL MEDIUMTEXT 约 16MB */
+    private const AVATAR_MAX_LENGTH = 16777215;
+
     /**
      * 更新用户信息
      * @param int $userId
-     * @param array $data
+     * @param array $data ['nickname' => ?, 'avatar' => ?] avatar 可为 URL 或 base64 data URL
      * @return bool
+     * @throws \InvalidArgumentException 头像超长时抛出
      */
     public function updateUser(int $userId, array $data): bool
     {
@@ -86,19 +90,23 @@ class AuthService
         if (!$user) {
             return false;
         }
-        
+
         $updateData = [];
         if (isset($data['nickname'])) {
             $updateData['nickname'] = $data['nickname'];
         }
         if (isset($data['avatar'])) {
-            $updateData['avatar'] = $data['avatar'];
+            $avatar = $data['avatar'];
+            if (mb_strlen($avatar, 'UTF-8') > self::AVATAR_MAX_LENGTH) {
+                throw new \InvalidArgumentException('头像数据过长，请压缩后重试');
+            }
+            $updateData['avatar'] = $avatar;
         }
-        
+
         if (empty($updateData)) {
             return true;
         }
-        
+
         return $user->save($updateData);
     }
 }

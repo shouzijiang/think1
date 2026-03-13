@@ -67,8 +67,19 @@ class Auth extends BaseController
         if (empty($data)) {
             return ResponseHelper::badRequest('没有需要更新的数据');
         }
-        
-        $result = $this->authService->updateUser($userId, $data);
+
+        try {
+            $result = $this->authService->updateUser($userId, $data);
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::badRequest($e->getMessage());
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('auth/user/update 异常: ' . $e->getMessage() . ' trace: ' . $e->getTraceAsString());
+            $msg = $e->getMessage();
+            if (stripos($msg, 'Data too long') !== false || stripos($msg, '4146') !== false) {
+                return ResponseHelper::badRequest('头像数据过长。若需存 base64，请先执行：ALTER TABLE users MODIFY COLUMN avatar mediumtext DEFAULT NULL;');
+            }
+            return ResponseHelper::error('更新失败：' . $msg, 500);
+        }
         
         if (!$result) {
             return ResponseHelper::error('更新失败', 500);
