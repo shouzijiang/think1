@@ -118,5 +118,25 @@ CREATE TABLE `pun_game_feedback` (
 -- 若线上已建表且报错 Data too long for column 'avatar'，可执行：
 -- ALTER TABLE `pun_game_rank` MODIFY COLUMN `avatar` varchar(1024) DEFAULT NULL COMMENT '头像冗余';
 
+-- 9. 共创关卡表
+CREATE TABLE `pun_game_cocreate` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) unsigned NOT NULL COMMENT '上传者user_id',
+  `answer` varchar(64) NOT NULL COMMENT '关卡答案',
+  `answer_length` tinyint unsigned NOT NULL COMMENT '答案字数',
+  `hint_image_prompt` varchar(512) NOT NULL DEFAULT '' COMMENT '第一张图提示词',
+  `answer_explanation` varchar(512) NOT NULL DEFAULT '' COMMENT '答案解释',
+  `word_array` text NOT NULL COMMENT '选词JSON，20个',
+  `hint_image_url` varchar(512) NOT NULL DEFAULT '' COMMENT '提示图URL',
+  `answer_image_url` varchar(512) NOT NULL DEFAULT '' COMMENT '猜词图URL',
+  `status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '0待审核 1已通过 2拒绝',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏共创关卡';
+
 -- ========== 线上 pun_game_level_progress 表结构迁移（旧：一关一行 → 新：每用户一行 JSON）==========
 -- 见 cursorMd/pun_level_progress_migration.md 按步骤执行。
