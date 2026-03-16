@@ -18,14 +18,12 @@ class PunGameRank extends Model
     protected $schema = [
         'id'         => 'int',
         'user_id'    => 'int',
-        'nickname'   => 'string',
-        'avatar'     => 'string',
         'max_level'  => 'int',
         'updated_at' => 'datetime',
     ];
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id', 'id');
     }
 }

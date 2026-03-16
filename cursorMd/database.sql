@@ -78,12 +78,10 @@ CREATE TABLE `message_logs` (
 -- 如果需要默认数据，可以在这里插入
 
 -- ========== 谐音梗图游戏 pun ==========
--- 6. 排行榜表（按闯关最高关排序，一用户一条）
+-- 6. 排行榜表（按闯关最高关排序，一用户一条；昵称/头像从 users 表读，不冗余）
 CREATE TABLE `pun_game_rank` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int(11) unsigned NOT NULL COMMENT '用户id',
-  `nickname` varchar(64) DEFAULT NULL COMMENT '昵称冗余',
-  `avatar` varchar(1024) DEFAULT NULL COMMENT '头像冗余',
   `max_level` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '闯到的最高关卡号 1~253',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近一次通过关卡的时间',
   PRIMARY KEY (`id`),
@@ -115,8 +113,8 @@ CREATE TABLE `pun_game_feedback` (
   KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏意见反馈';
 
--- 若线上已建表且报错 Data too long for column 'avatar'，可执行：
--- ALTER TABLE `pun_game_rank` MODIFY COLUMN `avatar` varchar(1024) DEFAULT NULL COMMENT '头像冗余';
+-- 若线上 pun_game_rank 仍含 nickname/avatar 冗余字段，可删除以与 users 表单一数据源一致：
+-- ALTER TABLE `pun_game_rank` DROP COLUMN `nickname`, DROP COLUMN `avatar`;
 
 -- 9. 共创关卡表
 CREATE TABLE `pun_game_cocreate` (

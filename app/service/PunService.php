@@ -2,7 +2,6 @@
 
 namespace app\service;
 
-use app\model\User;
 use app\model\PunGameRank;
 use app\model\PunGameLevelProgress;
 use app\model\PunGameFeedback;
@@ -16,6 +15,7 @@ class PunService
 {
     /**
      * 排行榜列表（按 max_level 降序、updated_at 降序）
+     * nickname/avatar 来自 users 表，单一数据源
      * @param int $page
      * @param int $pageSize
      * @return array ['list' => [...], 'total' => int]
@@ -23,16 +23,18 @@ class PunService
     public function getRankList(int $page = 1, int $pageSize = 20): array
     {
         $pageSize = min(max(1, $pageSize), 100);
-        $query = PunGameRank::order('max_level', 'desc')
+        $query = PunGameRank::with('user')
+            ->order('max_level', 'desc')
             ->order('updated_at', 'desc');
         $total = $query->count();
         $list = (clone $query)->page($page, $pageSize)
             ->select()
             ->map(function ($row) {
+                $user = $row->user;
                 return [
                     'user_id'   => (int) $row->user_id,
-                    'nickname'  => $row->nickname ?? '',
-                    'avatar'    => $row->avatar ?? '',
+                    'nickname'  => $user ? ($user->nickname ?? '') : '',
+                    'avatar'    => $user ? ($user->avatar ?? '') : '',
                     'max_level' => (int) $row->max_level,
                     'updated_at' => $row->updated_at ? date('m-d H:i', strtotime($row->updated_at)) : '',
                 ];
@@ -73,30 +75,19 @@ class PunService
     }
 
     /**
-     * 更新排行榜并写入/更新关卡进度
+     * 更新排行榜并写入/更新关卡进度（排行榜仅存 user_id + max_level，昵称/头像读时从 users 表取）
      */
-    /** 排行榜昵称/头像最大字符数，MySQL varchar 按字符计，取保守值兼容各环境 */
-    private const RANK_NICKNAME_MAX_CHARS = 60;
-    private const RANK_AVATAR_MAX_CHARS = 200;
-
     protected function updateRankAndProgress(int $userId, int $level): void
     {
         Db::startTrans();
         try {
-            $user = User::find($userId);
-            $nickname = $user ? $this->truncateToChars($user->nickname ?? '', self::RANK_NICKNAME_MAX_CHARS) : '';
-            $avatar = $user ? $this->truncateToChars($user->avatar ?? '', self::RANK_AVATAR_MAX_CHARS) : '';
             $rank = PunGameRank::where('user_id', $userId)->find();
             if ($rank) {
                 $rank->max_level = max($rank->max_level, $level);
-                $rank->nickname = $nickname;
-                $rank->avatar = $avatar;
                 $rank->save();
             } else {
                 PunGameRank::create([
                     'user_id'   => $userId,
-                    'nickname'  => $nickname,
-                    'avatar'    => $avatar,
                     'max_level' => $level,
                 ]);
             }
@@ -202,16 +193,4 @@ class PunService
         return [];
     }
 
-    /** 按字符数截断，与 MySQL varchar(N) 的“字符数”一致，避免 Data too long */
-    private function truncateToChars(string $s, int $maxChars): string
-    {
-        if ($maxChars <= 0) {
-            return '';
-        }
-        $len = mb_strlen($s, 'UTF-8');
-        if ($len <= $maxChars) {
-            return $s;
-        }
-        return mb_substr($s, 0, $maxChars, 'UTF-8');
-    }
 }
