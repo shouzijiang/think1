@@ -16,14 +16,15 @@ class PunGameLevelProgress extends Model
     protected $updateTime = 'updated_at';
 
     /** 已通过关卡号存 JSON 数组，自动序列化/反序列化 */
-    protected $json = ['passed_levels'];
+    protected $json = ['passed_levels', 'passed_levels_mid'];
 
     protected $schema = [
-        'id'            => 'int',
-        'user_id'       => 'int',
-        'passed_levels' => 'json',
-        'created_at'    => 'datetime',
-        'updated_at'    => 'datetime',
+        'id'                => 'int',
+        'user_id'           => 'int',
+        'passed_levels'     => 'json',
+        'passed_levels_mid' => 'json',
+        'created_at'        => 'datetime',
+        'updated_at'        => 'datetime',
     ];
 
     public function user()

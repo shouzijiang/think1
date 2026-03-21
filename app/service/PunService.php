@@ -14,28 +14,48 @@ use think\facade\Db;
 class PunService
 {
     /**
+     * 玩法模式归一化
+     * @return string beginner|intermediate
+     */
+    private function normalizeMode($mode): string
+    {
+        if (!is_string($mode)) {
+            return 'beginner';
+        }
+        $m = strtolower(trim($mode));
+        if (in_array($m, ['issue2', 'intermediate', 'mid', 'middle', '2', '中级', '中級'], true)) {
+            return 'intermediate';
+        }
+        return 'beginner';
+    }
+
+    /**
      * 排行榜列表（按 max_level 降序、updated_at 降序）
      * nickname/avatar 来自 users 表，单一数据源
      * @param int $page
      * @param int $pageSize
      * @return array ['list' => [...], 'total' => int]
      */
-    public function getRankList(int $page = 1, int $pageSize = 20): array
+    public function getRankList(int $page = 1, int $pageSize = 20, string $mode = 'beginner'): array
     {
+        $mode = $this->normalizeMode($mode);
         $pageSize = min(max(1, $pageSize), 100);
+        $orderField = $mode === 'intermediate' ? 'max_level_mid' : 'max_level';
+
         $query = PunGameRank::with('user')
-            ->order('max_level', 'desc')
+            ->where($orderField, '>=', 0)
+            ->order($orderField, 'desc')
             ->order('updated_at', 'desc');
         $total = $query->count();
         $list = (clone $query)->page($page, $pageSize)
             ->select()
-            ->map(function ($row) {
+            ->map(function ($row) use ($orderField) {
                 $user = $row->user;
                 return [
                     'user_id'   => (int) $row->user_id,
                     'nickname'  => $user ? ($user->nickname ?? '') : '',
                     'avatar'    => $user ? ($user->avatar ?? '') : '',
-                    'max_level' => (int) $row->max_level,
+                'max_level' => (int) $row->{$orderField},
                     'updated_at' => $row->updated_at ? date('m-d H:i', strtotime($row->updated_at)) : '',
                 ];
             })
@@ -48,12 +68,19 @@ class PunService
      * @param int $userId
      * @param int $level
      * @param array $userAnswer 用户答案数组，如 ['弟','分']
+     * @param string $mode beginner=初级 | intermediate=中级
      * @return array ['isCorrect' => bool, 'feedback' => [['position'=>int,'isCorrect'=>bool], ...]]
      */
-    public function submitAnswer(int $userId, int $level, array $userAnswer): array
+    public function submitAnswer(int $userId, int $level, array $userAnswer, string $mode = 'beginner'): array
     {
-        $answers = Config::get('pun_levels', []);
-        $correct = $answers[$level] ?? [];
+        $mode = $this->normalizeMode($mode);
+        if ($mode === 'intermediate') {
+            $answersRaw = Config::get('pun_levels_issue2', []);
+            $correct = $answersRaw[$level] ?? [];
+        } else {
+            $answers = Config::get('pun_levels', []);
+            $correct = $answers[$level] ?? [];
+        }
         $feedback = [];
         $allCorrect = true;
         foreach ($userAnswer as $position => $char) {
@@ -69,7 +96,7 @@ class PunService
             $allCorrect = false;
         }
         if ($allCorrect) {
-            $this->updateRankAndProgress($userId, $level);
+            $this->updateRankAndProgress($userId, $level, $mode);
         }
         return ['isCorrect' => $allCorrect, 'feedback' => $feedback];
     }
@@ -77,38 +104,53 @@ class PunService
     /**
      * 更新排行榜并写入/更新关卡进度（排行榜仅存 user_id + max_level，昵称/头像读时从 users 表取）
      */
-    protected function updateRankAndProgress(int $userId, int $level): void
+    protected function updateRankAndProgress(int $userId, int $level, string $mode): void
     {
+        $mode = $this->normalizeMode($mode);
         Db::startTrans();
         try {
             $rank = PunGameRank::where('user_id', $userId)->find();
             if ($rank) {
-                $rank->max_level = max($rank->max_level, $level);
+                if ($mode === 'intermediate') {
+                    $rank->max_level_mid = max($rank->max_level_mid ?? -1, $level);
+                } else {
+                    $rank->max_level = max($rank->max_level, $level);
+                }
                 $rank->save();
             } else {
                 PunGameRank::create([
-                    'user_id'   => $userId,
-                    'max_level' => $level,
+                    'user_id'       => $userId,
+                    'max_level'     => $mode === 'beginner' ? $level : 0,
+                    'max_level_mid' => $mode === 'intermediate' ? $level : -1,
                 ]);
             }
             $progress = PunGameLevelProgress::where('user_id', $userId)->find();
-            $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels : null);
+
+            if ($mode === 'intermediate') {
+                $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels_mid : null);
+            } else {
+                $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels : null);
+            }
+
             if (!in_array($level, $passedLevels, true)) {
                 $passedLevels[] = $level;
                 sort($passedLevels);
             }
             $passedLevels = array_values($passedLevels);
             $jsonValue = json_encode($passedLevels, JSON_UNESCAPED_UNICODE);
+
             if ($progress) {
+                $updateField = $mode === 'intermediate' ? 'passed_levels_mid' : 'passed_levels';
                 Db::name('pun_game_level_progress')
                     ->where('id', $progress->id)
-                    ->update(['passed_levels' => $jsonValue, 'updated_at' => date('Y-m-d H:i:s')]);
+                    ->update([$updateField => $jsonValue, 'updated_at' => date('Y-m-d H:i:s')]);
             } else {
                 Db::name('pun_game_level_progress')->insert([
-                    'user_id'       => $userId,
-                    'passed_levels' => $jsonValue,
-                    'created_at'    => date('Y-m-d H:i:s'),
-                    'updated_at'    => date('Y-m-d H:i:s'),
+                    'user_id'           => $userId,
+                    'passed_levels'     => $mode === 'beginner' ? $jsonValue : json_encode([], JSON_UNESCAPED_UNICODE),
+                    'passed_levels_mid' => $mode === 'intermediate' ? $jsonValue : json_encode([], JSON_UNESCAPED_UNICODE),
+                    'created_at'        => date('Y-m-d H:i:s'),
+                    'updated_at'        => date('Y-m-d H:i:s'),
                 ]);
             }
             Db::commit();
@@ -139,15 +181,40 @@ class PunService
     /**
      * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数
      * @param int $userId
+     * @param string $mode beginner=初级 | intermediate=中级
      * @return array ['currentLevel' => int, 'passedLevels' => int[], 'totalLevels' => int]
      */
-    public function getLevelProgress(int $userId): array
+    public function getLevelProgress(int $userId, string $mode = 'beginner'): array
     {
-        $totalLevels = count(Config::get('pun_levels', []));
         $progress = PunGameLevelProgress::where('user_id', $userId)->find();
-        $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels : null);
-        $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 1));
-        $currentLevel = empty($passedLevels) ? 1 : (min($totalLevels, max($passedLevels) + 1));
+        $mode = $this->normalizeMode($mode);
+
+        if ($mode === 'intermediate') {
+            $answersRaw = Config::get('pun_levels_issue2', []);
+            $allKeys = array_keys($answersRaw);
+            sort($allKeys);
+            $totalLevels = count($answersRaw);
+            $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels_mid : null);
+            $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 0));
+            
+            $maxPassed = empty($passedLevels) ? -1 : max($passedLevels);
+            $currentLevel = $allKeys[0] ?? 0;
+            foreach ($allKeys as $k) {
+                if ($k > $maxPassed) {
+                    $currentLevel = $k;
+                    break;
+                }
+            }
+            if ($currentLevel === ($allKeys[0] ?? 0) && $maxPassed >= end($allKeys)) {
+                $currentLevel = $maxPassed + 1; // 兜底：如果全部通关，返回最大关卡+1
+            }
+        } else {
+            $totalLevels = count(Config::get('pun_levels', []));
+            $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels : null);
+            $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 1));
+            $currentLevel = empty($passedLevels) ? 1 : (min($totalLevels, max($passedLevels) + 1));
+        }
+
         return [
             'currentLevel'  => $currentLevel,
             'passedLevels'  => $passedLevels,

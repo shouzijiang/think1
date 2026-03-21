@@ -16,10 +16,11 @@ class PunGameRank extends Model
     protected $updateTime = 'updated_at';
 
     protected $schema = [
-        'id'         => 'int',
-        'user_id'    => 'int',
-        'max_level'  => 'int',
-        'updated_at' => 'datetime',
+        'id'            => 'int',
+        'user_id'       => 'int',
+        'max_level'     => 'int',
+        'max_level_mid' => 'int',
+        'updated_at'    => 'datetime',
     ];
 
     public function user()
