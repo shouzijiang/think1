@@ -76,13 +76,17 @@ class PunService
         $mode = $this->normalizeMode($mode);
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
-            $correct = $answersRaw[$level] ?? [];
+            $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
             $answers = Config::get('pun_levels', []);
-            $correct = $answers[$level] ?? [];
+            $correct = isset($answers[$level]) && is_array($answers[$level]) ? $answers[$level] : [];
         }
         $feedback = [];
         $allCorrect = true;
+
+        if (!is_array($userAnswer)) {
+            $userAnswer = [];
+        }
         foreach ($userAnswer as $position => $char) {
             $isCorrect = isset($correct[$position]) && (string) $correct[$position] === (string) $char;
             $feedback[] = ['position' => (int) $position, 'isCorrect' => $isCorrect];
@@ -91,6 +95,9 @@ class PunService
             }
         }
         // 若正确答案长度大于用户答案长度，多出的位置算错
+        if (!is_array($correct)) {
+            $correct = [];
+        }
         for ($i = count($userAnswer); $i < count($correct); $i++) {
             $feedback[] = ['position' => $i, 'isCorrect' => false];
             $allCorrect = false;
@@ -124,12 +131,12 @@ class PunService
                     'max_level_mid' => $mode === 'intermediate' ? $level : -1,
                 ]);
             }
-            $progress = PunGameLevelProgress::where('user_id', $userId)->find();
+            $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
 
             if ($mode === 'intermediate') {
-                $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels_mid : null);
+                $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels_mid'] : null);
             } else {
-                $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels : null);
+                $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels'] : null);
             }
 
             if (!in_array($level, $passedLevels, true)) {
@@ -142,7 +149,7 @@ class PunService
             if ($progress) {
                 $updateField = $mode === 'intermediate' ? 'passed_levels_mid' : 'passed_levels';
                 Db::name('pun_game_level_progress')
-                    ->where('id', $progress->id)
+                    ->where('id', $progress['id'])
                     ->update([$updateField => $jsonValue, 'updated_at' => date('Y-m-d H:i:s')]);
             } else {
                 Db::name('pun_game_level_progress')->insert([
@@ -186,33 +193,53 @@ class PunService
      */
     public function getLevelProgress(int $userId, string $mode = 'beginner'): array
     {
-        $progress = PunGameLevelProgress::where('user_id', $userId)->find();
+        $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
         $mode = $this->normalizeMode($mode);
 
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $allKeys = array_keys($answersRaw);
             sort($allKeys);
-            $totalLevels = count($answersRaw);
-            $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels_mid : null);
-            $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 0));
+            $totalLevels = count($allKeys); // 使用总数量而不是最大的 key
+            $lastLevel = empty($allKeys) ? -1 : end($allKeys);
+            reset($allKeys);
+            $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels_mid'] : null);
+            // 确保进度里只保留配置中确实存在的题目ID，避免历史废弃题目影响后续判断
+            $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 0 && isset($answersRaw[$n])));
             
             $maxPassed = empty($passedLevels) ? -1 : max($passedLevels);
             $currentLevel = $allKeys[0] ?? 0;
             foreach ($allKeys as $k) {
-                if ($k > $maxPassed) {
+                if (!in_array($k, $passedLevels, true)) {
                     $currentLevel = $k;
                     break;
                 }
             }
-            if ($currentLevel === ($allKeys[0] ?? 0) && $maxPassed >= end($allKeys)) {
+            if ($currentLevel === ($allKeys[0] ?? 0) && $maxPassed >= $lastLevel && in_array($lastLevel, $passedLevels, true)) {
                 $currentLevel = $maxPassed + 1; // 兜底：如果全部通关，返回最大关卡+1
             }
         } else {
-            $totalLevels = count(Config::get('pun_levels', []));
-            $passedLevels = $this->normalizePassedLevels($progress ? $progress->passed_levels : null);
-            $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 1));
-            $currentLevel = empty($passedLevels) ? 1 : (min($totalLevels, max($passedLevels) + 1));
+            $answersRaw = Config::get('pun_levels', []);
+            $allKeys = array_keys($answersRaw);
+            sort($allKeys);
+            $totalLevels = count($allKeys); // 使用总数量而不是最大的 key
+            $lastLevel = empty($allKeys) ? -1 : end($allKeys);
+            reset($allKeys);
+            $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels'] : null);
+            // 确保进度里只保留配置中确实存在的题目ID
+            $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 1 && isset($answersRaw[$n])));
+
+            $maxPassed = empty($passedLevels) ? 0 : max($passedLevels);
+            $currentLevel = $allKeys[0] ?? 1;
+            foreach ($allKeys as $k) {
+                if (!in_array($k, $passedLevels, true)) {
+                    $currentLevel = $k;
+                    break;
+                }
+            }
+            if ($currentLevel === ($allKeys[0] ?? 1) && $maxPassed >= $lastLevel && in_array($lastLevel, $passedLevels, true)) {
+                $currentLevel = $maxPassed; // 初级原逻辑：全部通关后停留在最后一关
+            }
         }
 
         return [

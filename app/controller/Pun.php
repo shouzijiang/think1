@@ -52,14 +52,14 @@ class Pun extends BaseController
         $isIntermediate = in_array($modeNorm, ['issue2', 'intermediate', 'mid', 'middle', '2', '中级', '中級'], true);
         
         if ($isIntermediate) {
-            $totalLevels = count(\think\facade\Config::get('pun_levels_issue2', []));
-            if ($level < 0 || $level >= $totalLevels) {
-                return ResponseHelper::badRequest('关卡号需在 0~' . ($totalLevels - 1) . ' 之间');
+            $levels = \think\facade\Config::get('pun_levels_issue2', []);
+            if (!isset($levels[$level])) {
+                return ResponseHelper::badRequest('关卡不存在');
             }
         } else {
-            $totalLevels = count(\think\facade\Config::get('pun_levels', []));
-            if ($level < 1 || $level > $totalLevels) {
-                return ResponseHelper::badRequest('关卡号需在 1~' . $totalLevels . ' 之间');
+            $levels = \think\facade\Config::get('pun_levels', []);
+            if (!isset($levels[$level])) {
+                return ResponseHelper::badRequest('关卡不存在');
             }
         }
         try {
