@@ -6,6 +6,7 @@ use app\BaseController;
 use app\common\ResponseHelper;
 use app\service\AuthService;
 use think\Request;
+use think\facade\Log;
 
 /**
  * 认证控制器
@@ -35,7 +36,7 @@ class Auth extends BaseController
             if (!$result) {
                 return ResponseHelper::error('微信登录失败', 402);
             }
-            
+            Log::info('微信登录成功 ip=' . request()->ip() . ' result=' . json_encode($result));
             return ResponseHelper::success($result, '登录成功');
         } catch (\Exception $e) {
             \think\facade\Log::error('微信登录异常 error=' . $e->getMessage() . ' trace=' . str_replace(["\r\n", "\n"], ' ', $e->getTraceAsString()));
