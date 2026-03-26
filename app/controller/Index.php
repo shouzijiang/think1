@@ -9,7 +9,7 @@ class Index extends BaseController
 {
     public function index()
     {
-        Log::info('首页进入成功 ip=' . request()->ip());
+        // Log::info('首页进入成功 ip=' . request()->ip());
         return <<<HTML
 <!DOCTYPE html>
 <html lang="zh-CN">
