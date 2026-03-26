@@ -103,9 +103,75 @@ class PunService
             $allCorrect = false;
         }
         if ($allCorrect) {
-            $this->updateRankAndProgress($userId, $level, $mode);
+            if ($mode === 'intermediate') {
+                $this->updateMidProgress($userId, $level, $answersRaw);
+            } else {
+                $this->updateRankAndProgress($userId, $level, $mode);
+            }
         }
         return ['isCorrect' => $allCorrect, 'feedback' => $feedback];
+    }
+
+    /**
+     * 中级更新排行榜并写入/更新关卡进度，按有序前缀递增
+     */
+    protected function updateMidProgress(int $userId, int $level, array $answersRaw): void
+    {
+        $midLevelIds = array_keys($answersRaw);
+        
+        Db::startTrans();
+        try {
+            $rank = PunGameRank::where('user_id', $userId)->find();
+            $storedMaxLevelId = $rank ? (int) $rank->max_level_mid : -1;
+            
+            $storedIdx = array_search($storedMaxLevelId, $midLevelIds, true);
+            if ($storedIdx === false) {
+                $storedIdx = -1;
+            }
+            
+            $submitIdx = array_search($level, $midLevelIds, true);
+            
+            // 仅当满足“前缀下一关”时才推进：
+            if ($submitIdx !== false && $submitIdx === $storedIdx + 1) {
+                if ($rank) {
+                    $rank->max_level_mid = $level;
+                    $rank->save();
+                } else {
+                    PunGameRank::create([
+                        'user_id'       => $userId,
+                        'max_level'     => 0,
+                        'max_level_mid' => $level,
+                    ]);
+                }
+                
+                // 同步记录到进度表中（虽前端以 max_level_mid 的索引为准，此处记录供备用）
+                $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
+                $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels_mid'] : null);
+                if (!in_array($level, $passedLevels, true)) {
+                    $passedLevels[] = $level;
+                    // 对于中级不要按数值sort了，按出现顺序也没必要sort，因为只用于兜底。这里简单放最后。
+                }
+                $jsonValue = json_encode(array_values($passedLevels), JSON_UNESCAPED_UNICODE);
+                
+                if ($progress) {
+                    Db::name('pun_game_level_progress')
+                        ->where('id', $progress['id'])
+                        ->update(['passed_levels_mid' => $jsonValue, 'updated_at' => date('Y-m-d H:i:s')]);
+                } else {
+                    Db::name('pun_game_level_progress')->insert([
+                        'user_id'           => $userId,
+                        'passed_levels'     => json_encode([], JSON_UNESCAPED_UNICODE),
+                        'passed_levels_mid' => $jsonValue,
+                        'created_at'        => date('Y-m-d H:i:s'),
+                        'updated_at'        => date('Y-m-d H:i:s'),
+                    ]);
+                }
+            }
+            Db::commit();
+        } catch (\Throwable $e) {
+            Db::rollback();
+            throw $e;
+        }
     }
 
     /**
@@ -198,26 +264,35 @@ class PunService
 
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
-            $allKeys = array_keys($answersRaw);
-            sort($allKeys);
-            $totalLevels = count($allKeys); // 使用总数量而不是最大的 key
-            $lastLevel = empty($allKeys) ? -1 : end($allKeys);
-            reset($allKeys);
-            $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels_mid'] : null);
-            // 确保进度里只保留配置中确实存在的题目ID，避免历史废弃题目影响后续判断
-            $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 0 && isset($answersRaw[$n])));
+            $midLevelIds = array_keys($answersRaw);
+            $midTotalLevels = count($midLevelIds);
             
-            $maxPassed = empty($passedLevels) ? -1 : max($passedLevels);
-            $currentLevel = $allKeys[0] ?? 0;
-            foreach ($allKeys as $k) {
-                if (!in_array($k, $passedLevels, true)) {
-                    $currentLevel = $k;
-                    break;
-                }
+            $rank = PunGameRank::where('user_id', $userId)->find();
+            $storedMaxLevelId = $rank ? (int) $rank->max_level_mid : -1;
+            
+            $storedIdx = array_search($storedMaxLevelId, $midLevelIds, true);
+            if ($storedIdx === false) {
+                $storedIdx = -1;
             }
-            if ($currentLevel === ($allKeys[0] ?? 0) && $maxPassed >= $lastLevel && in_array($lastLevel, $passedLevels, true)) {
-                $currentLevel = $maxPassed + 1; // 兜底：如果全部通关，返回最大关卡+1
+            
+            $midPassedCount = $storedIdx + 1;
+            $midCurrentIndex = $midPassedCount;
+            
+            if ($midCurrentIndex >= $midTotalLevels) {
+                $midCurrentIndex = null;
+                $midCurrentLevel = null;
+            } else {
+                $midCurrentLevel = $midLevelIds[$midCurrentIndex];
             }
+            
+            return [
+                'gameTier'        => 'mid',
+                'midTotalLevels'  => $midTotalLevels,
+                'midPassedCount'  => $midPassedCount,
+                'midCurrentIndex' => $midCurrentIndex,
+                'midCurrentLevel' => $midCurrentLevel,
+                'midMaxLevel'     => $storedMaxLevelId,
+            ];
         } else {
             $answersRaw = Config::get('pun_levels', []);
             $allKeys = array_keys($answersRaw);
@@ -240,13 +315,13 @@ class PunService
             if ($currentLevel === ($allKeys[0] ?? 1) && $maxPassed >= $lastLevel && in_array($lastLevel, $passedLevels, true)) {
                 $currentLevel = $maxPassed; // 初级原逻辑：全部通关后停留在最后一关
             }
-        }
 
-        return [
-            'currentLevel'  => $currentLevel,
-            'passedLevels'  => $passedLevels,
-            'totalLevels'   => $totalLevels,
-        ];
+            return [
+                'currentLevel'  => $currentLevel,
+                'passedLevels'  => $passedLevels,
+                'totalLevels'   => $totalLevels,
+            ];
+        }
     }
 
     /**
