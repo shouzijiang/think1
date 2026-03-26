@@ -36,7 +36,8 @@ class Auth extends BaseController
             if (!$result) {
                 return ResponseHelper::error('微信登录失败', 402);
             }
-            Log::info('微信登录成功 result=' . json_encode($result));
+            // 只打印 user_id和token 和openid
+            Log::info('微信登录成功 result=' . json_encode(['user_id' => $result['user_id'], 'token' => $result['token'], 'openid' => $result['openid']]));
             return ResponseHelper::success($result, '登录成功');
         } catch (\Exception $e) {
             \think\facade\Log::error('微信登录异常 error=' . $e->getMessage() . ' trace=' . str_replace(["\r\n", "\n"], ' ', $e->getTraceAsString()));
