@@ -264,34 +264,49 @@ class PunService
 
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
-            $midLevelIds = array_keys($answersRaw);
-            $midTotalLevels = count($midLevelIds);
-            
-            $rank = PunGameRank::where('user_id', $userId)->find();
-            $storedMaxLevelId = $rank ? (int) $rank->max_level_mid : -1;
-            
-            $storedIdx = array_search($storedMaxLevelId, $midLevelIds, true);
-            if ($storedIdx === false) {
-                $storedIdx = -1;
+            $allKeys = array_keys($answersRaw); // 真实关卡ID（保持配置顺序）
+            $totalLevels = count($allKeys);
+
+            // 统一读取中级已通过关卡。兼容历史数据：
+            // - 已存真实关卡ID（优先直接使用）
+            // - 误存为下标（映射到 allKeys 对应的真实关卡ID）
+            $rawPassed = $this->normalizePassedLevels($progress ? $progress['passed_levels_mid'] : null);
+            $mapped = [];
+            foreach ($rawPassed as $n) {
+                $id = (int) $n;
+                if (isset($answersRaw[$id])) {
+                    $mapped[] = $id;
+                    continue;
+                }
+                if ($id >= 0 && $id < $totalLevels && isset($allKeys[$id])) {
+                    $mapped[] = (int) $allKeys[$id];
+                }
             }
-            
-            $midPassedCount = $storedIdx + 1;
-            $midCurrentIndex = $midPassedCount;
-            
-            if ($midCurrentIndex >= $midTotalLevels) {
-                $midCurrentIndex = null;
-                $midCurrentLevel = null;
-            } else {
-                $midCurrentLevel = $midLevelIds[$midCurrentIndex];
+            $passedLevels = array_values(array_unique($mapped));
+
+            // 若旧数据为空，回退到排行榜 max_level_mid 推导“有序前缀”
+            if (empty($passedLevels)) {
+                $rank = PunGameRank::where('user_id', $userId)->find();
+                $storedMaxLevelId = $rank ? (int) $rank->max_level_mid : -1;
+                $storedIdx = array_search($storedMaxLevelId, $allKeys, true);
+                if ($storedIdx !== false) {
+                    $passedLevels = array_slice($allKeys, 0, $storedIdx + 1);
+                }
             }
-            
+
+            $passedSet = array_fill_keys($passedLevels, true);
+            $currentLevel = null;
+            foreach ($allKeys as $k) {
+                if (!isset($passedSet[$k])) {
+                    $currentLevel = (int) $k;
+                    break;
+                }
+            }
+
             return [
-                'gameTier'        => 'mid',
-                'midTotalLevels'  => $midTotalLevels,
-                'midPassedCount'  => $midPassedCount,
-                'midCurrentIndex' => $midCurrentIndex,
-                'midCurrentLevel' => $midCurrentLevel,
-                'midMaxLevel'     => $storedMaxLevelId,
+                'currentLevel' => $currentLevel,
+                'passedLevels' => array_map('intval', $passedLevels),
+                'totalLevels'  => $totalLevels,
             ];
         } else {
             $answersRaw = Config::get('pun_levels', []);
