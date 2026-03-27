@@ -115,6 +115,36 @@ CREATE TABLE `pun_game_feedback` (
   KEY `idx_created_at` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏意见反馈';
 
+-- 9. 论坛帖子表
+CREATE TABLE `pun_forum_topic` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) unsigned NOT NULL COMMENT '发布人用户id',
+  `title` varchar(255) NOT NULL DEFAULT '' COMMENT '帖子标题（可选）',
+  `content` text NOT NULL COMMENT '帖子内容',
+  `view_count` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '浏览量',
+  `reply_count` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '回复数',
+  `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态：1正常，0隐藏/删除',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新/回复时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_user_id` (`user_id`),
+  KEY `idx_status_updated` (`status`, `updated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图论坛帖子表';
+
+-- 10. 论坛回复表
+CREATE TABLE `pun_forum_reply` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `topic_id` int(11) unsigned NOT NULL COMMENT '所属帖子id',
+  `user_id` int(11) unsigned NOT NULL COMMENT '回复人用户id',
+  `reply_to_id` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '回复的目标回复id(0表示直接回复帖子)',
+  `content` text NOT NULL COMMENT '回复内容',
+  `status` tinyint(1) NOT NULL DEFAULT '1' COMMENT '状态：1正常，0隐藏/删除',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '回复时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_topic_id` (`topic_id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图论坛回复表';
+
 -- 若线上 pun_game_rank 仍含 nickname/avatar 冗余字段，可删除以与 users 表单一数据源一致：
 -- ALTER TABLE `pun_game_rank` DROP COLUMN `nickname`, DROP COLUMN `avatar`;
 

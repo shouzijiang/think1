@@ -113,4 +113,96 @@ class Pun extends BaseController
         }
         return ResponseHelper::success(null, '感谢反馈，我们会尽快处理');
     }
+
+    /**
+     * 论坛 - 获取帖子列表
+     * GET /pun/forum/list?page=1&page_size=20
+     */
+    public function forumList(Request $request)
+    {
+        $page = (int) $request->get('page', 1);
+        $pageSize = (int) $request->get('page_size', 20);
+        $result = $this->punService->getForumList($page, $pageSize);
+        return ResponseHelper::success($result);
+    }
+
+    /**
+     * 论坛 - 获取帖子详情及回复
+     * GET /pun/forum/detail?id=1&page=1&page_size=20
+     */
+    public function forumDetail(Request $request)
+    {
+        $id = (int) $request->get('id', 0);
+        if ($id <= 0) {
+            return ResponseHelper::badRequest('参数错误');
+        }
+        $page = (int) $request->get('page', 1);
+        $pageSize = (int) $request->get('page_size', 20);
+
+        $result = $this->punService->getForumTopicDetail($id, $page, $pageSize);
+        if (!$result) {
+            return ResponseHelper::error('帖子不存在或已被删除', 404);
+        }
+        return ResponseHelper::success($result);
+    }
+
+    /**
+     * 论坛 - 发布帖子
+     * POST /pun/forum/topic/create
+     * Body: { "title": "标题可选", "content": "帖子内容必填" }
+     */
+    public function forumTopicCreate(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+
+        $title = $request->post('title', '');
+        $content = $request->post('content', '');
+
+        if (!is_string($title)) $title = '';
+        if (!is_string($content)) $content = '';
+
+        $result = $this->punService->createForumTopic($userId, $content, $title);
+        if (!empty($result['error'])) {
+            return ResponseHelper::badRequest($result['error']);
+        }
+        return ResponseHelper::success(['id' => $result['id']], '发布成功');
+    }
+
+    /**
+     * 论坛 - 回复帖子/回复评论
+     * POST /pun/forum/reply/create
+     * Body: { "topic_id": 1, "content": "回复内容", "reply_to_id": 0 }
+     */
+    public function forumReplyCreate(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+
+        $topicId = (int) $request->post('topic_id', 0);
+        $replyToId = (int) $request->post('reply_to_id', 0);
+        $content = $request->post('content', '');
+
+        if ($topicId <= 0) {
+            return ResponseHelper::badRequest('帖子ID错误');
+        }
+        if (!is_string($content)) {
+            $content = '';
+        }
+
+        try {
+            $result = $this->punService->createForumReply($userId, $topicId, $content, $replyToId);
+            if (!empty($result['error'])) {
+                return ResponseHelper::badRequest($result['error']);
+            }
+            return ResponseHelper::success(null, '回复成功');
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('pun/forum/reply/create 异常: ' . $e->getMessage());
+            return ResponseHelper::error('回复失败，请稍后重试', 500);
+        }
+    }
 }

@@ -252,7 +252,7 @@ class PunService
     }
 
     /**
-     * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数
+     * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数 
      * @param int $userId
      * @param string $mode beginner=初级 | intermediate=中级
      * @return array ['currentLevel' => int, 'passedLevels' => int[], 'totalLevels' => int]
@@ -360,6 +360,195 @@ class PunService
             'contact' => $contact,
         ]);
         return [];
+    }
+
+    /**
+     * 获取论坛帖子列表
+     * @param int $page
+     * @param int $pageSize
+     * @return array
+     */
+    public function getForumList(int $page = 1, int $pageSize = 20): array
+    {
+        $pageSize = min(max(1, $pageSize), 50);
+        $query = \app\model\PunForumTopic::with('user')
+            ->where('status', 1)
+            ->order('updated_at', 'desc')
+            ->order('id', 'desc');
+
+        $total = $query->count();
+        $list = (clone $query)->page($page, $pageSize)
+            ->select()
+            ->map(function ($row) {
+                $user = $row->user;
+                return [
+                    'id'          => $row->id,
+                    'user_id'     => $row->user_id,
+                    'nickname'    => $user ? ($user->nickname ?? '') : '',
+                    'avatar'      => $user ? ($user->avatar ?? '') : '',
+                    'title'       => $row->title,
+                    'content'     => mb_substr($row->content, 0, 100, 'UTF-8') . (mb_strlen($row->content, 'UTF-8') > 100 ? '...' : ''), // 列表只返回摘要
+                    'view_count'  => $row->view_count,
+                    'reply_count' => $row->reply_count,
+                    'created_at'  => $row->created_at ? date('Y-m-d H:i', strtotime($row->created_at)) : '',
+                    'updated_at'  => $row->updated_at ? date('Y-m-d H:i', strtotime($row->updated_at)) : '',
+                ];
+            })
+            ->toArray();
+
+        return ['list' => $list, 'total' => $total];
+    }
+
+    /**
+     * 发布新帖子
+     * @param int $userId
+     * @param string $content
+     * @param string $title
+     * @return array ['error' => string|null, 'id' => int|null]
+     */
+    public function createForumTopic(int $userId, string $content, string $title = ''): array
+    {
+        $content = trim($content);
+        $title = trim($title);
+
+        if ($content === '') {
+            return ['error' => '帖子内容不能为空'];
+        }
+        if (mb_strlen($content, 'UTF-8') > 2000) {
+            return ['error' => '帖子内容过长(最多2000字)'];
+        }
+        if (mb_strlen($title, 'UTF-8') > 100) {
+            return ['error' => '帖子标题过长(最多100字)'];
+        }
+
+        $topic = \app\model\PunForumTopic::create([
+            'user_id' => $userId,
+            'title'   => $title,
+            'content' => $content,
+            'status'  => 1,
+        ]);
+
+        return ['error' => null, 'id' => $topic->id];
+    }
+
+    /**
+     * 获取帖子详情及回复列表
+     * @param int $topicId
+     * @param int $page
+     * @param int $pageSize
+     * @return array|null 返回null表示帖子不存在
+     */
+    public function getForumTopicDetail(int $topicId, int $page = 1, int $pageSize = 20): ?array
+    {
+        $topic = \app\model\PunForumTopic::with('user')->where('id', $topicId)->where('status', 1)->find();
+        if (!$topic) {
+            return null;
+        }
+
+        // 浏览量+1
+        $topic->view_count = $topic->view_count + 1;
+        $topic->save();
+
+        $user = $topic->user;
+        $topicData = [
+            'id'          => $topic->id,
+            'user_id'     => $topic->user_id,
+            'nickname'    => $user ? ($user->nickname ?? '') : '',
+            'avatar'      => $user ? ($user->avatar ?? '') : '',
+            'title'       => $topic->title,
+            'content'     => $topic->content,
+            'view_count'  => $topic->view_count,
+            'reply_count' => $topic->reply_count,
+            'created_at'  => $topic->created_at ? date('Y-m-d H:i', strtotime($topic->created_at)) : '',
+        ];
+
+        // 获取回复列表
+        $pageSize = min(max(1, $pageSize), 100);
+        $query = \app\model\PunForumReply::with(['user', 'targetReply.user'])
+            ->where('topic_id', $topicId)
+            ->where('status', 1)
+            ->order('created_at', 'asc'); // 评论按时间正序
+
+        $totalReplies = $query->count();
+        $replies = (clone $query)->page($page, $pageSize)
+            ->select()
+            ->map(function ($row) {
+                $rUser = $row->user;
+                $tReply = $row->targetReply;
+                $tUser = $tReply ? $tReply->user : null;
+                
+                return [
+                    'id'              => $row->id,
+                    'user_id'         => $row->user_id,
+                    'nickname'        => $rUser ? ($rUser->nickname ?? '') : '',
+                    'avatar'          => $rUser ? ($rUser->avatar ?? '') : '',
+                    'content'         => $row->content,
+                    'reply_to_id'     => $row->reply_to_id,
+                    'reply_to_user'   => $tUser ? ($tUser->nickname ?? '') : '',
+                    'created_at'      => $row->created_at ? date('Y-m-d H:i', strtotime($row->created_at)) : '',
+                ];
+            })
+            ->toArray();
+
+        return [
+            'topic'   => $topicData,
+            'replies' => ['list' => $replies, 'total' => $totalReplies]
+        ];
+    }
+
+    /**
+     * 回复帖子或回复别人的评论
+     * @param int $userId
+     * @param int $topicId
+     * @param string $content
+     * @param int $replyToId
+     * @return array ['error' => string|null]
+     */
+    public function createForumReply(int $userId, int $topicId, string $content, int $replyToId = 0): array
+    {
+        $content = trim($content);
+        if ($content === '') {
+            return ['error' => '回复内容不能为空'];
+        }
+        if (mb_strlen($content, 'UTF-8') > 1000) {
+            return ['error' => '回复内容过长(最多1000字)'];
+        }
+
+        Db::startTrans();
+        try {
+            $topic = \app\model\PunForumTopic::where('id', $topicId)->where('status', 1)->lock(true)->find();
+            if (!$topic) {
+                Db::rollback();
+                return ['error' => '帖子不存在或已被删除'];
+            }
+
+            if ($replyToId > 0) {
+                $target = \app\model\PunForumReply::where('id', $replyToId)->where('topic_id', $topicId)->where('status', 1)->find();
+                if (!$target) {
+                    Db::rollback();
+                    return ['error' => '目标回复不存在'];
+                }
+            }
+
+            \app\model\PunForumReply::create([
+                'topic_id'    => $topicId,
+                'user_id'     => $userId,
+                'reply_to_id' => $replyToId,
+                'content'     => $content,
+                'status'      => 1,
+            ]);
+
+            // 更新帖子的回复数和最新动态时间
+            $topic->reply_count = $topic->reply_count + 1;
+            $topic->updated_at = date('Y-m-d H:i:s');
+            $topic->save();
+
+            Db::commit();
+            return ['error' => null];
+        } catch (\Throwable $e) {
+            Db::rollback();
+            throw $e;
+        }
     }
 
 }
