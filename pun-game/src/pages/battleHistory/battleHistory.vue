@@ -5,10 +5,12 @@
     </view>
     <view :style="{ height: statusBarHeight + 'px', width: '100%' }"></view>
     <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="btn-back" @click="goBack">
-        <text class="back-icon">←</text>
+      <view class="nav-btn" @click="goBack" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
+        <text class="nav-icon">🏠</text>
       </view>
-      <text class="nav-title">对战记录</text>
+      <view class="nav-center">
+        <text class="nav-title">对战记录</text>
+      </view>
     </view>
 
     <scroll-view scroll-y class="history-list" @scrolltolower="loadMore">
@@ -109,9 +111,13 @@ async function loadData() {
 function loadMore() {
   loadData()
 }
-
 function goBack() {
-  uni.navigateBack()
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.reLaunch({ url: '/pages/index/index' })
+  }
 }
 
 function formatTime(ms) {
@@ -139,6 +145,7 @@ function getResultText(result) {
   display: flex;
   flex-direction: column;
   position: relative;
+  padding: 0 40rpx;
 }
 
 .bg-wrap {
@@ -153,37 +160,49 @@ function getResultText(result) {
 }
 
 .nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   position: relative;
   z-index: 2;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* 居中整个导航栏的内容 */
+  margin-bottom: 32rpx;
 }
-.btn-back {
-  position: absolute;
-  left: 30rpx;
-  width: 60rpx;
-  height: 60rpx;
+.nav-btn {
+  position: absolute; /* 绝对定位到左侧，不影响标题居中 */
+  left: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #5c534d;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
+  border: 2rpx solid rgba(200, 160, 140, 0.25);
 }
-.back-icon {
-  font-size: 40rpx;
-  color: #1e293b;
-  font-weight: bold;
+.page--mid .nav-btn {
+  border-color: rgba(140, 170, 210, 0.35);
+  box-shadow: 0 4rpx 16rpx rgba(100, 140, 180, 0.12);
+}
+.nav-icon {
+  font-size: 36rpx;
+  line-height: 1;
+}
+.nav-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
 }
 .nav-title {
-  font-size: 34rpx;
+  font-size: 36rpx;
   font-weight: 700;
-  color: #1e293b;
+  color: #3d3530;
+  letter-spacing: 0.04em;
 }
 
 .history-list {
   flex: 1;
   height: 0;
-  padding: 30rpx;
   box-sizing: border-box;
   z-index: 1;
 }

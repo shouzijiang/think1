@@ -73,9 +73,9 @@
         <text class="btn-start-icon">🌱</text>
         <text class="btn-start-text">开始(梗图填词)</text>
       </view>
-      <view class="btn-cocreate">
-        <text class="btn-cocreate-text" @click="goCocreate">进入共创</text>
-        <text class="btn-cocreate-text" @click="goBattle">好友1V1</text>
+      <view class="btn-start btn-start-battle" @click="goBattle">
+        <text class="btn-start-icon">⚔️</text>
+        <text class="btn-start-text">好友1V1对战</text>
       </view>
     </view>
 
@@ -108,6 +108,11 @@
       <view class="toolbar-item" @click.stop="toggleBgm">
         <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
         <text class="toolbar-text">{{ bgmOn ? '音乐' : '静音' }}</text>
+      </view>
+      <view class="toolbar-divider"></view>
+      <view class="toolbar-item" @click="goCocreate">
+        <text class="toolbar-icon">💡</text>
+        <text class="toolbar-text">共创</text>
       </view>
     </view>
   </view>
@@ -540,12 +545,23 @@ function startGame() {
       animation-delay: 1.5s;
     }
   }
+
+  &.btn-start-battle {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 16rpx 32rpx rgba(245, 158, 11, 0.4), 0 10rpx 0 #b45309, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
+    &::after {
+      animation-delay: 0.75s;
+    }
+  }
 }
 .btn-start:active {
   transform: translateY(8rpx);
   box-shadow: 0 4rpx 10rpx rgba(224, 74, 53, 0.4), 0 2rpx 0 #b33624, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
   &.btn-start-2 {
     box-shadow: 0 4rpx 10rpx rgba(59, 130, 246, 0.4), 0 2rpx 0 #2563eb, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
+  }
+  &.btn-start-battle {
+    box-shadow: 0 4rpx 10rpx rgba(245, 158, 11, 0.4), 0 2rpx 0 #b45309, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
   }
 }
 .btn-start-icon {
@@ -560,29 +576,18 @@ function startGame() {
   100% { left: 200%; }
 }
 
-.btn-cocreate {
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: space-between;
+.btn-cocreate-text-sub {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #64748b;
+  padding: 12rpx 32rpx;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 100rpx;
   transition: all 0.1s;
 }
-.btn-cocreate-text {
-  font-size: 32rpx;
-  font-weight: 800;
-  color: #475569;
-  letter-spacing: 0.08em;
-  // width: 45%;
-  background: linear-gradient(to bottom, #ffffff, #f1f5f9);
-  border-radius: 32rpx;
-  border: 4rpx solid #fff;
-  padding: 28rpx 40rpx;
-  box-shadow: 0 12rpx 24rpx rgba(100, 140, 200, 0.15), 0 8rpx 0 #cbd5e1;
-}
-.btn-cocreate-text:active {
-  transform: translateY(6rpx);
-  box-shadow: 0 4rpx 12rpx rgba(100, 140, 200, 0.15), 0 2rpx 0 #cbd5e1;
+.btn-cocreate-text-sub:active {
+  background: rgba(255, 255, 255, 0.9);
+  transform: scale(0.95);
 }
 
 .top-actions {

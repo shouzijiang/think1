@@ -178,9 +178,11 @@ export function getMidNextLevel(levelNum) {
 export function getMidLevelPuzzle(levelNum) {
   const lv = parseInt(levelNum, 10)
   return fetchMidIssues().then((list) => {
+    // issue2.json 里的 level 有时是字符串，有时是数字，所以强制 parseInt 对比
     const item = list.find((x) => x && parseInt(x.level, 10) === lv)
     if (!item) {
-      return { ...FALLBACK_PUZZLE, answerLength: 3, keywordHint: '', imageUrlTop: '', imageUrlBottom: '' }
+      // 找不到题目直接抛出异常，让前端捕获
+      throw new Error(`题目(level=${lv})未找到`)
     }
 
     const answerLength = Math.max(1, parseInt(item.answerLength, 10) || 3)

@@ -9,7 +9,7 @@
     <view :style="{ height: statusBarHeight + 'px' }"></view>
 
     <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="back" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
+      <view class="nav-btn" @click="goBack" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
         <text class="nav-icon">🏠</text>
       </view>
       <view class="nav-center">
@@ -20,17 +20,22 @@
     <!-- 对战进度条 -->
     <view class="battle-status">
       <view class="player-progress left">
-        <text class="name">我 ({{ formatTime(myTimeMs) }})</text>
+        <text class="name">{{ myName }}</text>
         <view class="dots">
           <view v-for="i in 5" :key="i" class="dot" :class="{ 'active': myProgress >= i }"></view>
         </view>
       </view>
-      <view class="vs">VS</view>
+      
+      <view class="center-time">
+        <text class="time-label">已用时</text>
+        <text class="time-value">{{ formatTime(globalTimeMs) }}</text>
+      </view>
+
       <view class="player-progress right">
+        <text class="name">{{ opponentName }}</text>
         <view class="dots">
           <view v-for="i in 5" :key="i" class="dot oppo" :class="{ 'active': opponentProgress >= i }"></view>
         </view>
-        <text class="name">对手 ({{ formatTime(opponentTimeMs) }})</text>
       </view>
     </view>
 
@@ -127,12 +132,15 @@ const roomId = ref('')
 const levels = ref([])
 const currentQuestionIndex = ref(0)
 const myUserId = ref(getUserInfo()?.id)
+const myName = ref('我')
+const opponentName = ref('对手')
 
 // 游戏状态
 const myProgress = ref(0)
 const opponentProgress = ref(0)
 const myTimeMs = ref(0)
 const opponentTimeMs = ref(0)
+const globalTimeMs = ref(0)
 const finished = ref(false)
 const gameOver = ref(false)
 const resultData = ref({})
@@ -215,10 +223,11 @@ async function checkAnswer() {
   feedback.value = []
 
   try {
-    const currentLevelId = levels.value[currentQuestionIndex.value]
-    // 假设 api.submitAnswer 的验证逻辑也兼容这里的 level id
-    const data = await api.submitAnswer(currentLevelId, userAnswer, { gameTier: 'mid' })
-    if (data.isCorrect) {
+    const currentLevelId = parseInt(levels.value[currentQuestionIndex.value], 10)
+    // 使用 battle mode，不更新个人关卡进度
+    const data = await api.submitAnswer(currentLevelId, userAnswer, { gameTier: 'battle' })
+    // 修改这行：因为 submitAnswer 返回的结果结构有可能是 { isCorrect: true } 或者是原格式，根据实际情况适配
+    if (data && data.isCorrect) {
       showSuccess.value = true
       playCongratsOnce()
       
@@ -287,13 +296,21 @@ function loadCurrentQuestion() {
     feedback.value = []
     answerInputValue.value = ''
     loading.value = false
-  }).catch(() => {
+  }).catch((err) => {
+    console.error('加载题目失败', err)
     loading.value = false
+    uni.showToast({ title: '加载题目失败', icon: 'none' })
   })
 }
 
-function back() {
-  uni.reLaunch({ url: '/pages/index/index' })
+
+function goBack() {
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.reLaunch({ url: '/pages/index/index' })
+  }
 }
 
 onShow(() => {
@@ -318,6 +335,8 @@ onLoad((opts) => {
       levels.value = JSON.parse(opts.levels)
     } catch (e) {}
   }
+  if (opts.myName) myName.value = decodeURIComponent(opts.myName)
+  if (opts.opponentName) opponentName.value = decodeURIComponent(opts.opponentName)
 
   // 监听 WS
   wsApi.on('sync_progress', (data) => {
@@ -346,13 +365,27 @@ onLoad((opts) => {
 
   // 开始计时和加载第一题
   startTime = Date.now()
+  if (opts.resume === '1') {
+    myProgress.value = parseInt(opts.myProgress || '0', 10)
+    opponentProgress.value = parseInt(opts.opponentProgress || '0', 10)
+    currentQuestionIndex.value = myProgress.value
+    
+    let serverPassedTime = parseInt(opts.timePassed || '0', 10)
+    startTime = Date.now() - serverPassedTime
+  }
+
   timer = setInterval(() => {
     if (!finished.value) {
-      myTimeMs.value = Date.now() - startTime
+      globalTimeMs.value = Date.now() - startTime
+      myTimeMs.value = globalTimeMs.value
     }
   }, 100)
 
-  loadCurrentQuestion()
+  if (myProgress.value >= 5) {
+    finished.value = true
+  } else {
+    loadCurrentQuestion()
+  }
 })
 </script>
 
@@ -465,11 +498,22 @@ onLoad((opts) => {
 .dot.oppo.active {
   background: #ef4444;
 }
-.vs {
+.center-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.time-label {
+  font-size: 20rpx;
+  color: #94a3b8;
+  margin-bottom: 4rpx;
+}
+.time-value {
   font-size: 36rpx;
   font-weight: 900;
-  color: #94a3b8;
-  font-style: italic;
+  color: #3d3530;
+  font-variant-numeric: tabular-nums;
 }
 
 .card {

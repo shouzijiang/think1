@@ -121,32 +121,43 @@ class WebSocket extends Command
                 'challenger' => null,
                 'creator_ready' => false,
                 'challenger_ready' => false,
-                'status' => 'waiting' // waiting, playing, finished
+                'creator_progress' => 0,
+                'challenger_progress' => 0,
+                'start_time' => 0,
+                'status' => $record->status == 1 ? 'playing' : 'waiting'
             ];
         }
 
-        $connection->roomId = $roomId;
         $room = &$this->rooms[$roomId];
 
         if ($record->creator_id === $connection->userId) {
             $room['creator'] = $connection;
-            $connection->role = 'creator';
         } else {
-            // 如果挑战者位空，且不是房主，则成为挑战者
             if (empty($record->challenger_id) || $record->challenger_id === $connection->userId) {
                 if (empty($record->challenger_id)) {
                     $record->challenger_id = $connection->userId;
                     $record->save();
                 }
                 $room['challenger'] = $connection;
-                $connection->role = 'challenger';
             } else {
-                $connection->send(json_encode(['action' => 'error', 'msg' => 'Room is full']));
+                $connection->send(json_encode(['action' => 'error', 'msg' => '房间已满']));
                 return;
             }
         }
 
-        $this->broadcastRoomInfo($roomId);
+        // 检查是否断线重连（游戏正在进行中）
+        if ($room['status'] === 'playing') {
+            $timePassed = (microtime(true) * 1000) - ($room['start_time'] ?: (microtime(true) * 1000));
+            $connection->send(json_encode([
+                'action' => 'resume_game',
+                'levels' => $record->levels_json,
+                'myProgress' => $room[$connection->role . '_progress'] ?? 0,
+                'opponentProgress' => $room[($connection->role === 'creator' ? 'challenger' : 'creator') . '_progress'] ?? 0,
+                'timePassed' => max(0, (int)$timePassed)
+            ]));
+        } else {
+            $this->broadcastRoomInfo($roomId);
+        }
     }
 
     private function handleReady(TcpConnection $connection)
@@ -165,6 +176,7 @@ class WebSocket extends Command
 
         if ($room['creator_ready'] && $room['challenger_ready'] && $room['status'] === 'waiting') {
             $room['status'] = 'playing';
+            $room['start_time'] = microtime(true) * 1000;
             
             // 更新数据库状态
             $record = PunGameBattleRecord::where('room_id', $roomId)->find();
@@ -189,6 +201,9 @@ class WebSocket extends Command
         $room = &$this->rooms[$roomId];
         
         if ($room['status'] !== 'playing') return;
+
+        // 记录进度，用于断线重连恢复
+        $room[$connection->role . '_progress'] = $questionIndex;
 
         // 广播给对方
         $syncData = json_encode([
@@ -223,48 +238,40 @@ class WebSocket extends Command
         }
         $record->save();
 
-        // 检查是否双方都完成了
-        if (isset($room['creator_finished']) && isset($room['challenger_finished'])) {
-            $this->settleGame($roomId);
-        } else {
-            // 告诉对方自己已经完成
-            $syncData = json_encode([
-                'action' => 'opponent_finish',
-                'timeMs' => $totalTimeMs
-            ]);
-            if ($role === 'creator' && $room['challenger']) {
-                $room['challenger']->send($syncData);
-            } else if ($role === 'challenger' && $room['creator']) {
-                $room['creator']->send($syncData);
-            }
-        }
+        // 只要有一方完成，立刻判赢并结束游戏
+        $this->settleGameImmediately($roomId, $connection->userId, $totalTimeMs);
     }
 
-    private function settleGame(string $roomId)
+    private function settleGameImmediately(string $roomId, int $winnerId, int $winnerTimeMs)
     {
         $room = &$this->rooms[$roomId];
         $room['status'] = 'finished';
 
         $record = PunGameBattleRecord::where('room_id', $roomId)->find();
         $record->status = 2; // 已结束
+        $record->winner_id = $winnerId;
         
-        $cTime = $record->creator_time_ms;
-        $chTime = $record->challenger_time_ms;
-
-        if ($cTime < $chTime) {
-            $record->winner_id = $record->creator_id;
-        } else if ($chTime < $cTime) {
-            $record->winner_id = $record->challenger_id;
+        // 未完成的一方，时间设为一个较大的值，或者是当前已进行的时间
+        $currentTimeMs = (int) ((microtime(true) * 1000) - $room['start_time']);
+        
+        if ($record->creator_id === $winnerId) {
+            $record->creator_time_ms = $winnerTimeMs;
+            if (!$room['challenger_finished']) {
+                $record->challenger_time_ms = $currentTimeMs + 99999; // 没答完，给个惩罚时间
+            }
         } else {
-            $record->winner_id = null; // 平局
+            $record->challenger_time_ms = $winnerTimeMs;
+            if (!$room['creator_finished']) {
+                $record->creator_time_ms = $currentTimeMs + 99999; // 没答完，给个惩罚时间
+            }
         }
         $record->save();
 
         $resultData = json_encode([
             'action' => 'game_over',
             'winnerId' => $record->winner_id,
-            'creatorTime' => $cTime,
-            'challengerTime' => $chTime
+            'creatorTime' => $record->creator_time_ms,
+            'challengerTime' => $record->challenger_time_ms
         ]);
 
         if ($room['creator']) $room['creator']->send($resultData);
@@ -290,28 +297,8 @@ class WebSocket extends Command
         }
 
         if ($room['status'] === 'playing') {
-            // 有人中途掉线，直接判对方赢
-            $record = PunGameBattleRecord::where('room_id', $roomId)->find();
-            if ($record && $record->status === 1) {
-                if ($role === 'creator' && $room['challenger']) {
-                    $record->winner_id = $record->challenger_id;
-                    $room['challenger']->send(json_encode([
-                        'action' => 'game_over',
-                        'msg' => 'Opponent disconnected, you win!',
-                        'winnerId' => $record->challenger_id
-                    ]));
-                } else if ($role === 'challenger' && $room['creator']) {
-                    $record->winner_id = $record->creator_id;
-                    $room['creator']->send(json_encode([
-                        'action' => 'game_over',
-                        'msg' => 'Opponent disconnected, you win!',
-                        'winnerId' => $record->creator_id
-                    ]));
-                }
-                $record->status = 2;
-                $record->save();
-            }
-            unset($this->rooms[$roomId]);
+            // 不再自动判负，保留房间状态，等待玩家重连
+            // 对方可以通过对方发来的消息获知你掉线了，不过这里为了简单，不通知了
         } else {
             $this->broadcastRoomInfo($roomId);
         }

@@ -11,9 +11,6 @@
       <view class="nav-center">
         <text class="nav-title">对战大厅</text>
       </view>
-      <view class="btn-history" @click="goHistory" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="history-icon">📜</text>
-      </view>
     </view>
 
     <view class="content">
@@ -61,6 +58,9 @@
         <view class="hero-icon">⚔️</view>
         <text class="desc">创建房间，邀请好友进行 1V1 谐音梗对战，5道题决胜负！</text>
         <button class="btn-create" @click="createRoom" :loading="creating">创建对战房间</button>
+        <button class="btn-history-big" @click="goHistory">
+          历史对战记录
+        </button>
       </view>
     </view>
   </view>
@@ -119,13 +119,15 @@ onLoad((options) => {
 onUnload(() => {
   wsApi.off('room_info')
   wsApi.off('start_game')
+  wsApi.off('resume_game')
+  wsApi.off('game_over')
   wsApi.off('error')
   wsApi.close()
 })
 
 onShareAppMessage(() => {
   return {
-    title: '来和我1V1对决谐音梗图吧！',
+    title: '来和我1V1对战谐音梗图吧！',
     path: `/pages/battleRoom/battleRoom?roomId=${roomId.value}`
   }
 })
@@ -144,13 +146,39 @@ function setupWsListeners() {
     setTimeout(() => {
       // 保留房间连接，跳转到游戏页
       uni.redirectTo({
-        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}`
+        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}`
       })
+    }, 1000)
+  })
+
+  wsApi.on('resume_game', (data) => {
+    uni.showToast({ title: '正在恢复对战...', icon: 'none' })
+    const levelsStr = JSON.stringify(data.levels)
+    setTimeout(() => {
+      uni.redirectTo({
+        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&resume=1&myProgress=${data.myProgress}&opponentProgress=${data.opponentProgress}&timePassed=${data.timePassed}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}`
+      })
+    }, 500)
+  })
+
+  // 如果断线期间游戏已经结束，服务端会在 join 后直接发送 game_over
+  wsApi.on('game_over', (data) => {
+    // 游戏已结束，直接跳去历史记录
+    uni.showToast({ title: '对战已结束', icon: 'none' })
+    setTimeout(() => {
+      uni.redirectTo({ url: '/pages/battleHistory/battleHistory' })
     }, 1000)
   })
 
   wsApi.on('error', (data) => {
     uni.showToast({ title: data.msg, icon: 'none' })
+    if (data.msg === 'Room not found or already ended' || data.msg === '房间不存在或已解散') {
+      setTimeout(() => {
+        roomId.value = ''
+        // 如果是通过链接进来的，清除链接上的参数防止刷新又进去
+        uni.redirectTo({ url: '/pages/battleRoom/battleRoom' })
+      }, 1500)
+    }
   })
 }
 
@@ -183,9 +211,13 @@ function joinRoom(id) {
 function ready() {
   wsApi.send({ action: 'ready' })
 }
-
 function goBack() {
-  uni.navigateBack()
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.reLaunch({ url: '/pages/index/index' })
+  }
 }
 
 function goHistory() {
@@ -199,6 +231,7 @@ function goHistory() {
   display: flex;
   flex-direction: column;
   position: relative;
+  padding: 0 40rpx
 }
 
 .bg-wrap {
@@ -304,6 +337,24 @@ function goHistory() {
   font-size: 32rpx;
   font-weight: bold;
   box-shadow: 0 16rpx 32rpx rgba(224, 74, 53, 0.3);
+  margin-bottom: 30rpx;
+  &::after { border: none; }
+}
+.btn-history-big {
+  background: #fff;
+  color: #475569;
+  border-radius: 100rpx;
+  padding: 0 80rpx;
+  height: 96rpx;
+  line-height: 92rpx;
+  font-size: 32rpx;
+  font-weight: bold;
+  border: 4rpx solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.05);
   &::after { border: none; }
 }
 
