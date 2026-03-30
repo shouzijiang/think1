@@ -18,5 +18,9 @@ Route::group('pun', function () {
         // 论坛发布和回复
         Route::post('forum/topic/create', 'Pun/forumTopicCreate');
         Route::post('forum/reply/create', 'Pun/forumReplyCreate');
+
+        // 1V1 对战房间
+        Route::post('battle/create', 'PunBattle/createRoom');
+        Route::get('battle/history', 'PunBattle/history');
     })->middleware(\app\middleware\Auth::class);
 });

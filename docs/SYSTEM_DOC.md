@@ -20,6 +20,7 @@
 - **pun_game_level_progress**: 初级关卡进度表（user_id, level, passed）
 - **pun_game_cocreate**: 共创关卡表（user_id, answer, hint_image_prompt, word_array, status 等）
 - **pun_game_feedback**: 意见反馈表（user_id, type, content, contact）
+- **pun_game_battle_record**: 1V1对战房间与记录表（room_id, creator_id, challenger_id, levels_json, winner_id, status）
 - *(论坛相关表)*: 帖子表 (topic)、回复表 (reply)
 
 ### 3. 久坐提醒相关表
@@ -57,6 +58,21 @@
 | `/pun/forum/detail` | GET | 获取帖子详情及评论列表 |
 | `/pun/forum/topic/create` | POST | 发布新帖子 |
 | `/pun/forum/reply/create` | POST | 回复帖子或二级评论 |
+| `/pun/battle/create` | POST | 1V1：创建对战房间 |
+| `/pun/battle/history` | GET | 1V1：获取个人历史对战记录 |
+
+### 2.1 谐音梗图 WebSocket 接口 (1V1 对战)
+| 事件/指令 (`action`) | 发送方 | 说明 |
+| --- | --- | --- |
+| `auth` | Client -> Server | 连接建立后，客户端发送 Token 进行鉴权 |
+| `join` | Client -> Server | 客户端请求加入指定房间 |
+| `room_info` | Server -> Client | 广播房间最新状态（人员、状态） |
+| `ready` | Client -> Server | 玩家点击“准备” |
+| `start_game` | Server -> Client | 双方均准备后，广播游戏开始并下发5道题目 |
+| `progress` | Client -> Server | 玩家答对一题后上报进度（第几题，当前耗时） |
+| `sync_progress` | Server -> Client | 广播双方的答题进度 |
+| `finish` | Client -> Server | 玩家完成所有5题后上报总耗时 |
+| `game_over` | Server -> Client | 双方都完成或有人掉线，广播结算结果（胜负、耗时） |
 
 ### 3. 久坐提醒模块 (Standup App)
 | 接口路径 | 方法 | 说明 |

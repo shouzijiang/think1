@@ -31,11 +31,18 @@ alwaysApply: false
 - `code: 200` 表示成功，非 200 表示业务异常或错误。
 - `message` 为提示信息。
 - `data` 存放实际返回的数据体。
+- **注意**: 当使用 `ResponseHelper::success()` 返回成功响应时，它的参数顺序是 `($data, string $message)`，即**第一个参数是 data，第二个参数是 message**，切勿传反导致 500 强类型错误。
 
 ## 3. 鉴权与安全
 - **JWT 鉴权**: 依赖微信 `code` 登录换取 JWT Token。
 - **请求携带**: 客户端在 Header 中携带 `Authorization: Bearer <token>`。
-- 中间件拦截: 使用框架中间件拦截需要鉴权的路由，提取和验证 Token。
+- **中间件拦截**: 使用 `\app\middleware\Auth` 中间件拦截需要鉴权的路由。
+- **用户信息获取**: Auth 中间件会将 `user_id` 和 `openid` 注入到 Request 对象中，控制器中必须使用 `$request->user_id` (下划线命名) 获取，**切勿使用** `$request->userId`。获取后应强制转换为整型 `(int) $request->user_id`，以避免强类型声明时的 500 错误。
+
+## 4. 异常处理与强类型
+- PHP 8.2 开启了强类型检查 (`declare(strict_types = 1);`)。
+- 当接收外部参数传入 Service 层时，必须进行显式的类型转换（如 `(int) $request->param('page')`）。
+- 所有可能抛出异常的 Service 调用，Controller 层必须使用 `try...catch` 包裹，并统一通过 `ResponseHelper::error()` 返回前端。
 
 ## 4. 谐音梗图游戏 - 中级模式特殊逻辑
 - **防跳关机制**: 中级关卡的 `level` 往往是不连续的。在提交答案 `/pun/answer/submit` 且 `gameTier=mid` 时，**必须通过 `issue2.json` 的索引顺序校验**。仅在“提交的是下一关”时才推进 `max_mid_level`，防止恶意跳关。
