@@ -1,0 +1,45 @@
+---
+description: 适用于基于 ThinkPHP 8 框架的后端 API 服务开发规范
+globs: 
+  - "app/**/*.php"
+  - "route/**/*.php"
+  - "config/**/*.php"
+alwaysApply: false
+---
+# ThinkPHP 8 后端开发规范
+
+本项目后端采用 ThinkPHP 8 框架提供 API 服务。
+
+## 0. 环境与版本限制
+- **PHP 版本限制**: 必须使用 **PHP 8.2** 的语法特性（如只读类、类型提示、null/false 联合类型等），但**绝对不能**使用 PHP 8.3 或更高版本的专属语法。
+- **MySQL 版本限制**: 生产环境使用 **MySQL 5.7.44**。所有生成的 SQL 查询和表结构定义必须兼容 MySQL 5.7。**严禁**使用 MySQL 8.0+ 的专属特性（如 `window functions` 窗口函数、`CTE`、部分新的 JSON 函数等）。
+
+## 1. 架构分层规范
+- **Controller (控制器)**: 位于 `app/controller/`。仅负责接收请求参数、参数验证、调用 Service 层处理业务逻辑，以及返回统一格式的 JSON 响应。**禁止在 Controller 中写复杂的业务逻辑或直接操作数据库。**
+- **Service (服务层)**: 位于 `app/service/`。负责所有的核心业务逻辑（如 AI 绘图请求、闯关跳级判定等）。
+- **Model (模型层)**: 位于 `app/model/`。负责定义数据表关联和数据层面的通用操作。
+
+## 2. 接口响应规范
+所有接口均需返回统一格式的 JSON 数据，格式如下：
+```json
+{
+  "code": 200, 
+  "message": "success",
+  "data": {} 
+}
+```
+- `code: 200` 表示成功，非 200 表示业务异常或错误。
+- `message` 为提示信息。
+- `data` 存放实际返回的数据体。
+
+## 3. 鉴权与安全
+- **JWT 鉴权**: 依赖微信 `code` 登录换取 JWT Token。
+- **请求携带**: 客户端在 Header 中携带 `Authorization: Bearer <token>`。
+- 中间件拦截: 使用框架中间件拦截需要鉴权的路由，提取和验证 Token。
+
+## 4. 谐音梗图游戏 - 中级模式特殊逻辑
+- **防跳关机制**: 中级关卡的 `level` 往往是不连续的。在提交答案 `/pun/answer/submit` 且 `gameTier=mid` 时，**必须通过 `issue2.json` 的索引顺序校验**。仅在“提交的是下一关”时才推进 `max_mid_level`，防止恶意跳关。
+
+## 5. 定时任务
+- 项目依赖宿主机或 Docker 的 crontab 执行内部接口（如 `curl http://localhost/cron/send-remind`）以派发久坐提醒。
+- 定时任务相关逻辑封装在 `app/controller/Cron.php` 和对应的 Service 中。

@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "mysql-local": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@neverinfamous/mysql-mcp",
+        "--transport",
+        "stdio",
+        "--mysql",
+        "mysql://root:root@127.0.0.1:3306/standup_app"
+      ]
+    },
+    "mysql": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@neverinfamous/mysql-mcp",
+        "--transport",
+        "stdio",
+        "--mysql",
+        "mysql://sofun_online:s7AkMGW8G6sEsnbd@193.112.251.5:3306/sofun_online"
+      ]
+    }
+  }
+}
