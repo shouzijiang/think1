@@ -123,6 +123,10 @@ class WebSocket extends Command
                 'challenger_ready' => false,
                 'creator_progress' => 0,
                 'challenger_progress' => 0,
+                'creator_finished' => false,
+                'challenger_finished' => false,
+                'creator_time' => 0,
+                'challenger_time' => 0,
                 'start_time' => 0,
                 'status' => $record->status == 1 ? 'playing' : 'waiting'
             ];
@@ -132,6 +136,7 @@ class WebSocket extends Command
 
         if ($record->creator_id === $connection->userId) {
             $room['creator'] = $connection;
+            $connection->role = 'creator';
         } else {
             if (empty($record->challenger_id) || $record->challenger_id === $connection->userId) {
                 if (empty($record->challenger_id)) {
@@ -139,21 +144,29 @@ class WebSocket extends Command
                     $record->save();
                 }
                 $room['challenger'] = $connection;
+                $connection->role = 'challenger';
             } else {
                 $connection->send(json_encode(['action' => 'error', 'msg' => '房间已满']));
                 return;
             }
         }
+        $connection->roomId = $roomId;
 
         // 检查是否断线重连（游戏正在进行中）
         if ($room['status'] === 'playing') {
+            $myRole = $connection->role;
+            $opponentRole = $myRole === 'creator' ? 'challenger' : 'creator';
             $timePassed = (microtime(true) * 1000) - ($room['start_time'] ?: (microtime(true) * 1000));
             $connection->send(json_encode([
                 'action' => 'resume_game',
                 'levels' => $record->levels_json,
-                'myProgress' => $room[$connection->role . '_progress'] ?? 0,
-                'opponentProgress' => $room[($connection->role === 'creator' ? 'challenger' : 'creator') . '_progress'] ?? 0,
-                'timePassed' => max(0, (int)$timePassed)
+                'myProgress' => $room[$myRole . '_progress'] ?? 0,
+                'opponentProgress' => $room[$opponentRole . '_progress'] ?? 0,
+                'timePassed' => max(0, (int)$timePassed),
+                'myName' => $connection->userInfo['nickname'] ?? '我',
+                'opponentName' => ($room[$opponentRole] && isset($room[$opponentRole]->userInfo['nickname']))
+                    ? $room[$opponentRole]->userInfo['nickname']
+                    : '对手'
             ]));
         } else {
             $this->broadcastRoomInfo($roomId);
@@ -183,14 +196,27 @@ class WebSocket extends Command
             $record->status = 1;
             $record->save();
 
-            // 发送开始游戏和题目数据
-            $startData = json_encode([
-                'action' => 'start_game',
-                'levels' => $record->levels_json
-            ]);
-            
-            if ($room['creator']) $room['creator']->send($startData);
-            if ($room['challenger']) $room['challenger']->send($startData);
+            // 发送开始游戏和题目数据（按接收方区分 myName/opponentName）
+            if ($room['creator']) {
+                $room['creator']->send(json_encode([
+                    'action' => 'start_game',
+                    'levels' => $record->levels_json,
+                    'myName' => $room['creator']->userInfo['nickname'] ?? '我',
+                    'opponentName' => ($room['challenger'] && isset($room['challenger']->userInfo['nickname']))
+                        ? $room['challenger']->userInfo['nickname']
+                        : '对手'
+                ]));
+            }
+            if ($room['challenger']) {
+                $room['challenger']->send(json_encode([
+                    'action' => 'start_game',
+                    'levels' => $record->levels_json,
+                    'myName' => $room['challenger']->userInfo['nickname'] ?? '我',
+                    'opponentName' => ($room['creator'] && isset($room['creator']->userInfo['nickname']))
+                        ? $room['creator']->userInfo['nickname']
+                        : '对手'
+                ]));
+            }
         }
     }
 
@@ -198,6 +224,7 @@ class WebSocket extends Command
     {
         if (!isset($connection->roomId)) return;
         $roomId = $connection->roomId;
+        if (!isset($this->rooms[$roomId])) return;
         $room = &$this->rooms[$roomId];
         
         if ($room['status'] !== 'playing') return;
@@ -224,7 +251,9 @@ class WebSocket extends Command
     {
         if (!isset($connection->roomId) || !isset($connection->role)) return;
         $roomId = $connection->roomId;
+        if (!isset($this->rooms[$roomId])) return;
         $room = &$this->rooms[$roomId];
+        if ($room['status'] !== 'playing') return;
         
         $role = $connection->role;
         $room[$role . '_finished'] = true;
@@ -244,6 +273,7 @@ class WebSocket extends Command
 
     private function settleGameImmediately(string $roomId, int $winnerId, int $winnerTimeMs)
     {
+        if (!isset($this->rooms[$roomId])) return;
         $room = &$this->rooms[$roomId];
         $room['status'] = 'finished';
 
