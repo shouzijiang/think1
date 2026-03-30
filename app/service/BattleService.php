@@ -13,10 +13,10 @@ class BattleService extends \think\Service
      */
     private function getRandomLevels(int $count = 5): array
     {
-        // 假设从 config/pun_levels.php 中获取（根据你现有的实现方式调整，这里假设从1~250随机抽5题）
-        $allLevels = range(1, 250); 
-        shuffle($allLevels);
-        return array_slice($allLevels, 0, $count);
+        $allLevels = \think\facade\Config::get('pun_levels_issue2', []);
+        $keys = array_keys($allLevels);
+        shuffle($keys);
+        return array_slice($keys, 0, $count);
     }
 
     /**

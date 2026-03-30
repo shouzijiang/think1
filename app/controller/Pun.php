@@ -50,8 +50,9 @@ class Pun extends BaseController
         $mode = $request->post('gameTier', 'beginner');
         $modeNorm = is_string($mode) ? strtolower(trim($mode)) : '';
         $isIntermediate = in_array($modeNorm, ['issue2', 'intermediate', 'mid', 'middle', '2', '中级', '中級'], true);
+        $isBattle = ($modeNorm === 'battle');
         
-        if ($isIntermediate) {
+        if ($isIntermediate || $isBattle) {
             $levels = \think\facade\Config::get('pun_levels_issue2', []);
             if (!isset($levels[$level])) {
                 return ResponseHelper::badRequest('关卡不存在');

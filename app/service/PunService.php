@@ -26,6 +26,9 @@ class PunService
         if (in_array($m, ['issue2', 'intermediate', 'mid', 'middle', '2', '中级', '中級'], true)) {
             return 'intermediate';
         }
+        if ($m === 'battle') {
+            return 'battle';
+        }
         return 'beginner';
     }
 
@@ -74,7 +77,7 @@ class PunService
     public function submitAnswer(int $userId, int $level, array $userAnswer, string $mode = 'beginner'): array
     {
         $mode = $this->normalizeMode($mode);
-        if ($mode === 'intermediate') {
+        if ($mode === 'intermediate' || $mode === 'battle') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
@@ -105,9 +108,10 @@ class PunService
         if ($allCorrect) {
             if ($mode === 'intermediate') {
                 $this->updateMidProgress($userId, $level, $answersRaw);
-            } else {
+            } else if ($mode === 'beginner') {
                 $this->updateRankAndProgress($userId, $level, $mode);
             }
+            // mode === 'battle' 时，不更新个人进度和排行榜，对战逻辑在 WebSocket 中处理
         }
         return ['isCorrect' => $allCorrect, 'feedback' => $feedback];
     }

@@ -21,11 +21,25 @@ class WebSocket extends Command
     protected function configure()
     {
         $this->setName('websocket:start')
-            ->setDescription('Start WebSocket Server for 1v1 Battle');
+            ->setDescription('Start WebSocket Server for 1v1 Battle')
+            ->addArgument('action', \think\console\input\Argument::OPTIONAL, "start|stop|restart|reload|status", 'start')
+            ->addOption('daemon', 'd', \think\console\input\Option::VALUE_NONE, 'Run in daemon mode');
     }
 
     protected function execute(Input $input, Output $output)
     {
+        // 将 action 和 mode 传递给 Workerman
+        global $argv;
+        $action = $input->getArgument('action');
+        $daemon = $input->getOption('daemon');
+
+        // 重写 $argv 数组让 Workerman 解析
+        $argv[0] = 'think';
+        $argv[1] = $action;
+        if ($daemon) {
+            $argv[2] = '-d';
+        }
+
         $worker = new Worker('websocket://0.0.0.0:2345');
         
         // 允许的连接数等配置
@@ -45,7 +59,7 @@ class WebSocket extends Command
             // 1. 鉴权
             if ($action === 'auth') {
                 $token = $data['token'] ?? '';
-                $payload = JwtHelper::verifyToken($token);
+                $payload = JwtHelper::verify($token);
                 if (!$payload) {
                     $connection->send(json_encode(['action' => 'error', 'msg' => 'Auth failed']));
                     $connection->close();
