@@ -10,3 +10,8 @@ Thumbs.db
 /.settings
 /.buildpath
 /.project
+
+/.cursor
+pun-game/node_modules
+pun-game/dist
+pun-game/uni_modules
