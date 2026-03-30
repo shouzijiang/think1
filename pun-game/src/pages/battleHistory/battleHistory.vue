@@ -13,7 +13,7 @@
       </view>
     </view>
 
-    <scroll-view scroll-y class="history-list" @scrolltolower="loadMore">
+    <scroll-view scroll-y class="history-list" :style="{ height: listHeight + 'px' }" @scrolltolower="loadMore">
       <view v-if="list.length === 0" class="empty-state">
         <text class="empty-text">暂无对战记录</text>
       </view>
@@ -72,8 +72,9 @@ import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import { getUserInfo } from '../../utils/auth'
 
-const { statusBarHeight, navBarHeight } = useNavBar()
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 const userInfo = ref(getUserInfo())
+const listHeight = ref(0)
 
 const list = ref([])
 const page = ref(1)
@@ -81,6 +82,7 @@ const hasMore = ref(true)
 const loading = ref(false)
 
 onLoad(() => {
+  calcListHeight()
   loadData()
 })
 
@@ -136,6 +138,13 @@ function getResultText(result) {
   if (result === 'win') return '胜利'
   if (result === 'lose') return '败北'
   return '平局'
+}
+
+function calcListHeight() {
+  const { windowHeight = 0 } = uni.getSystemInfoSync() || {}
+  const safeHeight = windowHeight - Number(statusBarHeight || 0) - Number(navBarHeight || 0)
+  // 给底部留出一点空间，避免 iOS 滚动区域被裁切
+  listHeight.value = Math.max(200, safeHeight - 16)
 }
 </script>
 
@@ -202,14 +211,15 @@ function getResultText(result) {
 
 .history-list {
   flex: 1;
-  height: 0;
   box-sizing: border-box;
   z-index: 1;
+  min-height: 200px;
 }
 
 .history-item {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 24rpx;
   padding: 30rpx;
   margin-bottom: 30rpx;

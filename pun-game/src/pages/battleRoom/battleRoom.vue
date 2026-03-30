@@ -72,7 +72,7 @@ import { onLoad, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
-import { getUserInfo } from '../../utils/auth'
+import { getUserInfo, wechatLogin } from '../../utils/auth'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
@@ -85,6 +85,13 @@ const creator = ref(null)
 const challenger = ref(null)
 const creatorReady = ref(false)
 const challengerReady = ref(false)
+let keepWsAliveForBattle = false
+let joinedRoomId = ''
+let joinRetryTimer = null
+let joinRetryCount = 0
+let hasReceivedRoomInfo = false
+const JOIN_RETRY_DELAY = 1500
+const MAX_JOIN_RETRY = 1
 
 const isCreator = computed(() => creator.value && creator.value.id === myUserId.value)
 const isChallenger = computed(() => challenger.value && challenger.value.id === myUserId.value)
@@ -92,37 +99,22 @@ const isMyTurn = computed(() => isCreator.value || isChallenger.value)
 const amIReady = computed(() => (isCreator.value && creatorReady.value) || (isChallenger.value && challengerReady.value))
 
 onLoad((options) => {
-  const token = uni.getStorageSync('token')
-  if (!token) {
-    uni.showToast({ title: '请先登录', icon: 'none' })
-    setTimeout(() => uni.navigateBack(), 1500)
-    return
-  }
-
-  // 监听 WebSocket 事件
-  setupWsListeners()
-
-  // 连接 WS
-  wsApi.connect(token).then((res) => {
-    myUserId.value = res.userInfo.id
-    
-    // 如果是通过分享链接进来的，自动加入房间
-    if (options.roomId) {
-      roomId.value = options.roomId
-      joinRoom(options.roomId)
-    }
-  }).catch(err => {
-    uni.showToast({ title: '连接服务器失败', icon: 'none' })
-  })
+  initRoomPage(options)
 })
 
 onUnload(() => {
+  if (joinRetryTimer) {
+    clearTimeout(joinRetryTimer)
+    joinRetryTimer = null
+  }
   wsApi.off('room_info')
   wsApi.off('start_game')
   wsApi.off('resume_game')
   wsApi.off('game_over')
   wsApi.off('error')
-  wsApi.close()
+  if (!keepWsAliveForBattle) {
+    wsApi.close()
+  }
 })
 
 onShareAppMessage(() => {
@@ -134,6 +126,12 @@ onShareAppMessage(() => {
 
 function setupWsListeners() {
   wsApi.on('room_info', (data) => {
+    if (joinRetryTimer) {
+      clearTimeout(joinRetryTimer)
+      joinRetryTimer = null
+    }
+    joinRetryCount = 0
+    hasReceivedRoomInfo = true
     creator.value = data.creator
     challenger.value = data.challenger
     creatorReady.value = data.creatorReady
@@ -143,10 +141,11 @@ function setupWsListeners() {
   wsApi.on('start_game', (data) => {
     uni.showToast({ title: '游戏开始！', icon: 'none' })
     const levelsStr = JSON.stringify(data.levels)
+    keepWsAliveForBattle = true
     setTimeout(() => {
       // 保留房间连接，跳转到游戏页
       uni.redirectTo({
-        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}`
+        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&myUserId=${myUserId.value}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}`
       })
     }, 1000)
   })
@@ -154,9 +153,10 @@ function setupWsListeners() {
   wsApi.on('resume_game', (data) => {
     uni.showToast({ title: '正在恢复对战...', icon: 'none' })
     const levelsStr = JSON.stringify(data.levels)
+    keepWsAliveForBattle = true
     setTimeout(() => {
       uni.redirectTo({
-        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&resume=1&myProgress=${data.myProgress}&opponentProgress=${data.opponentProgress}&timePassed=${data.timePassed}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}`
+        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&resume=1&myUserId=${myUserId.value}&myProgress=${data.myProgress}&opponentProgress=${data.opponentProgress}&timePassed=${data.timePassed}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}`
       })
     }, 500)
   })
@@ -205,7 +205,56 @@ async function createRoom() {
 }
 
 function joinRoom(id) {
+  if (!id) return
+  // 避免重复 join 同一房间（例如分享回流、重复进入同路由）
+  if (joinedRoomId === id) return
+  joinedRoomId = id
+  if (joinRetryTimer) {
+    clearTimeout(joinRetryTimer)
+    joinRetryTimer = null
+  }
+  joinRetryCount = 0
+  hasReceivedRoomInfo = false
   wsApi.send({ action: 'join', roomId: id })
+  scheduleJoinRetry(id)
+}
+
+function scheduleJoinRetry(id) {
+  if (joinRetryCount >= MAX_JOIN_RETRY) return
+  joinRetryTimer = setTimeout(() => {
+    // 仍在等待同一房间信息时，重发一次 join 兜底
+    if (joinedRoomId === id && !hasReceivedRoomInfo) {
+      joinRetryCount++
+      wsApi.send({ action: 'join', roomId: id })
+    }
+  }, JOIN_RETRY_DELAY)
+}
+
+async function initRoomPage(options) {
+  // 监听 WebSocket 事件
+  setupWsListeners()
+  try {
+    let token = uni.getStorageSync('token')
+    if (!token) {
+      await wechatLogin()
+      token = uni.getStorageSync('token')
+    }
+    if (!token) {
+      throw new Error('登录失败')
+    }
+
+    const res = await wsApi.connect(token)
+    myUserId.value = res.userInfo.id
+
+    // 如果是通过分享链接进来的，自动加入房间
+    if (options.roomId) {
+      roomId.value = options.roomId
+      joinRoom(options.roomId)
+    }
+  } catch (err) {
+    uni.showToast({ title: err.message || '连接服务器失败', icon: 'none' })
+    setTimeout(() => uni.navigateBack(), 1200)
+  }
 }
 
 function ready() {

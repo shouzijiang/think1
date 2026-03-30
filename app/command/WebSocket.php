@@ -134,11 +134,11 @@ class WebSocket extends Command
 
         $room = &$this->rooms[$roomId];
 
-        if ($record->creator_id === $connection->userId) {
+        if ((int)$record->creator_id === (int)$connection->userId) {
             $room['creator'] = $connection;
             $connection->role = 'creator';
         } else {
-            if (empty($record->challenger_id) || $record->challenger_id === $connection->userId) {
+            if (empty($record->challenger_id) || (int)$record->challenger_id === (int)$connection->userId) {
                 if (empty($record->challenger_id)) {
                     $record->challenger_id = $connection->userId;
                     $record->save();
@@ -284,7 +284,7 @@ class WebSocket extends Command
         // 未完成的一方，时间设为一个较大的值，或者是当前已进行的时间
         $currentTimeMs = (int) ((microtime(true) * 1000) - $room['start_time']);
         
-        if ($record->creator_id === $winnerId) {
+        if ((int)$record->creator_id === (int)$winnerId) {
             $record->creator_time_ms = $winnerTimeMs;
             if (!$room['challenger_finished']) {
                 $record->challenger_time_ms = $currentTimeMs + 99999; // 没答完，给个惩罚时间

@@ -137,5 +137,9 @@ export const wsApi = {
     }
     isConnected = false
     messageCallbacks = {}
+  },
+
+  isConnected() {
+    return isConnected && !!socketTask
   }
 }

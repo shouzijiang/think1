@@ -105,12 +105,12 @@
     <!-- 结算弹层 -->
     <view v-if="gameOver" class="result-overlay">
       <view class="result-card">
-        <text class="res-title">{{ resultData.winnerId === myUserId ? '太棒了，你赢了！' : (resultData.winnerId === null ? '势均力敌，平局！' : '很遗憾，你输了') }}</text>
+        <text class="res-title">{{ resultTitle }}</text>
         <view class="res-detail">
           <text>我的耗时: {{ formatTime(resultData.creatorTime === resultData.myTime ? resultData.creatorTime : resultData.challengerTime) }}</text>
           <text>对手耗时: {{ formatTime(resultData.creatorTime === resultData.myTime ? resultData.challengerTime : resultData.creatorTime) }}</text>
         </view>
-        <button class="btn-home" @click="back">返回首页</button>
+        <button class="btn-home" @click="confirmBackToRoom">确认返回房间</button>
       </view>
     </view>
   </view>
@@ -131,7 +131,7 @@ const { statusBarHeight, navBarHeight } = useNavBar()
 const roomId = ref('')
 const levels = ref([])
 const currentQuestionIndex = ref(0)
-const myUserId = ref(getUserInfo()?.id)
+const myUserId = ref(Number(getUserInfo()?.id || getUserInfo()?.user_id || 0))
 const myName = ref('我')
 const opponentName = ref('对手')
 
@@ -144,10 +144,17 @@ const globalTimeMs = ref(0)
 const finished = ref(false)
 const gameOver = ref(false)
 const resultData = ref({})
+const resultTitle = computed(() => {
+  const winnerId = Number(resultData.value.winnerId || 0)
+  const myId = Number(myUserId.value || 0)
+  if (!winnerId) return '势均力敌，平局！'
+  return winnerId === myId ? '太棒了，你赢了！' : '很遗憾，你输了'
+})
 
 // 计时器
 let startTime = 0
 let timer = null
+let reconnecting = false
 
 // 题目数据
 const answerLen = ref(3)
@@ -216,7 +223,7 @@ function onMidAnswerInput(e) {
 }
 
 async function checkAnswer() {
-  if (submitting.value || finished.value) return
+  if (submitting.value || finished.value || gameOver.value) return
   const userAnswer = answerChars.value.slice()
   if (userAnswer.length !== answerLen.value) return
   submitting.value = true
@@ -234,24 +241,28 @@ async function checkAnswer() {
       // 更新进度
       myProgress.value++
       const currentPassedTime = Date.now() - startTime
+      await ensureBattleWsConnected()
       wsApi.send({
         action: 'progress',
         questionIndex: myProgress.value,
         timeMs: currentPassedTime
       })
 
+      // 最后一题答对后立刻结束，避免对手在动画期间继续作答
+      if (myProgress.value >= 5) {
+        finished.value = true
+        myTimeMs.value = currentPassedTime
+        if (timer) clearInterval(timer)
+        await ensureBattleWsConnected()
+        wsApi.send({
+          action: 'finish',
+          totalTimeMs: currentPassedTime
+        })
+      }
+
       setTimeout(() => {
         showSuccess.value = false
-        if (myProgress.value >= 5) {
-          // 全部完成
-          finished.value = true
-          myTimeMs.value = currentPassedTime
-          clearInterval(timer)
-          wsApi.send({
-            action: 'finish',
-            totalTimeMs: currentPassedTime
-          })
-        } else {
+        if (myProgress.value < 5) {
           // 下一题
           currentQuestionIndex.value++
           loadCurrentQuestion()
@@ -315,6 +326,9 @@ function goBack() {
 
 onShow(() => {
   playBgmPlay()
+  if (!gameOver.value) {
+    reconnectBattleState()
+  }
 })
 
 onHide(() => {
@@ -326,10 +340,14 @@ onUnmounted(() => {
   wsApi.off('sync_progress')
   wsApi.off('opponent_finish')
   wsApi.off('game_over')
+  wsApi.off('resume_game')
 })
 
 onLoad((opts) => {
   if (opts.roomId) roomId.value = opts.roomId
+  if (opts.myUserId) {
+    myUserId.value = Number(opts.myUserId || 0)
+  }
   if (opts.levels) {
     try {
       levels.value = JSON.parse(opts.levels)
@@ -337,6 +355,7 @@ onLoad((opts) => {
   }
   if (opts.myName) myName.value = decodeURIComponent(opts.myName)
   if (opts.opponentName) opponentName.value = decodeURIComponent(opts.opponentName)
+  ensureBattleWsConnected()
 
   // 监听 WS
   wsApi.on('sync_progress', (data) => {
@@ -351,15 +370,36 @@ onLoad((opts) => {
 
   wsApi.on('game_over', (data) => {
     gameOver.value = true
+    finished.value = true
+    submitting.value = false
     if (timer) clearInterval(timer)
+    opponentProgress.value = 5
     resultData.value = {
       winnerId: data.winnerId,
       creatorTime: data.creatorTime,
       challengerTime: data.challengerTime,
       myTime: myTimeMs.value // 用于判断哪个是自己的时间
     }
-    if (data.msg) {
-      uni.showToast({ title: data.msg, icon: 'none' })
+    const winnerId = Number(data.winnerId || 0)
+    const myId = Number(myUserId.value || 0)
+    const endMsg = winnerId && winnerId === myId ? '你已获胜，本局结束' : '对手已获胜，本局结束'
+    uni.showToast({ title: endMsg, icon: 'none' })
+  })
+
+  wsApi.on('resume_game', (data) => {
+    myProgress.value = Number(data.myProgress || 0)
+    opponentProgress.value = Number(data.opponentProgress || 0)
+    currentQuestionIndex.value = myProgress.value
+    const serverPassedTime = Number(data.timePassed || 0)
+    startTime = Date.now() - serverPassedTime
+    if (data.myName) myName.value = data.myName
+    if (data.opponentName) opponentName.value = data.opponentName
+
+    if (myProgress.value >= 5) {
+      finished.value = true
+    } else {
+      finished.value = false
+      loadCurrentQuestion()
     }
   })
 
@@ -387,6 +427,39 @@ onLoad((opts) => {
     loadCurrentQuestion()
   }
 })
+
+function confirmBackToRoom() {
+  wsApi.close()
+  uni.redirectTo({ url: '/pages/battleRoom/battleRoom' })
+}
+
+async function ensureBattleWsConnected() {
+  const token = uni.getStorageSync('token')
+  if (!token) return
+  const wasConnected = wsApi.isConnected && wsApi.isConnected()
+  try {
+    const authData = await wsApi.connect(token)
+    if (authData && authData.userInfo && authData.userInfo.id) {
+      myUserId.value = Number(authData.userInfo.id)
+    }
+    // 仅在断线重连后，重新 join 房间恢复服务端房间上下文
+    if (!wasConnected && roomId.value) {
+      wsApi.send({ action: 'join', roomId: roomId.value })
+    }
+  } catch (e) {
+    uni.showToast({ title: '对战连接异常，请重试', icon: 'none' })
+  }
+}
+
+async function reconnectBattleState() {
+  if (reconnecting || !roomId.value) return
+  reconnecting = true
+  try {
+    await ensureBattleWsConnected()
+  } finally {
+    reconnecting = false
+  }
+}
 </script>
 
 <style lang="scss" scoped>
