@@ -446,7 +446,7 @@ function startGame() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 8vh;
+  margin-bottom: 4vh;
   animation: float 3s ease-in-out infinite;
 }
 @keyframes float {

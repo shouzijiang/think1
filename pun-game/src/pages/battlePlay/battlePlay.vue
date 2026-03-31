@@ -467,6 +467,8 @@ async function reconnectBattleState() {
   padding-left: 40rpx;
   padding-right: 40rpx;
   box-sizing: border-box;
+  max-width: 100vh;
+  overflow: hidden;
 }
 
 .page--mid .bg-gradient {
@@ -685,7 +687,7 @@ async function reconnectBattleState() {
   top: 0;
   right: 0;
   bottom: 0;
-  width: 10000%;
+  width: 300%;
   height: 100%;
   opacity: 0.001;
   z-index: 3;

@@ -139,6 +139,13 @@ let hasReceivedRoomInfo = false
 const JOIN_RETRY_DELAY = 1500
 const MAX_JOIN_RETRY = 1
 
+// 分享进房/重连时序兜底
+let battleRedirecting = false
+let joinWaitTimeout = null
+let joinWaitRetryCount = 0
+const JOIN_WAIT_TIMEOUT_MS = 8000
+const MAX_JOIN_WAIT_RETRY = 2
+
 function normalizeUserId(v) {
   const n = Number(v)
   return Number.isFinite(n) ? n : 0
@@ -175,6 +182,8 @@ onLoad((options) => {
 })
 
 onShow(() => {
+  // 分享进房时：首次 join 还在等待 WS 返回，不要重复触发 rejoin，避免状态错乱
+  if (shareJoinLoading.value) return
   rejoinCurrentRoomIfNeeded()
 })
 
@@ -184,6 +193,12 @@ onUnload(() => {
     clearTimeout(joinRetryTimer)
     joinRetryTimer = null
   }
+  if (joinWaitTimeout) {
+    clearTimeout(joinWaitTimeout)
+    joinWaitTimeout = null
+  }
+  joinWaitRetryCount = 0
+  battleRedirecting = false
   wsApi.off('room_info')
   wsApi.off('start_game')
   wsApi.off('resume_game')
@@ -203,6 +218,18 @@ onShareAppMessage(() => {
 
 function endShareJoinLoading() {
   shareJoinLoading.value = false
+  // 停止一切 join 兜底循环，避免 start_game/resume_game 之后又重复发送 join
+  hasReceivedRoomInfo = true
+  if (joinRetryTimer) {
+    clearTimeout(joinRetryTimer)
+    joinRetryTimer = null
+  }
+  joinRetryCount = 0
+  if (joinWaitTimeout) {
+    clearTimeout(joinWaitTimeout)
+    joinWaitTimeout = null
+  }
+  joinWaitRetryCount = 0
 }
 
 function setupWsListeners() {
@@ -227,6 +254,8 @@ function setupWsListeners() {
   })
 
   wsApi.on('start_game', (data) => {
+    if (battleRedirecting) return
+    battleRedirecting = true
     endShareJoinLoading()
     uni.showToast({ title: '游戏开始！', icon: 'none' })
     const levelsStr = JSON.stringify(data.levels)
@@ -240,6 +269,8 @@ function setupWsListeners() {
   })
 
   wsApi.on('resume_game', (data) => {
+    if (battleRedirecting) return
+    battleRedirecting = true
     endShareJoinLoading()
     uni.showToast({ title: '正在恢复对战...', icon: 'none' })
     const levelsStr = JSON.stringify(data.levels)
@@ -315,6 +346,7 @@ function joinRoom(id) {
   hasReceivedRoomInfo = false
   wsApi.send({ action: 'join', roomId: id })
   scheduleJoinRetry(id)
+  if (shareJoinLoading.value) startJoinWaitTimeout(id)
 }
 
 function scheduleJoinRetry(id) {
@@ -326,6 +358,35 @@ function scheduleJoinRetry(id) {
       wsApi.send({ action: 'join', roomId: id })
     }
   }, JOIN_RETRY_DELAY)
+}
+
+function startJoinWaitTimeout(id) {
+  if (!shareJoinLoading.value) return
+  if (joinWaitTimeout) {
+    clearTimeout(joinWaitTimeout)
+    joinWaitTimeout = null
+  }
+
+  joinWaitTimeout = setTimeout(() => {
+    if (joinedRoomId !== id) return
+    joinWaitTimeout = null
+
+    if (joinWaitRetryCount >= MAX_JOIN_WAIT_RETRY) {
+      uni.showToast({ title: '加入房间超时，请稍后再试', icon: 'none' })
+      return
+    }
+
+    joinWaitRetryCount++
+
+    // 清理当前 join 重试兜底，再触发一次重连 join
+    if (joinRetryTimer) {
+      clearTimeout(joinRetryTimer)
+      joinRetryTimer = null
+    }
+    joinRetryCount = 0
+
+    rejoinCurrentRoomIfNeeded()
+  }, JOIN_WAIT_TIMEOUT_MS)
 }
 
 async function rejoinCurrentRoomIfNeeded() {
