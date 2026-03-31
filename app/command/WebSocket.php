@@ -111,7 +111,7 @@ class WebSocket extends Command
 
         $record = PunGameBattleRecord::where('room_id', $roomId)->find();
         if (!$record || $record->status >= 2) {
-            $connection->send(json_encode(['action' => 'error', 'msg' => 'Room not found or already ended']));
+            $connection->send(json_encode(['action' => 'error', 'msg' => '房间不存在或已解散~']));
             return;
         }
 
@@ -259,15 +259,7 @@ class WebSocket extends Command
         $room[$role . '_finished'] = true;
         $room[$role . '_time'] = $totalTimeMs;
 
-        $record = PunGameBattleRecord::where('room_id', $roomId)->find();
-        if ($role === 'creator') {
-            $record->creator_time_ms = $totalTimeMs;
-        } else {
-            $record->challenger_time_ms = $totalTimeMs;
-        }
-        $record->save();
-
-        // 只要有一方完成，立刻判赢并结束游戏
+        // 只要有一方完成，立刻判赢并结束游戏（总耗时仅记胜方通关用时）
         $this->settleGameImmediately($roomId, $connection->userId, $totalTimeMs);
     }
 
@@ -280,28 +272,13 @@ class WebSocket extends Command
         $record = PunGameBattleRecord::where('room_id', $roomId)->find();
         $record->status = 2; // 已结束
         $record->winner_id = $winnerId;
-        
-        // 未完成的一方，时间设为一个较大的值，或者是当前已进行的时间
-        $currentTimeMs = (int) ((microtime(true) * 1000) - $room['start_time']);
-        
-        if ((int)$record->creator_id === (int)$winnerId) {
-            $record->creator_time_ms = $winnerTimeMs;
-            if (!$room['challenger_finished']) {
-                $record->challenger_time_ms = $currentTimeMs + 99999; // 没答完，给个惩罚时间
-            }
-        } else {
-            $record->challenger_time_ms = $winnerTimeMs;
-            if (!$room['creator_finished']) {
-                $record->creator_time_ms = $currentTimeMs + 99999; // 没答完，给个惩罚时间
-            }
-        }
+        $record->total_time_ms = $winnerTimeMs;
         $record->save();
 
         $resultData = json_encode([
             'action' => 'game_over',
             'winnerId' => $record->winner_id,
-            'creatorTime' => $record->creator_time_ms,
-            'challengerTime' => $record->challenger_time_ms
+            'totalTimeMs' => (int) $record->total_time_ms,
         ]);
 
         if ($room['creator']) $room['creator']->send($resultData);
@@ -338,9 +315,14 @@ class WebSocket extends Command
     {
         if (!isset($this->rooms[$roomId])) return;
         $room = $this->rooms[$roomId];
-        
+        $record = PunGameBattleRecord::where('room_id', $roomId)->find();
+        $creatorId = $record ? (int) $record->creator_id : 0;
+        $challengerId = ($record && $record->challenger_id) ? (int) $record->challenger_id : null;
+
         $info = [
             'action' => 'room_info',
+            'creatorId' => $creatorId,
+            'challengerId' => $challengerId,
             'creator' => $room['creator'] ? $room['creator']->userInfo : null,
             'creatorReady' => $room['creator_ready'] ?? false,
             'challenger' => $room['challenger'] ? $room['challenger']->userInfo : null,

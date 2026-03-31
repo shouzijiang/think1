@@ -107,8 +107,7 @@
       <view class="result-card">
         <text class="res-title">{{ resultTitle }}</text>
         <view class="res-detail">
-          <text>我的耗时: {{ formatTime(resultData.creatorTime === resultData.myTime ? resultData.creatorTime : resultData.challengerTime) }}</text>
-          <text>对手耗时: {{ formatTime(resultData.creatorTime === resultData.myTime ? resultData.challengerTime : resultData.creatorTime) }}</text>
+          <text>本局总耗时: {{ formatTime(resultData.totalTimeMs || 0) }}</text>
         </view>
         <button class="btn-home" @click="confirmBackToRoom">确认返回房间</button>
       </view>
@@ -126,7 +125,7 @@ import { useNavBar } from '../../composables/useNavBar'
 import { playBgmPlay, stopBgm, playCongratsOnce } from '../../utils/gameAudio'
 import { getUserInfo } from '../../utils/auth'
 
-const { statusBarHeight, navBarHeight } = useNavBar()
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 const roomId = ref('')
 const levels = ref([])
@@ -376,9 +375,7 @@ onLoad((opts) => {
     opponentProgress.value = 5
     resultData.value = {
       winnerId: data.winnerId,
-      creatorTime: data.creatorTime,
-      challengerTime: data.challengerTime,
-      myTime: myTimeMs.value // 用于判断哪个是自己的时间
+      totalTimeMs: Number(data.totalTimeMs || 0),
     }
     const winnerId = Number(data.winnerId || 0)
     const myId = Number(myUserId.value || 0)

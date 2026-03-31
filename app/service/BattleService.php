@@ -67,8 +67,6 @@ class BattleService extends \think\Service
         $result = [];
         foreach ($list->items() as $item) {
             $isCreator = $item->creator_id === $userId;
-            $myTime = $isCreator ? $item->creator_time_ms : $item->challenger_time_ms;
-            $opponentTime = $isCreator ? $item->challenger_time_ms : $item->creator_time_ms;
             
             $opponentNickname = $isCreator ? ($item->challenger_nickname ?? '神秘对手') : ($item->creator_nickname ?? '神秘对手');
             $opponentAvatar = $isCreator ? ($item->challenger_avatar ?? '') : ($item->creator_avatar ?? '');
@@ -81,8 +79,7 @@ class BattleService extends \think\Service
                 'roomId' => $item->room_id,
                 'opponentName' => $opponentNickname,
                 'opponentAvatar' => $opponentAvatar,
-                'myTimeMs' => $myTime,
-                'opponentTimeMs' => $opponentTime,
+                'totalTimeMs' => (int) ($item->total_time_ms ?? 0),
                 'result' => $isDraw ? 'draw' : ($isWin ? 'win' : 'lose'),
                 'createdAt' => $item->created_at,
             ];

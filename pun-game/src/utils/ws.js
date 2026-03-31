@@ -4,10 +4,14 @@ let socketTask = null
 let isConnected = false
 let connectCallbacks = []
 let messageCallbacks = {}
+/** 最近一次 auth_success 的 payload，供断线重连后 connect 仍 resolve 出 userInfo */
+let lastAuthPayload = null
 
 export const wsApi = {
   connect(token) {
-    if (isConnected) return Promise.resolve()
+    if (isConnected && lastAuthPayload) {
+      return Promise.resolve(lastAuthPayload)
+    }
     if (socketTask) {
       console.warn('Socket is currently connecting, please wait.')
       return new Promise((resolve, reject) => {
@@ -65,6 +69,7 @@ export const wsApi = {
           console.log('WS Receive:', data)
           
           if (data.action === 'auth_success') {
+            lastAuthPayload = data
             resolve(data)
             connectCallbacks.forEach(cb => cb())
             connectCallbacks = []
@@ -83,12 +88,14 @@ export const wsApi = {
       socketTask.onClose(() => {
         isConnected = false
         socketTask = null
+        lastAuthPayload = null
         console.log('WebSocket 已断开')
       })
 
       socketTask.onError((err) => {
         isConnected = false
         socketTask = null
+        lastAuthPayload = null
         console.error('WebSocket 错误:', err)
         reject(err)
       })
@@ -136,6 +143,7 @@ export const wsApi = {
       socketTask = null
     }
     isConnected = false
+    lastAuthPayload = null
     messageCallbacks = {}
   },
 

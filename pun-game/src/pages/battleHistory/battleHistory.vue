@@ -33,13 +33,13 @@
               <view v-if="item.result === 'win'" class="crown">👑</view>
             </view>
             <text class="name">我</text>
-            <text class="time" :class="{ 'text-win': item.result === 'win', 'text-lose': item.result === 'lose' }">
-              {{ formatTime(item.myTimeMs) }}
-            </text>
           </view>
-          
-          <view class="vs">VS</view>
-          
+
+          <view class="vs-col">
+            <text class="vs">VS</text>
+            <text class="total-time">总耗时 {{ formatTime(item.totalTimeMs) }}</text>
+          </view>
+
           <!-- 对手 -->
           <view class="player opponent-player">
             <view class="avatar-wrap">
@@ -48,9 +48,6 @@
               <view v-if="item.result === 'lose'" class="crown">👑</view>
             </view>
             <text class="name">{{ item.opponentName }}</text>
-            <text class="time" :class="{ 'text-win': item.result === 'lose', 'text-lose': item.result === 'win' }">
-              {{ formatTime(item.opponentTimeMs) }}
-            </text>
           </view>
         </view>
         
@@ -129,8 +126,14 @@ function formatTime(ms) {
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return ''
-  const date = new Date(dateStr)
+  if (dateStr == null || dateStr === '') return ''
+  // iOS 无法解析 "YYYY-MM-DD HH:mm:ss"，需改为 ISO（空格换 T）
+  let s = String(dateStr).trim()
+  if (/^\d{4}-\d{2}-\d{2} \d/.test(s)) {
+    s = s.replace(' ', 'T')
+  }
+  const date = typeof dateStr === 'number' ? new Date(dateStr) : new Date(s)
+  if (Number.isNaN(date.getTime())) return ''
   return `${date.getMonth() + 1}-${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
@@ -294,17 +297,12 @@ function calcListHeight() {
   white-space: nowrap;
 }
 
-.time {
-  font-size: 32rpx;
-  font-weight: 800;
-}
-
-.text-win {
-  color: #10b981;
-}
-
-.text-lose {
-  color: #ef4444;
+.vs-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 24rpx;
 }
 
 .vs {
@@ -312,7 +310,15 @@ function calcListHeight() {
   font-weight: 900;
   color: #94a3b8;
   font-style: italic;
-  padding: 0 40rpx;
+  line-height: 1.2;
+}
+
+.total-time {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #64748b;
+  white-space: nowrap;
 }
 
 .result-banner {

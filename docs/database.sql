@@ -152,10 +152,9 @@ CREATE TABLE `pun_game_battle_record` (
   `creator_id` int(11) unsigned NOT NULL COMMENT '创建者/房主 user_id',
   `challenger_id` int(11) unsigned DEFAULT NULL COMMENT '挑战者 user_id',
   `levels_json` text NOT NULL COMMENT '本局的5道题目ID JSON数组',
-  `creator_time_ms` int(11) unsigned DEFAULT '0' COMMENT '房主总耗时(毫秒)',
-  `challenger_time_ms` int(11) unsigned DEFAULT '0' COMMENT '挑战者总耗时(毫秒)',
+  `total_time_ms` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '本局总耗时(毫秒)，先通关方完成耗时',
   `winner_id` int(11) unsigned DEFAULT NULL COMMENT '获胜者 user_id，平局或未结束为null',
-  `status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '状态：0-等待中，1-对战中，2-已结束，3-已解散',
+  `status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '状态：0-等待中，1-对战中，2-已结束',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
@@ -164,8 +163,3 @@ CREATE TABLE `pun_game_battle_record` (
   KEY `idx_challenger` (`challenger_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='好友1V1对战记录表';
 
--- 若线上 pun_game_rank 仍含 nickname/avatar 冗余字段，可删除以与 users 表单一数据源一致：
--- ALTER TABLE `pun_game_rank` DROP COLUMN `nickname`, DROP COLUMN `avatar`;
-
--- ========== 线上 pun_game_level_progress 表结构迁移（旧：一关一行 → 新：每用户一行 JSON）==========
--- 见 cursorMd/pun_level_progress_migration.md 按步骤执行。

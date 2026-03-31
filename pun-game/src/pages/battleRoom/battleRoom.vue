@@ -17,6 +17,7 @@
       <view class="room-card" v-if="roomId">
         <view class="room-header">
           <text class="room-title">房间号: {{ roomId }}</text>
+          <text v-if="roleHint" class="role-hint">{{ roleHint }}</text>
         </view>
         
         <view class="players-area">
@@ -63,12 +64,19 @@
         </button>
       </view>
     </view>
+
+    <!-- 分享链接进房：等待 join 成功 -->
+    <view v-if="shareJoinLoading" class="join-loading-mask" @touchmove.stop.prevent>
+      <view class="join-loading-inner">
+        <text class="join-loading-text">正在加入房间…</text>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onLoad, onUnload, onShareAppMessage } from '@dcloudio/uni-app'
+import { onLoad, onUnload, onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
@@ -78,11 +86,16 @@ const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 const roomId = ref('')
 const creating = ref(false)
+/** 仅分享带 roomId 进入时：等待 WS 返回房间状态 */
+const shareJoinLoading = ref(false)
 const myUserId = ref(null)
 const myUserInfo = ref(getUserInfo())
 
 const creator = ref(null)
 const challenger = ref(null)
+/** 来自 DB/WS，断线重连时即使连接对象为空也能判断身份 */
+const roomCreatorId = ref(0)
+const roomChallengerId = ref(null)
 const creatorReady = ref(false)
 const challengerReady = ref(false)
 let keepWsAliveForBattle = false
@@ -93,16 +106,47 @@ let hasReceivedRoomInfo = false
 const JOIN_RETRY_DELAY = 1500
 const MAX_JOIN_RETRY = 1
 
-const isCreator = computed(() => creator.value && creator.value.id === myUserId.value)
-const isChallenger = computed(() => challenger.value && challenger.value.id === myUserId.value)
+function normalizeUserId(v) {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+const isCreator = computed(() => {
+  const me = normalizeUserId(myUserId.value)
+  if (!me) return false
+  const rid = normalizeUserId(roomCreatorId.value)
+  if (rid && me === rid) return true
+  return !!(creator.value && normalizeUserId(creator.value.id) === me)
+})
+const isChallenger = computed(() => {
+  const me = normalizeUserId(myUserId.value)
+  if (!me) return false
+  const hid = roomChallengerId.value
+  if (hid != null && hid !== '') {
+    return me === normalizeUserId(hid)
+  }
+  return !!(challenger.value && normalizeUserId(challenger.value.id) === me)
+})
 const isMyTurn = computed(() => isCreator.value || isChallenger.value)
 const amIReady = computed(() => (isCreator.value && creatorReady.value) || (isChallenger.value && challengerReady.value))
+
+const roleHint = computed(() => {
+  if (!roomId.value || !normalizeUserId(myUserId.value)) return ''
+  if (isCreator.value) return '你是房主'
+  if (isChallenger.value) return '你是挑战者'
+  return ''
+})
 
 onLoad((options) => {
   initRoomPage(options)
 })
 
+onShow(() => {
+  rejoinCurrentRoomIfNeeded()
+})
+
 onUnload(() => {
+  shareJoinLoading.value = false
   if (joinRetryTimer) {
     clearTimeout(joinRetryTimer)
     joinRetryTimer = null
@@ -124,14 +168,25 @@ onShareAppMessage(() => {
   }
 })
 
+function endShareJoinLoading() {
+  shareJoinLoading.value = false
+}
+
 function setupWsListeners() {
   wsApi.on('room_info', (data) => {
+    endShareJoinLoading()
     if (joinRetryTimer) {
       clearTimeout(joinRetryTimer)
       joinRetryTimer = null
     }
     joinRetryCount = 0
     hasReceivedRoomInfo = true
+    if (data.creatorId != null) roomCreatorId.value = normalizeUserId(data.creatorId)
+    if (data.challengerId !== undefined) {
+      roomChallengerId.value = data.challengerId == null || data.challengerId === ''
+        ? null
+        : normalizeUserId(data.challengerId)
+    }
     creator.value = data.creator
     challenger.value = data.challenger
     creatorReady.value = data.creatorReady
@@ -139,6 +194,7 @@ function setupWsListeners() {
   })
 
   wsApi.on('start_game', (data) => {
+    endShareJoinLoading()
     uni.showToast({ title: '游戏开始！', icon: 'none' })
     const levelsStr = JSON.stringify(data.levels)
     keepWsAliveForBattle = true
@@ -151,6 +207,7 @@ function setupWsListeners() {
   })
 
   wsApi.on('resume_game', (data) => {
+    endShareJoinLoading()
     uni.showToast({ title: '正在恢复对战...', icon: 'none' })
     const levelsStr = JSON.stringify(data.levels)
     keepWsAliveForBattle = true
@@ -163,6 +220,7 @@ function setupWsListeners() {
 
   // 如果断线期间游戏已经结束，服务端会在 join 后直接发送 game_over
   wsApi.on('game_over', (data) => {
+    endShareJoinLoading()
     // 游戏已结束，直接跳去历史记录
     uni.showToast({ title: '对战已结束', icon: 'none' })
     setTimeout(() => {
@@ -171,8 +229,9 @@ function setupWsListeners() {
   })
 
   wsApi.on('error', (data) => {
+    endShareJoinLoading()
     uni.showToast({ title: data.msg, icon: 'none' })
-    if (data.msg === 'Room not found or already ended' || data.msg === '房间不存在或已解散') {
+    if (data.msg === '房间不存在或已解散~') {
       setTimeout(() => {
         roomId.value = ''
         // 如果是通过链接进来的，清除链接上的参数防止刷新又进去
@@ -186,12 +245,17 @@ async function createRoom() {
   if (creating.value) return
   creating.value = true
   try {
+    const uid = normalizeUserId(
+      myUserId.value || myUserInfo.value?.id || myUserInfo.value?.user_id
+    )
     // 乐观更新：立刻把自己设置为房主，减少等待延迟感
     creator.value = {
-      id: myUserId.value,
+      id: uid,
       nickname: myUserInfo.value?.nickname || '我',
       avatar: myUserInfo.value?.avatar || ''
     }
+    roomCreatorId.value = uid
+    roomChallengerId.value = null
 
     const res = await api.createBattleRoom()
     roomId.value = res.roomId
@@ -199,6 +263,8 @@ async function createRoom() {
   } catch (err) {
     uni.showToast({ title: err.message || '创建失败', icon: 'none' })
     creator.value = null // 回滚
+    roomCreatorId.value = 0
+    roomChallengerId.value = null
   } finally {
     creating.value = false
   }
@@ -206,8 +272,7 @@ async function createRoom() {
 
 function joinRoom(id) {
   if (!id) return
-  // 避免重复 join 同一房间（例如分享回流、重复进入同路由）
-  if (joinedRoomId === id) return
+  // 允许同一房间重复 join：退后台断线后需重新绑定连接，服务端按 userId 恢复角色
   joinedRoomId = id
   if (joinRetryTimer) {
     clearTimeout(joinRetryTimer)
@@ -230,6 +295,25 @@ function scheduleJoinRetry(id) {
   }, JOIN_RETRY_DELAY)
 }
 
+async function rejoinCurrentRoomIfNeeded() {
+  if (!roomId.value) return
+  try {
+    const token = uni.getStorageSync('token')
+    if (!token) return
+    const local = getUserInfo()
+    if (local) {
+      myUserId.value = normalizeUserId(local.id ?? local.user_id)
+    }
+    const res = await wsApi.connect(token)
+    if (res && res.userInfo && res.userInfo.id) {
+      myUserId.value = normalizeUserId(res.userInfo.id)
+    }
+    joinRoom(roomId.value)
+  } catch (e) {
+    console.warn('rejoin room failed', e)
+  }
+}
+
 async function initRoomPage(options) {
   // 监听 WebSocket 事件
   setupWsListeners()
@@ -243,15 +327,24 @@ async function initRoomPage(options) {
       throw new Error('登录失败')
     }
 
+    const localUser = getUserInfo()
+    if (localUser) {
+      myUserId.value = normalizeUserId(localUser.id ?? localUser.user_id)
+    }
+
     const res = await wsApi.connect(token)
-    myUserId.value = res.userInfo.id
+    if (res && res.userInfo && res.userInfo.id) {
+      myUserId.value = normalizeUserId(res.userInfo.id)
+    }
 
     // 如果是通过分享链接进来的，自动加入房间
     if (options.roomId) {
+      shareJoinLoading.value = true
       roomId.value = options.roomId
       joinRoom(options.roomId)
     }
   } catch (err) {
+    endShareJoinLoading()
     uni.showToast({ title: err.message || '连接服务器失败', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 1200)
   }
@@ -429,6 +522,14 @@ function goHistory() {
   padding: 12rpx 32rpx;
   border-radius: 100rpx;
 }
+.role-hint {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+}
 
 .players-area {
   display: flex;
@@ -527,5 +628,26 @@ function goHistory() {
 .share-icon {
   font-size: 40rpx;
   line-height: 1;
+}
+
+.join-loading-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.join-loading-inner {
+  background: rgba(255, 255, 255, 0.96);
+  padding: 40rpx 56rpx;
+  border-radius: 24rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.12);
+}
+.join-loading-text {
+  font-size: 28rpx;
+  color: #334155;
+  font-weight: 600;
 }
 </style>
