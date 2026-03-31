@@ -45,12 +45,45 @@
         </view>
 
         <view class="action-area">
-          <button v-if="isMyTurn && !amIReady" class="btn-ready" @click="ready">准备</button>
-          <button v-if="isMyTurn && amIReady" class="btn-ready disabled" disabled>等待对方</button>
-          
-          <!-- 分享给微信好友的大按钮，在挑战者未加入时显示 -->
-          <button v-if="isCreator && !challenger" class="btn-share" open-type="share">
-            <text class="share-icon">💬</text> 发送给微信好友
+          <view v-if="isMyTurn" class="ready-block">
+            <button
+              v-if="!amIReady"
+              class="btn-ready btn-ready--primary"
+              hover-class="btn-ready--hover"
+              @click="ready"
+            >
+              <view class="btn-ready-inner">
+                <text class="btn-ready-icon">✓</text>
+                <view class="btn-ready-texts">
+                  <text class="btn-ready-title">准备游戏</text>
+                  <text class="btn-ready-sub">双方准备完成后将自动开局</text>
+                </view>
+              </view>
+            </button>
+            <view v-else class="btn-ready btn-ready--waiting">
+              <view class="btn-ready-inner">
+                <text class="btn-ready-icon btn-ready-icon--pulse">⏳</text>
+                <view class="btn-ready-texts">
+                  <text class="btn-ready-title">等待对方准备</text>
+                  <text class="btn-ready-sub">对方点击准备后即可开始</text>
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <button
+            v-if="isCreator && !challenger"
+            class="btn-share"
+            open-type="share"
+            hover-class="btn-share--hover"
+          >
+            <view class="btn-ready-inner">
+              <text class="btn-share-icon">💬</text>
+              <view class="btn-ready-texts">
+                <text class="btn-share-title">邀请好友对战</text>
+                <text class="btn-share-sub">分享到微信，好友打开即可加入</text>
+              </view>
+            </view>
           </button>
         </view>
       </view>
@@ -445,16 +478,19 @@ function goHistory() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  // justify-content: center;
   padding: 40rpx;
   position: relative;
   z-index: 1;
 }
 
 .create-area {
+  flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
 }
 .hero-icon {
@@ -592,42 +628,197 @@ function goHistory() {
 .action-area {
   display: flex;
   flex-direction: column;
-  gap: 24rpx;
+  gap: 20rpx;
+  margin-top: 8rpx;
 }
+
+.ready-block {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .btn-ready {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  color: #fff;
-  border-radius: 100rpx;
-  height: 96rpx;
-  line-height: 96rpx;
-  font-size: 32rpx;
-  font-weight: bold;
-  box-shadow: 0 10rpx 20rpx rgba(16, 185, 129, 0.3);
-  &::after { border: none; }
-  &.disabled {
-    background: #cbd5e1;
-    box-shadow: none;
-    color: #94a3b8;
+  width: 100%;
+  border-radius: 28rpx;
+  overflow: hidden;
+  &::after {
+    border: none;
   }
 }
-.btn-share {
-  background: #07c160; /* 微信绿 */
-  color: #fff;
-  border-radius: 100rpx;
-  height: 96rpx;
-  line-height: 96rpx;
+
+.btn-ready-inner {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 28rpx 32rpx;
+  text-align: left;
+}
+
+/* 「准备」略小于下方「邀请」，区分主次（邀请全宽更醒目） */
+.ready-block .btn-ready {
+  width: 100%;
+  max-width: 600rpx;
+  border-radius: 24rpx;
+}
+
+.ready-block .btn-ready-inner {
+  padding: 24rpx 28rpx;
+  gap: 20rpx;
+}
+
+.ready-block .btn-ready-title {
+  font-size: 30rpx;
+}
+
+.ready-block .btn-ready-sub {
+  font-size: 22rpx;
+}
+
+.ready-block .btn-ready-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 18rpx;
   font-size: 32rpx;
-  font-weight: bold;
+}
+
+.btn-ready-texts {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  min-width: 0;
+}
+
+.btn-ready-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+
+.btn-ready-sub {
+  font-size: 24rpx;
+  font-weight: 500;
+  line-height: 1.4;
+  opacity: 0.88;
+}
+
+.btn-ready-icon {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
-  box-shadow: 0 10rpx 20rpx rgba(7, 193, 96, 0.3);
-  &::after { border: none; }
-}
-.share-icon {
-  font-size: 40rpx;
+  font-size: 36rpx;
   line-height: 1;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.btn-ready--primary {
+  background: linear-gradient(145deg, #34d399 0%, #10b981 42%, #059669 100%);
+  color: #fff;
+  box-shadow:
+    0 12rpx 28rpx rgba(16, 185, 129, 0.35),
+    inset 0 1rpx 0 rgba(255, 255, 255, 0.25);
+}
+
+.btn-ready--hover {
+  opacity: 0.92;
+  transform: scale(0.99);
+}
+
+.btn-ready--waiting {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 2rpx solid #e2e8f0;
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, 0.9);
+}
+
+.btn-ready--waiting .btn-ready-title {
+  color: #475569;
+}
+
+.btn-ready--waiting .btn-ready-sub {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+.btn-ready--waiting .btn-ready-icon {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+.btn-ready-icon--pulse {
+  animation: ready-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes ready-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+/* 「邀请」全宽、略大于上方准备，作为主引导 */
+.btn-share {
+  width: 100%;
+  padding: 0;
+  border-radius: 28rpx;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%);
+  border: 2rpx solid rgba(16, 185, 129, 0.35);
+  margin-top: 20rpx;
+  box-shadow: 0 10rpx 24rpx rgba(16, 185, 129, 0.1);
+  &::after {
+    border: none;
+  }
+}
+
+.btn-share .btn-ready-inner {
+  padding: 28rpx 32rpx;
+  gap: 24rpx;
+}
+
+.btn-share-icon {
+  flex-shrink: 0;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  line-height: 1;
+  background: linear-gradient(145deg, #d1fae5 0%, #a7f3d0 100%);
+  border: 2rpx solid rgba(16, 185, 129, 0.25);
+}
+
+.btn-share-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+  color: #047857;
+  text-align: left;
+}
+
+.btn-share-sub {
+  font-size: 24rpx;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #64748b;
+  text-align: left;
+}
+
+.btn-share--hover {
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  border-color: rgba(16, 185, 129, 0.5);
 }
 
 .join-loading-mask {

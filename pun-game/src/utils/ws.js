@@ -2,20 +2,43 @@ import { API_BASE_URL } from '../config'
 
 let socketTask = null
 let isConnected = false
+/** 收到 auth_success 后才允许发业务消息（join/ready 等），避免首连 onOpen 前 send 失败 */
+let authReady = false
 let connectCallbacks = []
 let messageCallbacks = {}
+/** 鉴权完成前暂存业务消息，避免「网络未连接」误报 */
+let pendingSendQueue = []
 /** 最近一次 auth_success 的 payload，供断线重连后 connect 仍 resolve 出 userInfo */
 let lastAuthPayload = null
 
+function flushPendingSend() {
+  if (!authReady || !isConnected || !socketTask) return
+  while (pendingSendQueue.length) {
+    const data = pendingSendQueue.shift()
+    rawSend(data)
+  }
+}
+
+function rawSend(data) {
+  if (!isConnected || !socketTask) return
+  console.log('WS Send:', data)
+  socketTask.send({
+    data: JSON.stringify(data),
+    fail: (err) => {
+      console.error('发送数据失败:', err)
+      uni.showToast({ title: '发送失败，请重试', icon: 'none' })
+    }
+  })
+}
+
 export const wsApi = {
   connect(token) {
-    if (isConnected && lastAuthPayload) {
+    if (authReady && isConnected && lastAuthPayload) {
       return Promise.resolve(lastAuthPayload)
     }
     if (socketTask) {
-      console.warn('Socket is currently connecting, please wait.')
       return new Promise((resolve, reject) => {
-        connectCallbacks.push(() => resolve(true))
+        connectCallbacks.push(() => resolve(lastAuthPayload))
       })
     }
     
@@ -56,8 +79,9 @@ export const wsApi = {
       socketTask.onOpen(() => {
         console.log('WebSocket 连接已打开')
         isConnected = true
-        // 鉴权
-        this.send({
+        authReady = false
+        // 鉴权（不走 authReady 闸门）
+        rawSend({
           action: 'auth',
           token: token
         })
@@ -70,9 +94,11 @@ export const wsApi = {
           
           if (data.action === 'auth_success') {
             lastAuthPayload = data
+            authReady = true
             resolve(data)
-            connectCallbacks.forEach(cb => cb())
+            connectCallbacks.forEach((cb) => cb())
             connectCallbacks = []
+            flushPendingSend()
           } else if (data.action === 'error' && data.msg === 'Need auth first') {
             reject(new Error('Auth failed'))
           }
@@ -87,15 +113,19 @@ export const wsApi = {
 
       socketTask.onClose(() => {
         isConnected = false
+        authReady = false
         socketTask = null
         lastAuthPayload = null
+        pendingSendQueue = []
         console.log('WebSocket 已断开')
       })
 
       socketTask.onError((err) => {
         isConnected = false
+        authReady = false
         socketTask = null
         lastAuthPayload = null
+        pendingSendQueue = []
         console.error('WebSocket 错误:', err)
         reject(err)
       })
@@ -103,22 +133,20 @@ export const wsApi = {
   },
 
   send(data) {
-    if (!isConnected || !socketTask) {
-      console.warn('WebSocket 未连接，尝试排队发送或丢弃:', data)
-      // 如果没有连接成功，可以在这里把消息压入队列，或者直接提示用户
-      if (data.action !== 'auth') {
-         uni.showToast({ title: '网络未连接，请重试', icon: 'none' })
-      }
+    if (data.action === 'auth') {
+      rawSend(data)
       return
     }
-    console.log('WS Send:', data)
-    socketTask.send({
-      data: JSON.stringify(data),
-      fail: (err) => {
-        console.error('发送数据失败:', err)
-        uni.showToast({ title: '发送失败，请重试', icon: 'none' })
-      }
-    })
+    if (!isConnected || !socketTask) {
+      pendingSendQueue.push(data)
+      console.warn('WS 未就绪，消息已入队:', data.action)
+      return
+    }
+    if (!authReady) {
+      pendingSendQueue.push(data)
+      return
+    }
+    rawSend(data)
   },
 
   on(action, callback) {
@@ -143,11 +171,18 @@ export const wsApi = {
       socketTask = null
     }
     isConnected = false
+    authReady = false
     lastAuthPayload = null
+    pendingSendQueue = []
     messageCallbacks = {}
   },
 
   isConnected() {
     return isConnected && !!socketTask
+  },
+
+  /** 是否已完成 WS 鉴权，可安全发送 join/ready 等 */
+  isAuthReady() {
+    return authReady && isConnected && !!socketTask
   }
 }
