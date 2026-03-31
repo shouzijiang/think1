@@ -65,6 +65,10 @@
     </view>
 
     <view class="start-wrap">
+      <view class="btn-start btn-start-battle" @click="goBattle">
+        <text class="btn-start-icon">⚔️</text>
+        <text class="btn-start-text">好友1V1对战</text>
+      </view>
       <view class="btn-start btn-start-2" @click="startGameMid">
         <text class="btn-start-icon">🔥</text>
         <text class="btn-start-text">开始(画中寻梗)</text>
@@ -72,10 +76,6 @@
       <view class="btn-start" @click="startGame">
         <text class="btn-start-icon">🌱</text>
         <text class="btn-start-text">开始(梗图填词)</text>
-      </view>
-      <view class="btn-start btn-start-battle" @click="goBattle">
-        <text class="btn-start-icon">⚔️</text>
-        <text class="btn-start-text">好友1V1对战</text>
       </view>
     </view>
 
@@ -95,19 +95,19 @@
     </view>
 
     <view class="side-toolbar">
-      <view class="toolbar-item" @click="goForum">
+      <!-- <view class="toolbar-item" @click="goForum">
         <text class="toolbar-icon">☕</text>
         <text class="toolbar-text">闲聊</text>
+      </view>
+      <view class="toolbar-divider"></view> -->
+      <view class="toolbar-item" @click.stop="toggleBgm">
+        <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
+        <text class="toolbar-text">{{ bgmOn ? '音乐' : '静音' }}</text>
       </view>
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goFeedback">
         <text class="toolbar-icon">📝</text>
         <text class="toolbar-text">反馈</text>
-      </view>
-      <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click.stop="toggleBgm">
-        <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
-        <text class="toolbar-text">{{ bgmOn ? '音乐' : '静音' }}</text>
       </view>
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goCocreate">

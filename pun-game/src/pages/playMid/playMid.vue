@@ -499,6 +499,8 @@ onShareAppMessage(() => {
   align-items: center;
   justify-content: center;
   gap: 22rpx;
+  position: relative;
+  z-index: 4;
 }
 .answer-row--mid {
   min-height: 132rpx;
@@ -507,11 +509,11 @@ onShareAppMessage(() => {
 }
 .answer-mid-input-cover {
   position: absolute;
-  left: 0;
+  left: -200%;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 100%;
+  width: 10000%;
   height: 100%;
   opacity: 0.001;
   z-index: 3;

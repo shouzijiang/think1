@@ -681,10 +681,20 @@ async function reconnectBattleState() {
 
 .answer-mid-input-cover {
   position: absolute;
-  inset: 0;
+  left: -200%;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10000%;
+  height: 100%;
   opacity: 0.001;
   z-index: 3;
+  font-size: 32rpx;
   color: transparent;
+  caret-color: transparent;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 .answer-slots {
   position: relative;
