@@ -3,8 +3,9 @@ declare (strict_types = 1);
 
 namespace app\service;
 
+use app\common\FeishuBotHelper;
 use app\model\PunGameBattleRecord;
-use think\facade\Db;
+use app\model\User;
 
 class BattleService extends \think\Service
 {
@@ -38,6 +39,10 @@ class BattleService extends \think\Service
             'levels_json' => $levels,
             'status' => 0, // 等待中
         ]);
+
+        $creator = User::find($userId);
+        $creatorName = $creator ? (string) ($creator->nickname ?? '') : '';
+        FeishuBotHelper::notifyBattleRoomCreated($roomId, $creatorName, $levels);
 
         return [
             'roomId' => $roomId,

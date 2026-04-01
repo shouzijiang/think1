@@ -8,6 +8,7 @@ use think\console\Input;
 use think\console\Output;
 use Workerman\Worker;
 use Workerman\Connection\TcpConnection;
+use app\common\FeishuBotHelper;
 use app\model\PunGameBattleRecord;
 use app\model\User;
 use app\common\JwtHelper;
@@ -217,6 +218,10 @@ class WebSocket extends Command
                         : '对手'
                 ]));
             }
+
+            $creatorName = ($room['creator']->userInfo['nickname'] ?? '') ?: '房主';
+            $challengerName = ($room['challenger']->userInfo['nickname'] ?? '') ?: '挑战者';
+            FeishuBotHelper::notifyBattleStarted($roomId, $creatorName, $challengerName);
         }
     }
 
