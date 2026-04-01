@@ -99,11 +99,11 @@
         <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
         <text class="toolbar-text">{{ bgmOn ? '音乐' : '静音' }}</text>
       </view>
-      <view class="toolbar-divider"></view>
+      <!-- <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goForum">
         <text class="toolbar-icon">☕</text>
         <text class="toolbar-text">交流</text>
-      </view>
+      </view> -->
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goFeedback">
         <text class="toolbar-icon">📝</text>
