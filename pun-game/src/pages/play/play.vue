@@ -55,9 +55,9 @@
       </view>
     </view>
 
-    <view class="stuck-tip">
+    <!-- <view class="stuck-tip">
       <text>若通过后没进入下一关，请点击左上角重新游戏</text>
-    </view>
+    </view> -->
 
     <view class="chars-wrap">
       <view
@@ -209,11 +209,14 @@ async function checkAnswer() {
         } else {
           const nextLevel = level.value + 1
           if(nextLevel > 270) {
-            uni.navigateTo({ url: `/pages/index/index` })
             uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
+            setTimeout(() => {
+              uni.reLaunch({ url: '/pages/index/index' })
+            }, 1500)
             return
           }
-          uni.navigateTo({ url: `/pages/play/play?level=${nextLevel}` })
+          // 使用 redirectTo 替换当前页，避免连续 navigateTo 堆满页面栈（微信约 10 层上限）
+          uni.redirectTo({ url: `/pages/play/play?level=${nextLevel}` })
         }
       }, 1500)
       return

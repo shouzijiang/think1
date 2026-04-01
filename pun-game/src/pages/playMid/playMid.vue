@@ -77,9 +77,9 @@
       </view>
     </view>
 
-    <view class="stuck-tip">
+    <!-- <view class="stuck-tip">
       <text>若通过后没进入下一关，请点击左上角重新游戏</text>
-    </view>
+    </view> -->
 
     <!-- 通关成功动画弹层 -->
     <view v-if="showSuccess" class="success-overlay">
@@ -185,14 +185,17 @@ async function checkAnswer() {
       showSuccess.value = true
       playCongratsOnce()
       const nextLevel = await getMidNextLevel(level.value)
-      setTimeout(() => {
+        setTimeout(() => {
           showSuccess.value = false
           if (nextLevel == null) {
-            uni.navigateTo({ url: '/pages/index/index' })
             uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
+            setTimeout(() => {
+              uni.reLaunch({ url: '/pages/index/index' })
+            }, 1500)
             return
           }
-          uni.navigateTo({ url: `/pages/playMid/playMid?level=${nextLevel}` })
+          // 使用 redirectTo 替换当前页，避免连续 navigateTo 堆满页面栈（微信约 10 层上限）
+          uni.redirectTo({ url: `/pages/playMid/playMid?level=${nextLevel}` })
         }, 1500)
       return
     }
