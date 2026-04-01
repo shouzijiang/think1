@@ -221,7 +221,9 @@ class WebSocket extends Command
 
             $creatorName = ($room['creator']->userInfo['nickname'] ?? '') ?: '房主';
             $challengerName = ($room['challenger']->userInfo['nickname'] ?? '') ?: '挑战者';
-            FeishuBotHelper::notifyBattleStarted($roomId, $creatorName, $challengerName);
+            $creatorId = (int) ($record->creator_id ?? 0);
+            $challengerId = (int) ($record->challenger_id ?? 0);
+            FeishuBotHelper::notifyBattleStarted($roomId, $creatorId, $challengerId, $creatorName, $challengerName);
         }
     }
 

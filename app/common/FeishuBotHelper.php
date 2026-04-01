@@ -94,23 +94,31 @@ class FeishuBotHelper
         return false;
     }
 
-    public static function notifyBattleRoomCreated(string $roomId, string $creatorNickname, array $levelIds): void
+    public static function notifyBattleRoomCreated(string $roomId, int $creatorId, string $creatorNickname, array $levelIds): void
     {
         $levelsStr = implode(',', array_map('strval', $levelIds));
         $text = sprintf(
-            "[谐音对战] 新开房间\n房间号：%s\n房主：%s\n题目关卡ID：%s",
+            "[谐音对战] 新开房间\n房间号：%s\n房主 userId：%d\n房主：%s\n题目关卡ID：%s",
             $roomId,
+            $creatorId,
             $creatorNickname !== '' ? $creatorNickname : '(未知)',
             $levelsStr
         );
         self::sendText($text);
     }
 
-    public static function notifyBattleStarted(string $roomId, string $creatorNickname, string $challengerNickname): void
-    {
+    public static function notifyBattleStarted(
+        string $roomId,
+        int $creatorId,
+        int $challengerId,
+        string $creatorNickname,
+        string $challengerNickname
+    ): void {
         $text = sprintf(
-            "[谐音对战] 对局开始\n房间号：%s\n房主：%s\n挑战者：%s",
+            "[谐音对战] 对局开始\n房间号：%s\n房主 userId：%d\n挑战者 userId：%d\n房主：%s\n挑战者：%s",
             $roomId,
+            $creatorId,
+            $challengerId,
             $creatorNickname !== '' ? $creatorNickname : '(未知)',
             $challengerNickname !== '' ? $challengerNickname : '(未知)'
         );

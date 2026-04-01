@@ -42,7 +42,7 @@ class BattleService extends \think\Service
 
         $creator = User::find($userId);
         $creatorName = $creator ? (string) ($creator->nickname ?? '') : '';
-        FeishuBotHelper::notifyBattleRoomCreated($roomId, $creatorName, $levels);
+        FeishuBotHelper::notifyBattleRoomCreated($roomId, $userId, $creatorName, $levels);
 
         return [
             'roomId' => $roomId,
