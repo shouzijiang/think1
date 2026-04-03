@@ -40,7 +40,8 @@
             @click="onLevelClick(levelId)"
           >
             <text v-if="isCompleted(levelId)" class="cell-star">⭐</text>
-            <text class="cell-num">{{ levelId }}</text>
+            <text class="cell-num" v-if="levelId !== 0">{{ levelId }}</text>
+            <text class="cell-num cell-num-2" v-else>新手<text style="display: block;">引导</text></text>
             <view v-if="isCompleted(levelId)" class="cell-done">✓</view>
             <view v-else-if="isLocked(levelId)" class="cell-lock">🔒</view>
           </view>

@@ -178,7 +178,8 @@ export function getMidNextLevel(levelNum) {
  */
 export function getMidLevelImageUrls(levelNum) {
   const lv = parseInt(levelNum, 10)
-  if (!Number.isFinite(lv) || lv <= 0) return null
+  // issue2 首关可能为 level=0，对应 w0-1 / w0-2
+  if (!Number.isFinite(lv) || lv < 0) return null
   return {
     imageUrlTop: `${MID_IMAGE_BASE}/w${lv}-1.png`,
     imageUrlBottom: `${MID_IMAGE_BASE}/w${lv}-2.png`,

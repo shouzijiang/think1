@@ -79,13 +79,13 @@
     </view>
 
     <view class="start-wrap">
-      <view class="btn-start btn-start-battle" @click="goBattle">
-        <text class="btn-start-icon">⚔️</text>
-        <text class="btn-start-text">好友1V1对战</text>
-      </view>
       <view class="btn-start btn-start-2" @click="startGameMid">
         <text class="btn-start-icon">🔥</text>
         <text class="btn-start-text">开始(画中寻梗)</text>
+      </view>
+      <view class="btn-start btn-start-battle" @click="goBattle">
+        <text class="btn-start-icon">⚔️</text>
+        <text class="btn-start-text">好友1V1对战</text>
       </view>
       <view class="start-row">
         <view class="btn-start btn-start--pair" @click="startGame">

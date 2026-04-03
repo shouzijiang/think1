@@ -14,7 +14,8 @@
         <text class="nav-icon">🏠</text>
       </view>
       <view class="nav-center">
-        <text class="nav-title">画中寻梗 · 第{{ level }}关</text>
+        <text class="nav-title" v-if="level !== 0">画中寻梗 · 第{{ level }}关</text>
+        <text class="nav-title" v-else>画中寻梗 · 新手引导</text>
         <text class="nav-star">⭐</text>
       </view>
     </view>
@@ -268,7 +269,7 @@ function back() {
 }
 
 async function onRevealHint() {
-  if (hintLoading.value || hintCooldownLeft.value > 0 || !level.value) return
+  if (hintLoading.value || hintCooldownLeft.value > 0 || loading.value) return
   hintLoading.value = true
   try {
     const data = await api.revealHint({ level: level.value, gameTier: 'mid' })
@@ -300,7 +301,7 @@ onHide(() => {
 
 onLoad(async (opts) => {
   let lv = opts && opts.level != null && opts.level !== '' ? parseInt(opts.level, 10) : NaN
-  const fromQuery = Number.isFinite(lv) && lv > 0
+  const fromQuery = Number.isFinite(lv) && lv >= 0
 
   if (!fromQuery) {
     loading.value = true
