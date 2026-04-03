@@ -12,6 +12,8 @@ Route::group('pun', function () {
     Route::get('changelog/latest', 'Pun/changelogLatest');
     // 首页「已有 X 位好友 · 累计 Y 次答题」（不强制鉴权）
     Route::get('stats/home', 'Pun/homeStats');
+    // 1V1：全局对战排行（胜/负统计，不强制鉴权）
+    Route::get('battle/rank', 'PunBattle/battleRank');
 
     // 以下需要登录
     Route::group(function () {

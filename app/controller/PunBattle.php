@@ -43,4 +43,20 @@ class PunBattle
         $data = $this->battleService->getHistory($userId, $page, $pageSize);
         return ResponseHelper::success($data, 'success');
     }
+
+    /**
+     * 1V1 全局对战排行榜 GET /pun/battle/rank（无需登录）
+     */
+    public function battleRank(Request $request)
+    {
+        $page = (int) $request->param('page', 1);
+        $pageSize = (int) $request->param('page_size', 20);
+
+        try {
+            $data = $this->battleService->getBattleRankList($page, $pageSize);
+            return ResponseHelper::success($data, 'success');
+        } catch (\Throwable $e) {
+            return ResponseHelper::error('获取对战排行失败: ' . $e->getMessage());
+        }
+    }
 }

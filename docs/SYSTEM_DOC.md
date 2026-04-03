@@ -64,6 +64,7 @@
 | `/pun/forum/reply/create` | POST | 回复帖子或二级评论 |
 | `/pun/battle/create` | POST | 1V1：创建对战房间 |
 | `/pun/battle/history` | GET | 1V1：获取个人历史对战记录 |
+| `/pun/battle/rank` | GET | 1V1：全局对战排行榜（分页；统计已结束且有胜负的局：`win_count`/`lose_count`，不含平局），无需 Token |
 
 #### 分步提示 `/pun/level/reveal-hint`（需登录）
 

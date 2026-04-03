@@ -6,6 +6,7 @@ namespace app\service;
 use app\common\FeishuBotHelper;
 use app\model\PunGameBattleRecord;
 use app\model\User;
+use think\facade\Db;
 
 class BattleService extends \think\Service
 {
@@ -93,6 +94,115 @@ class BattleService extends \think\Service
         return [
             'list' => $result,
             'total' => $list->total()
+        ];
+    }
+
+    /**
+     * 1V1 全局排行榜：按已结束且有胜负的记录统计胜场、负场（不含平局）
+     *
+     * @return array{list: list<array{user_id:int,nickname:string,avatar:string,win_count:int,lose_count:int,updated_at:string}>, total:int}
+     */
+    public function getBattleRankList(int $page = 1, int $pageSize = 20): array
+    {
+        $page = max(1, $page);
+        $pageSize = min(max(1, $pageSize), 100);
+
+        $winRows = Db::name('pun_game_battle_record')
+            ->field('winner_id AS user_id, COUNT(*) AS win_count')
+            ->where('status', 2)
+            ->whereNotNull('challenger_id')
+            ->whereNotNull('winner_id')
+            ->group('winner_id')
+            ->select()
+            ->toArray();
+
+        $loseSql = 'SELECT loser_id AS user_id, COUNT(*) AS lose_count FROM ('
+            . ' SELECT CASE WHEN winner_id = creator_id THEN challenger_id ELSE creator_id END AS loser_id'
+            . ' FROM pun_game_battle_record'
+            . ' WHERE status = 2 AND challenger_id IS NOT NULL AND winner_id IS NOT NULL'
+            . ') AS t GROUP BY loser_id';
+
+        /** @var list<array{user_id: string|int, lose_count: string|int}> $loseRows */
+        $loseRows = Db::query($loseSql);
+
+        $stats = [];
+        foreach ($winRows as $row) {
+            $uid = (int) ($row['user_id'] ?? 0);
+            if ($uid <= 0) {
+                continue;
+            }
+            $stats[$uid] = [
+                'win_count'  => (int) ($row['win_count'] ?? 0),
+                'lose_count' => 0,
+            ];
+        }
+        foreach ($loseRows as $row) {
+            $uid = (int) ($row['user_id'] ?? 0);
+            if ($uid <= 0) {
+                continue;
+            }
+            if (!isset($stats[$uid])) {
+                $stats[$uid] = [
+                    'win_count'  => 0,
+                    'lose_count' => (int) ($row['lose_count'] ?? 0),
+                ];
+            } else {
+                $stats[$uid]['lose_count'] = (int) ($row['lose_count'] ?? 0);
+            }
+        }
+
+        $rankRows = [];
+        foreach ($stats as $uid => $s) {
+            $rankRows[] = [
+                'user_id'    => $uid,
+                'win_count'  => $s['win_count'],
+                'lose_count' => $s['lose_count'],
+            ];
+        }
+
+        usort($rankRows, static function (array $a, array $b): int {
+            if ($a['win_count'] !== $b['win_count']) {
+                return $b['win_count'] <=> $a['win_count'];
+            }
+            if ($a['lose_count'] !== $b['lose_count']) {
+                return $a['lose_count'] <=> $b['lose_count'];
+            }
+            return $a['user_id'] <=> $b['user_id'];
+        });
+
+        $total = count($rankRows);
+        $offset = ($page - 1) * $pageSize;
+        $pageSlice = array_slice($rankRows, $offset, $pageSize);
+
+        $ids = array_column($pageSlice, 'user_id');
+        $usersById = [];
+        if ($ids !== []) {
+            $users = User::where('id', 'in', $ids)->field(['id', 'nickname', 'avatar'])->select();
+            foreach ($users as $u) {
+                $usersById[(int) $u->id] = [
+                    'nickname' => (string) ($u->nickname ?? ''),
+                    'avatar'   => (string) ($u->avatar ?? ''),
+                ];
+            }
+        }
+
+        $list = [];
+        foreach ($pageSlice as $row) {
+            $uid = (int) $row['user_id'];
+            $u = $usersById[$uid] ?? ['nickname' => '', 'avatar' => ''];
+            $list[] = [
+                'user_id'    => $uid,
+                'nickname'   => $u['nickname'],
+                'avatar'     => $u['avatar'],
+                'win_count'  => (int) $row['win_count'],
+                'lose_count' => (int) $row['lose_count'],
+                'updated_at' => '',
+            ];
+        }
+
+        return [
+            'list'  => $list,
+            'total' => $total,
         ];
     }
 }
