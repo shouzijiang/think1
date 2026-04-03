@@ -400,8 +400,6 @@ function goBack() {
 }
 
 onShow(() => {
-  playBgmPlay()
-
   if (gameOver.value) return
   // 唤醒后先同步一次，随后如果仍未结算再兜底同步
   if (wakeSyncTimer) {
@@ -412,6 +410,8 @@ onShow(() => {
   wakeSyncTimer = setTimeout(() => {
     if (!gameOver.value) syncBattleStateForWake()
   }, WAKE_SYNC_FALLBACK_MS)
+  playBgmPlay()
+
 })
 
 onHide(() => {
@@ -456,7 +456,6 @@ onLoad((opts) => {
   })
 
   wsApi.on('opponent_finish', (data) => {
-    opponentProgress.value = 5
     opponentTimeMs.value = data.timeMs
   })
 
@@ -469,7 +468,9 @@ onLoad((opts) => {
       wakeSyncTimer = null
     }
     if (timer) clearInterval(timer)
-    opponentProgress.value = 5
+    // 结束态如后端下发了双方最终进度，则直接覆盖 dots，确保一致性
+    if (data && data.myProgress !== undefined) myProgress.value = Number(data.myProgress || 0)
+    if (data && data.opponentProgress !== undefined) opponentProgress.value = Number(data.opponentProgress || 0)
     resultData.value = {
       winnerId: data.winnerId,
       totalTimeMs: Number(data.totalTimeMs || 0),

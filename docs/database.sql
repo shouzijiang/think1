@@ -152,6 +152,8 @@ CREATE TABLE `pun_game_battle_record` (
   `creator_id` int(11) unsigned NOT NULL COMMENT '创建者/房主 user_id',
   `challenger_id` int(11) unsigned DEFAULT NULL COMMENT '挑战者 user_id',
   `levels_json` text NOT NULL COMMENT '本局的5道题目ID JSON数组',
+  `creator_progress` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT '创建者已答题进度(0-5)',
+  `challenger_progress` tinyint(1) unsigned NOT NULL DEFAULT '0' COMMENT '挑战者已答题进度(0-5)',
   `total_time_ms` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '本局总耗时(毫秒)，先通关方完成耗时',
   `winner_id` int(11) unsigned DEFAULT NULL COMMENT '获胜者 user_id，平局或未结束为null',
   `status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '状态：0-等待中，1-对战中，2-已结束',

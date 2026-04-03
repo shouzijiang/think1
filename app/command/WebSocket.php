@@ -117,11 +117,32 @@ class WebSocket extends Command
         }
         // 已结束的房间：允许前端重进时直接拿到结算态，避免卡在等待页面
         if ((int) $record->status >= 2) {
+            $myUid = (int) $connection->userId;
+            $creatorUid = (int) ($record->creator_id ?? 0);
+            $challengerUid = (int) ($record->challenger_id ?? 0);
+            $creatorProgress = (int) ($record->creator_progress ?? 0);
+            $challengerProgress = (int) ($record->challenger_progress ?? 0);
+
+            // 相对当前连接的进度：myProgress/opponentProgress
+            if ($myUid === $creatorUid) {
+                $myProgress = $creatorProgress;
+                $opponentProgress = $challengerProgress;
+            } elseif ($myUid === $challengerUid) {
+                $myProgress = $challengerProgress;
+                $opponentProgress = $creatorProgress;
+            } else {
+                // 理论上不会发生：join 进来的人应该是 creator/challenger
+                $myProgress = 0;
+                $opponentProgress = 0;
+            }
+
             $connection->send(
                 json_encode([
                     'action' => 'game_over',
                     'winnerId' => $record->winner_id,
                     'totalTimeMs' => (int) ($record->total_time_ms ?? 0),
+                    'myProgress' => $myProgress,
+                    'opponentProgress' => $opponentProgress,
                 ])
             );
             return;
@@ -250,6 +271,10 @@ class WebSocket extends Command
         // 记录进度，用于断线重连恢复
         $room[$connection->role . '_progress'] = $questionIndex;
 
+        // 进度持久化：用于结束后 join 仍能拿到真实 dots
+        $progressField = $connection->role === 'creator' ? 'creator_progress' : 'challenger_progress';
+        PunGameBattleRecord::where('room_id', $roomId)->update([$progressField => $questionIndex]);
+
         // 广播给对方
         $syncData = json_encode([
             'action' => 'sync_progress',
@@ -291,16 +316,30 @@ class WebSocket extends Command
         $record->status = 2; // 已结束
         $record->winner_id = $winnerId;
         $record->total_time_ms = $winnerTimeMs;
+
+        // 结束态写入：确保 join/game_over 仍能拿到真实 dots
+        $record->creator_progress = (int) ($room['creator_progress'] ?? 0);
+        $record->challenger_progress = (int) ($room['challenger_progress'] ?? 0);
         $record->save();
 
-        $resultData = json_encode([
+        $creatorResultData = json_encode([
             'action' => 'game_over',
             'winnerId' => $record->winner_id,
             'totalTimeMs' => (int) $record->total_time_ms,
+            'myProgress' => (int) ($record->creator_progress ?? 0),
+            'opponentProgress' => (int) ($record->challenger_progress ?? 0),
         ]);
 
-        if ($room['creator']) $room['creator']->send($resultData);
-        if ($room['challenger']) $room['challenger']->send($resultData);
+        $challengerResultData = json_encode([
+            'action' => 'game_over',
+            'winnerId' => $record->winner_id,
+            'totalTimeMs' => (int) $record->total_time_ms,
+            'myProgress' => (int) ($record->challenger_progress ?? 0),
+            'opponentProgress' => (int) ($record->creator_progress ?? 0),
+        ]);
+
+        if ($room['creator']) $room['creator']->send($creatorResultData);
+        if ($room['challenger']) $room['challenger']->send($challengerResultData);
 
         // 清理房间内存
         unset($this->rooms[$roomId]);

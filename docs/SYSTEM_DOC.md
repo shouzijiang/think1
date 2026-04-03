@@ -20,7 +20,7 @@
 - **pun_game_level_progress**: 关卡进度表（`user_id`，`passed_levels` / `passed_levels_mid` 为 JSON 数组）
 - **pun_game_cocreate**: 共创关卡表（user_id, answer, hint_image_prompt, word_array, status 等）
 - **pun_game_feedback**: 意见反馈表（user_id, type, content, contact）
-- **pun_game_battle_record**: 1V1对战房间与记录表（room_id, creator_id, challenger_id, levels_json, total_time_ms, winner_id, status）
+- **pun_game_battle_record**: 1V1对战房间与记录表（room_id, creator_id, challenger_id, levels_json, creator_progress, challenger_progress, total_time_ms, winner_id, status）
 - **pun_game_changelog**: 版本更新说明（首页弹窗，`version_code` 唯一，`body` 为每行一条或 JSON 数组）
 - *(论坛相关表)*: 帖子表 (topic)、回复表 (reply)
 
@@ -89,7 +89,7 @@
 | `progress` | Client -> Server | 玩家答对一题后上报进度（第几题，当前耗时） |
 | `sync_progress` | Server -> Client | 广播双方的答题进度 |
 | `finish` | Client -> Server | 玩家完成所有5题后上报总耗时 |
-| `game_over` | Server -> Client | 一方先通关即结束，广播结算结果（胜负、`totalTimeMs` 本局总耗时） |
+| `game_over` | Server -> Client | 一方先通关即结束，广播结算结果（胜负、`totalTimeMs` 本局总耗时；并下发 `myProgress` / `opponentProgress` 用于结算态 dots） |
 
 ### 3. 久坐提醒模块 (Standup App)
 | 接口路径 | 方法 | 说明 |

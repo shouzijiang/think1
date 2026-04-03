@@ -31,6 +31,7 @@ alwaysApply: true
 ## 2. 数据库设计
 - 表结构定义见 `docs/database.sql`。
 - 表结构有变更时：先更新 `database.sql`，再更新 `SYSTEM_DOC.md`「二、数据库核心表结构」。
+- 表结构有变更时：除更新 docs/database.sql 外，还必须在同一任务里附上可执行的迁移 SQL（如 ALTER TABLE ...）或迁移脚本入口，并明确需要执行的顺序与校验方式（例如 DESC / 字段存在性检查）。
 
 ## 3. 编写格式
 - 使用规范 Markdown。
