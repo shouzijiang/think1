@@ -89,7 +89,8 @@
       </view>
       
       <view class="answer-left finished-msg" v-else>
-        <text>你已完成所有题目，等待对手中...</text>
+        <text v-if="gameOver">对战已结束，正在结算中...</text>
+        <text v-else>你已完成所有题目，等待对手中...</text>
       </view>
 
       <view class="answer-right" v-if="!finished && !gameOver">
@@ -173,6 +174,12 @@ const resultTitle = computed(() => {
 let startTime = 0
 let timer = null
 let reconnecting = false
+
+// 前后台切换兜底：确保一定能拿到最新的 room/game_over 状态
+const WAKE_SYNC_FALLBACK_MS = 5000
+let wakeSyncTimer = null
+let lastJoinSyncAt = 0
+const JOIN_SYNC_MIN_MS = 1500
 
 // 题目数据
 const answerLen = ref(3)
@@ -394,9 +401,17 @@ function goBack() {
 
 onShow(() => {
   playBgmPlay()
-  if (!gameOver.value) {
-    reconnectBattleState()
+
+  if (gameOver.value) return
+  // 唤醒后先同步一次，随后如果仍未结算再兜底同步
+  if (wakeSyncTimer) {
+    clearTimeout(wakeSyncTimer)
+    wakeSyncTimer = null
   }
+  syncBattleStateForWake()
+  wakeSyncTimer = setTimeout(() => {
+    if (!gameOver.value) syncBattleStateForWake()
+  }, WAKE_SYNC_FALLBACK_MS)
 })
 
 onHide(() => {
@@ -410,6 +425,11 @@ onUnmounted(() => {
   wsApi.off('opponent_finish')
   wsApi.off('game_over')
   wsApi.off('resume_game')
+  wsApi.off('error')
+  if (wakeSyncTimer) {
+    clearTimeout(wakeSyncTimer)
+    wakeSyncTimer = null
+  }
 })
 
 onLoad((opts) => {
@@ -444,6 +464,10 @@ onLoad((opts) => {
     gameOver.value = true
     finished.value = true
     submitting.value = false
+    if (wakeSyncTimer) {
+      clearTimeout(wakeSyncTimer)
+      wakeSyncTimer = null
+    }
     if (timer) clearInterval(timer)
     opponentProgress.value = 5
     resultData.value = {
@@ -452,8 +476,23 @@ onLoad((opts) => {
     }
     const winnerId = Number(data.winnerId || 0)
     const myId = Number(myUserId.value || 0)
-    const endMsg = winnerId && winnerId === myId ? '你已获胜，本局结束' : '对手已获胜，本局结束'
+    const endMsg = !winnerId
+      ? '本局平局，本局结束'
+      : winnerId === myId
+        ? '你已获胜，本局结束'
+        : '对手已获胜，本局结束'
     uni.showToast({ title: endMsg, icon: 'none' })
+  })
+
+  wsApi.on('error', (data) => {
+    const msg = data && data.msg ? String(data.msg) : ''
+    // 理论上已结束房间 join 会直接返回 game_over；这里仅做兼容兜底
+    if (msg.includes('不存在') || msg.includes('解散')) {
+      uni.showToast({ title: '对战已结束，请稍后重试或查看记录', icon: 'none' })
+      setTimeout(() => {
+        uni.redirectTo({ url: '/pages/battleHistory/battleHistory' })
+      }, 800)
+    }
   })
 
   wsApi.on('resume_game', (data) => {
@@ -529,6 +568,18 @@ async function reconnectBattleState() {
   } finally {
     reconnecting = false
   }
+}
+
+async function syncBattleStateForWake() {
+  if (!roomId.value) return
+
+  const now = Date.now()
+  if (now - lastJoinSyncAt < JOIN_SYNC_MIN_MS) return
+  lastJoinSyncAt = now
+
+  await ensureBattleWsConnected()
+  // 无条件 join：服务端会根据房间状态返回 resume_game 或 game_over
+  wsApi.send({ action: 'join', roomId: roomId.value })
 }
 </script>
 

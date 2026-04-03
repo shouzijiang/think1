@@ -111,8 +111,19 @@ class WebSocket extends Command
         if (empty($roomId)) return;
 
         $record = PunGameBattleRecord::where('room_id', $roomId)->find();
-        if (!$record || $record->status >= 2) {
+        if (!$record) {
             $connection->send(json_encode(['action' => 'error', 'msg' => '房间不存在或已解散~']));
+            return;
+        }
+        // 已结束的房间：允许前端重进时直接拿到结算态，避免卡在等待页面
+        if ((int) $record->status >= 2) {
+            $connection->send(
+                json_encode([
+                    'action' => 'game_over',
+                    'winnerId' => $record->winner_id,
+                    'totalTimeMs' => (int) ($record->total_time_ms ?? 0),
+                ])
+            );
             return;
         }
 

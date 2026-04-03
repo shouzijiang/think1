@@ -119,6 +119,15 @@ export const api = {
     })
   },
 
+  /** 1V1 全局对战排行榜：胜/负场次（无需登录） */
+  getBattleRankList(params = {}) {
+    return request({
+      url: `/pun/battle/rank${buildQueryString(params)}`,
+      method: 'GET',
+      skipAuth: true,
+    })
+  },
+
   /** 首页「本期更新」：无需登录；无数据时返回 null */
   getChangelogLatest() {
     return request({

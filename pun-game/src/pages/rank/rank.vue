@@ -23,8 +23,9 @@
 
     <view class="tabs-wrap">
       <view class="tabs">
-        <view :class="['tab', { active: currentTab === 'mid' }]" @click="switchTab('mid')">画中寻梗榜</view>
-        <view :class="['tab', { active: currentTab === 'beginner' }]" @click="switchTab('beginner')">梗图填词榜</view>
+        <view :class="['tab', { active: currentTab === 'mid' }]" @click="switchTab('mid')">画中寻梗</view>
+        <view :class="['tab', { active: currentTab === 'beginner' }]" @click="switchTab('beginner')">梗图填词</view>
+        <view :class="['tab', { active: currentTab === 'battle' }]" @click="switchTab('battle')">1V1对战</view>
       </view>
     </view>
 
@@ -48,9 +49,24 @@
             <text class="time">{{ item.updated_at ? '最近: ' + item.updated_at : '' }}</text>
           </view>
         </view>
-        <view class="item-right">
-          <text class="level-num">{{ item.max_level }}</text>
-          <text class="level-unit">关</text>
+        <view :class="['item-right', { 'item-right--battle': currentTab === 'battle' }]">
+          <template v-if="currentTab !== 'battle'">
+            <text class="level-num">{{ item.max_level }}</text>
+            <text class="level-unit">关</text>
+          </template>
+          <template v-else>
+            <view class="battle-stats">
+              <view class="battle-chip battle-chip--win">
+                <text class="battle-chip-num">{{ item.win_count }}</text>
+                <text class="battle-chip-lab">胜</text>
+              </view>
+              <text class="battle-chip-sep">·</text>
+              <view class="battle-chip battle-chip--lose">
+                <text class="battle-chip-num">{{ item.lose_count }}</text>
+                <text class="battle-chip-lab">负</text>
+              </view>
+            </view>
+          </template>
         </view>
       </view>
     </scroll-view>
@@ -77,21 +93,44 @@ const list = ref([])
 const loading = ref(false)
 const currentTab = ref('mid')
 
+function toInt(val) {
+  const n = Number(val)
+  return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0
+}
+
 function loadRank() {
   loading.value = true
   const params = { page: 1, page_size: 100 }
-  if (currentTab.value === 'mid') {
-    params.gameTier = 'mid'
-  }
-  api.getRankList(params)
+  const tab = currentTab.value
+  const req =
+    tab === 'battle'
+      ? api.getBattleRankList(params)
+      : api.getRankList({
+          ...params,
+          gameTier: tab === 'mid' ? 'mid' : 'beginner',
+        })
+  req
     .then((data) => {
-      list.value = (data.list || []).map((item) => ({
-        user_id: item.user_id,
-        nickname: item.nickname,
-        avatar: item.avatar,
-        max_level: item.max_level,
-        updated_at: item.updated_at || '',
-      }))
+      list.value = (data.list || []).map((item) => {
+        if (tab === 'battle') {
+          return {
+            user_id: item.user_id,
+            nickname: item.nickname,
+            avatar: item.avatar,
+            win_count: toInt(item.win_count ?? item.wins ?? item.victories),
+            lose_count: toInt(item.lose_count ?? item.losses ?? item.failures),
+            updated_at: item.updated_at || '',
+          }
+        }
+
+        return {
+          user_id: item.user_id,
+          nickname: item.nickname,
+          avatar: item.avatar,
+          max_level: item.max_level,
+          updated_at: item.updated_at || '',
+        }
+      })
     })
     .catch(() => {
       list.value = []
@@ -236,6 +275,54 @@ function switchTab(tab) {
 .item-right {
   display: flex;
   align-items: baseline;
+}
+.item-right--battle {
+  align-items: center;
+  flex-shrink: 0;
+}
+.battle-stats {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 4rpx;
+}
+.battle-chip {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 2rpx;
+}
+.battle-chip-num {
+  font-size: 26rpx;
+  font-weight: 800;
+  color: #5a6d7a;
+  line-height: 1;
+}
+.battle-chip-lab {
+  font-size: 20rpx;
+  font-weight: 600;
+  color: #94a3b8;
+  line-height: 1;
+}
+.battle-chip--win .battle-chip-num {
+  color: #10b981;
+}
+.battle-chip--win .battle-chip-lab {
+  color: #34d399;
+}
+.battle-chip--lose .battle-chip-num {
+  color: #ef4444;
+}
+.battle-chip--lose .battle-chip-lab {
+  color: #f87171;
+}
+.battle-chip-sep {
+  font-size: 18rpx;
+  color: #cbd5e1;
+  line-height: 1;
+  padding: 0 2rpx;
 }
 .level-num {
   font-size: 40rpx;

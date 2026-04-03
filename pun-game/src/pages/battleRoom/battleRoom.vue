@@ -97,6 +97,28 @@
         <button class="btn-history-big" @click="goHistory">
           历史对战记录
         </button>
+        <view class="join-by-id">
+          <text class="join-title">手动加入对战</text>
+          <text class="join-sub">输入 6 位房间号即可匹配成功</text>
+          <input
+            class="join-input"
+            type="number"
+            :maxlength="6"
+            placeholder="输入6位房间号"
+            placeholder-class="join-placeholder"
+            :value="joinRoomInput"
+            @input="onJoinRoomInput"
+          />
+          <button
+            class="btn-join"
+            :loading="joining"
+            :disabled="creating || joining"
+            hover-class="btn-join--hover"
+            @click="joinByInput"
+          >
+            加入房间
+          </button>
+        </view>
       </view>
     </view>
 
@@ -121,7 +143,10 @@ const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 const roomId = ref('')
 const creating = ref(false)
-/** 仅分享带 roomId 进入时：等待 WS 返回房间状态 */
+const joining = ref(false)
+/** 手动输入的房间号（仅数字，最多6位） */
+const joinRoomInput = ref('')
+/** 分享进房或手动加入：等待 WS 返回房间状态 */
 const shareJoinLoading = ref(false)
 const myUserId = ref(null)
 const myUserInfo = ref(getUserInfo())
@@ -244,6 +269,7 @@ function endShareJoinLoading() {
 
 function setupWsListeners() {
   wsApi.on('room_info', (data) => {
+    const showJoinOk = shareJoinLoading.value
     endShareJoinLoading()
     if (joinRetryTimer) {
       clearTimeout(joinRetryTimer)
@@ -261,6 +287,9 @@ function setupWsListeners() {
     challenger.value = data.challenger
     creatorReady.value = data.creatorReady
     challengerReady.value = data.challengerReady
+    if (showJoinOk) {
+      uni.showToast({ title: '加入成功', icon: 'none' })
+    }
   })
 
   wsApi.on('start_game', (data) => {
@@ -313,6 +342,64 @@ function setupWsListeners() {
       }, 1500)
     }
   })
+}
+
+function onJoinRoomInput(e) {
+  const raw = (e.detail && e.detail.value) != null ? String(e.detail.value) : ''
+  const digits = raw.replace(/\D/g, '').slice(0, 6)
+  joinRoomInput.value = digits
+}
+
+/** 手动输入房间号加入；失败时与分享进房共用 WS error 处理（房间无效则跳转清空） */
+async function joinByInput() {
+  if (creating.value || joining.value) return
+  const id = String(joinRoomInput.value || '').trim()
+  if (!/^\d{6}$/.test(id)) {
+    uni.showToast({ title: '请输入6位房间号', icon: 'none' })
+    return
+  }
+
+  let token = uni.getStorageSync('token')
+  if (!token) {
+    try {
+      await wechatLogin()
+      token = uni.getStorageSync('token')
+    } catch (e) {
+      uni.showToast({ title: '请先登录', icon: 'none' })
+      return
+    }
+  }
+  if (!token) {
+    uni.showToast({ title: '请先登录', icon: 'none' })
+    return
+  }
+
+  joining.value = true
+  shareJoinLoading.value = true
+  roomId.value = id
+  creator.value = null
+  challenger.value = null
+  roomCreatorId.value = 0
+  roomChallengerId.value = null
+  creatorReady.value = false
+  challengerReady.value = false
+  try {
+    await rejoinCurrentRoomIfNeeded()
+    if (!wsApi.isAuthReady()) {
+      throw new Error('WS not ready')
+    }
+  } catch (e) {
+    console.warn('join by input failed', e)
+    endShareJoinLoading()
+    joinRoomInput.value = ''
+    roomId.value = ''
+    uni.showToast({ title: '连接失败，请重试', icon: 'none' })
+    setTimeout(() => {
+      uni.redirectTo({ url: '/pages/battleRoom/battleRoom' })
+    }, 1500)
+  } finally {
+    joining.value = false
+  }
 }
 
 async function createRoom() {
@@ -528,9 +615,75 @@ function goHistory() {
 .desc {
   font-size: 28rpx;
   color: #64748b;
-  margin-bottom: 60rpx;
+  margin-bottom: 40rpx;
   line-height: 1.5;
   width: 80%;
+}
+.join-by-id {
+  width: 100%;
+  max-width: 620rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16rpx;
+  margin: 36rpx 0;
+  padding: 28rpx 26rpx;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.7);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
+  border-radius: 32rpx;
+  box-shadow: 0 10rpx 24rpx rgba(169, 201, 238, 0.12);
+}
+.join-title {
+  font-size: 32rpx;
+  font-weight: 900;
+  color: #5a6d7a;
+  text-align: center;
+}
+.join-sub {
+  font-size: 24rpx;
+  color: #94a3b8;
+  text-align: center;
+  line-height: 1.4;
+  margin-bottom: 2rpx;
+}
+.join-input {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  padding: 0 32rpx;
+  box-sizing: border-box;
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #5a6d7a;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 28rpx;
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  box-shadow: 0 6rpx 18rpx rgba(169, 201, 238, 0.12);
+}
+.join-placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+.btn-join {
+  margin: 0;
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 100rpx;
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #fff;
+  background: linear-gradient(135deg, #7dd3fc 0%, #60a5fa 100%);
+  box-shadow: 0 12rpx 28rpx rgba(96, 165, 250, 0.35);
+  border: none;
+  &::after {
+    border: none;
+  }
+}
+.btn-join--hover {
+  opacity: 0.92;
 }
 .btn-create {
   background: linear-gradient(135deg, #a8e6a2 0%, #91d58b 100%);
