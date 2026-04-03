@@ -3,6 +3,7 @@
     <view class="bg-wrap">
       <view class="bg-gradient" />
       <view class="bg-dots" />
+      <view class="bg-glow" />
     </view>
 
     <!-- 顶部状态栏占位 -->
@@ -41,39 +42,52 @@
       </view>
     </view>
 
-    <view class="answer-row answer-row--mid">
-      <view class="answer-left">
-        <input
-          ref="midInputRef"
-          class="answer-mid-input-cover"
-          type="text"
-          :value="answerInputValue"
-          @input="onMidAnswerInput"
-          confirm-type="done"
-          @focus="onMidInputFocus"
-          @blur="onMidInputBlur"
-          @click.stop="focusMidInput()"
-        />
+    <view class="answer-block answer-block--mid">
+      <view class="answer-row answer-row--mid">
+        <view class="answer-left">
+          <input
+            ref="midInputRef"
+            class="answer-mid-input-cover"
+            type="text"
+            :value="answerInputValue"
+            @input="onMidAnswerInput"
+            confirm-type="done"
+            @focus="onMidInputFocus"
+            @blur="onMidInputBlur"
+            @click.stop="focusMidInput()"
+          />
 
-        <view class="answer-slots">
-          <view
-            v-for="i in answerLen"
-            :key="i"
-            :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
-          >
-            <text v-if="answerChars[i - 1]" class="slot-char">{{ answerChars[i - 1] }}</text>
-            <view v-else-if="caretIndex === i - 1" class="slot-caret" />
+          <view class="answer-slots">
+            <view
+              v-for="i in answerLen"
+              :key="i"
+              :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
+            >
+              <text v-if="answerChars[i - 1]" class="slot-char">{{ answerChars[i - 1] }}</text>
+              <view v-else-if="caretIndex === i - 1" class="slot-caret" />
+            </view>
           </view>
         </view>
       </view>
 
-      <view class="answer-right">
-        <button class="btn-help-inline" open-type="share" @click="help">
-          <text class="help-icon">💬</text>
-          <text class="help-text">求助</text>
-        </button>
-        <!-- 答案按钮预留位：后续如果你要加“提交/确认”按钮，可以直接在这里替换 -->
-        <!-- <view class="answer-btn-placeholder" /> -->
+      <view class="mid-action-bar">
+        <view class="mid-action-inner">
+          <button
+            class="mid-act-btn mid-act-btn--hint"
+            :class="{ 'mid-act-btn--cooldown': hintCooldownLeft > 0 }"
+            :loading="hintLoading"
+            :disabled="hintLoading || hintCooldownLeft > 0"
+            hover-class="mid-act-btn--hover"
+            @click="onRevealHint"
+          >
+            <text class="mid-act-ico">💡</text>
+            <text class="mid-act-txt">{{ hintCooldownLeft > 0 ? '答案 ' + hintCooldownLeft + 's' : '答案' }}</text>
+          </button>
+          <button class="mid-act-btn mid-act-btn--share" open-type="share" hover-class="mid-act-btn--hover" @click="help">
+            <text class="mid-act-ico">💬</text>
+            <text class="mid-act-txt">求助</text>
+          </button>
+        </view>
       </view>
     </view>
 
@@ -96,8 +110,14 @@
 
 <script setup>
 import { ref, computed, nextTick } from 'vue'
-import { onLoad, onShow, onHide, onShareAppMessage } from '@dcloudio/uni-app'
-import { getMidLevelPuzzle, getMidNextLevel, loadMidLevelList, pickMidLevelFromProgress } from '../../data/levels'
+import { onLoad, onShow, onHide, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import {
+  getMidLevelPuzzle,
+  getMidNextLevel,
+  loadMidLevelList,
+  pickMidLevelFromProgress,
+  prefetchNextMidLevelImages,
+} from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import { playBgmPlay, stopBgm, playCongratsOnce } from '../../utils/gameAudio'
@@ -116,6 +136,31 @@ const puzzle = ref({
 })
 const loading = ref(true)
 const submitting = ref(false)
+const hintLoading = ref(false)
+/** 答案按钮冷却剩余秒数，0 表示可点 */
+const hintCooldownLeft = ref(0)
+let hintCooldownTimer = null
+const HINT_COOLDOWN_SEC = 20
+
+function clearHintCooldown() {
+  if (hintCooldownTimer) {
+    clearInterval(hintCooldownTimer)
+    hintCooldownTimer = null
+  }
+  hintCooldownLeft.value = 0
+}
+
+function startHintCooldown() {
+  clearHintCooldown()
+  hintCooldownLeft.value = HINT_COOLDOWN_SEC
+  hintCooldownTimer = setInterval(() => {
+    hintCooldownLeft.value--
+    if (hintCooldownLeft.value <= 0) {
+      clearHintCooldown()
+    }
+  }, 1000)
+}
+
 const feedback = ref([])
 const slotShake = ref(false)
 const showSuccess = ref(false)
@@ -222,6 +267,23 @@ function back() {
   uni.reLaunch({ url: '/pages/index/index' })
 }
 
+async function onRevealHint() {
+  if (hintLoading.value || hintCooldownLeft.value > 0 || !level.value) return
+  hintLoading.value = true
+  try {
+    const data = await api.revealHint({ level: level.value, gameTier: 'mid' })
+    uni.showModal({
+      title: data.isComplete ? '已全部提示' : `提示 (${data.step}/${data.maxSteps})`,
+      content: data.hintText,
+      showCancel: false,
+    })
+  } catch (e) {
+    uni.showToast({ title: e.message || '获取失败', icon: 'none' })
+  } finally {
+    hintLoading.value = false
+  }
+}
+
 function help() {
   // #ifndef MP-WEIXIN
   uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
@@ -268,9 +330,15 @@ onLoad(async (opts) => {
     feedback.value = []
     answerInputValue.value = ''
     loading.value = false
+    startHintCooldown()
+    prefetchNextMidLevelImages(lv)
   }).catch(() => {
     loading.value = false
   })
+})
+
+onUnload(() => {
+  clearHintCooldown()
 })
 
 onShareAppMessage(() => {
@@ -279,9 +347,23 @@ onShareAppMessage(() => {
     path: `/pages/playMid/playMid?level=${level.value}`,
   }
 })
+
+onShareTimeline(() => {
+  const img =
+    (puzzle.value.imageUrlTop && String(puzzle.value.imageUrlTop).startsWith('http') && puzzle.value.imageUrlTop) ||
+    (puzzle.value.imageUrlBottom && String(puzzle.value.imageUrlBottom).startsWith('http') && puzzle.value.imageUrlBottom) ||
+    ''
+  return {
+    title: `中级第${level.value}关，快来帮我猜谐音梗！`,
+    query: `level=${level.value}`,
+    ...(img ? { imageUrl: img } : {}),
+  }
+})
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   position: relative;
@@ -291,75 +373,9 @@ onShareAppMessage(() => {
   box-sizing: border-box;
   max-width: 100vh;
   overflow: hidden;
+  @include pt-page-background;
 }
 
-.page--mid .bg-gradient {
-  background: linear-gradient(165deg, #e8f4fc 0%, #d4e8f8 45%, #c5dff5 100%);
-}
-.page--mid .bg-dots {
-  opacity: 0.45;
-  background-image: radial-gradient(circle at 1px 1px, rgba(120, 160, 200, 0.35) 1px, transparent 0);
-  background-size: 40rpx 40rpx;
-}
-
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #fff9f3 0%, #ffefe6 50%, #fce8e0 100%);
-}
-.bg-dots {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(circle at 1px 1px, #e8d5ce 1px, transparent 0);
-  background-size: 40rpx 40rpx;
-}
-
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 居中整个导航栏的内容 */
-  margin-bottom: 32rpx;
-}
-.nav-btn {
-  position: absolute; /* 绝对定位到左侧，不影响标题居中 */
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-.page--mid .nav-btn {
-  border-color: rgba(140, 170, 210, 0.35);
-  box-shadow: 0 4rpx 16rpx rgba(100, 140, 180, 0.12);
-}
-.nav-icon {
-  font-size: 36rpx;
-  line-height: 1;
-}
-.nav-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-}
-.nav-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.04em;
-}
 .nav-star { font-size: 30rpx; }
 .btn-help {
   position: absolute; /* 绝对定位到右侧，因为微信胶囊存在，其实这块区域容易被挡住，看需求可以留着或隐藏 */
@@ -368,19 +384,16 @@ onShareAppMessage(() => {
   padding: 18rpx 28rpx;
   border: none;
   border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.9);
-  color: #6b5b52;
+  background: rgba(255, 255, 255, 0.92);
+  color: #5a6d7a;
   font-size: inherit;
   line-height: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
-}
-.page--mid .btn-help {
-  border-color: rgba(140, 170, 210, 0.3);
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
 }
 .btn-help::after {
   border: none;
@@ -394,15 +407,15 @@ onShareAppMessage(() => {
   margin-bottom: 32rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(180, 120, 100, 0.1), 0 2rpx 8rpx rgba(0,0,0,0.04);
+  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18), 0 2rpx 8rpx rgba(0,0,0,0.04);
   background: rgba(255, 255, 255, 0.95);
-  border: 2rpx solid rgba(200, 160, 140, 0.15);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .card--mid {
   overflow: visible;
   border-radius: 28rpx;
-  box-shadow: 0 12rpx 36rpx rgba(100, 140, 180, 0.14), 0 2rpx 10rpx rgba(0,0,0,0.05);
-  border-color: rgba(180, 200, 230, 0.5);
+  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22), 0 2rpx 10rpx rgba(0,0,0,0.05);
+  border-color: rgba(169, 201, 238, 0.55);
 }
 
 .keyword-tab {
@@ -412,9 +425,9 @@ onShareAppMessage(() => {
   z-index: 4;
   min-height: auto;
   padding: 14rpx 20rpx;
-  background: #d45d4a;
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   border-radius: 14rpx;
-  box-shadow: 0 10rpx 24rpx rgba(212, 93, 74, 0.25);
+  box-shadow: 0 10rpx 24rpx rgba(111, 184, 104, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -474,43 +487,32 @@ onShareAppMessage(() => {
   margin-top: -90rpx;
 }
 
-.answer-row {
+/* 答题区 + 底部操作条：同一卡片，操作条单独一行 */
+.answer-block {
   position: relative;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 22rpx;
-  padding: 28rpx 24rpx;
   margin-bottom: 32rpx;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 24rpx;
-  box-shadow: 0 6rpx 20rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 28rpx;
+  border: 2rpx solid rgba(180, 200, 230, 0.4);
+  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+.answer-row {
+  position: relative;
+  padding: 28rpx 24rpx 24rpx;
 }
 
 .answer-left {
   position: relative; /* 让输入透明层只覆盖左侧区域 */
-  flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.answer-right {
-  width: 150rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 22rpx;
-  position: relative;
-  z-index: 4;
-}
 .answer-row--mid {
-  min-height: 132rpx;
-  border-color: rgba(180, 200, 230, 0.45);
-  box-shadow: 0 6rpx 20rpx rgba(100, 140, 180, 0.1);
+  border-bottom: 1rpx solid rgba(160, 190, 220, 0.35);
 }
 .answer-mid-input-cover {
   position: absolute;
@@ -543,34 +545,88 @@ onShareAppMessage(() => {
   min-width: 76rpx;
   height: 76rpx;
   padding: 0 8rpx;
-  border: 2rpx dashed rgba(180, 140, 120, 0.4);
+  border: 2rpx dashed rgba(169, 201, 238, 0.75);
   border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
   font-weight: 600;
-  color: #3d3530;
-  background: rgba(255, 255, 255, 0.8);
+  color: #5a6d7a;
+  background: rgba(255, 255, 255, 0.9);
   box-sizing: border-box;
 }
 
-.btn-help-inline {
-  position: relative;
-  margin: 0;
-  padding: 18rpx 18rpx;
-  border: none;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.95);
-  color: #6b5b52;
-  font-size: inherit;
-  line-height: inherit;
+.mid-action-bar {
   display: flex;
+  flex-direction: row;
+  justify-content: center;
+  padding: 16rpx 28rpx 20rpx;
+  background: rgba(250, 252, 255, 0.92);
+}
+
+/* 限制操作区总宽，避免两键拉满屏显得扁宽 */
+.mid-action-inner {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 18rpx;
+  width: 100%;
+  max-width: 520rpx;
+}
+
+.mid-act-btn {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  min-height: 76rpx;
+  padding: 0 18rpx;
+  border: none;
+  border-radius: 38rpx;
+  display: flex;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  box-sizing: border-box;
+  line-height: 1.2;
+}
+.mid-act-btn::after {
+  border: none;
+}
+.mid-act-ico {
+  font-size: 26rpx;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+.mid-act-txt {
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.mid-act-btn--hint {
+  color: #5a6d7a;
+  background: linear-gradient(180deg, #ffffff 0%, #f0faf9 100%);
+  border: 1rpx solid rgba(169, 201, 238, 0.55);
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.12);
+}
+.mid-act-btn--share {
+  color: #5a6d7a;
+  background: linear-gradient(180deg, #fbfdff 0%, #eaf6f9 100%);
+  border: 1rpx solid rgba(169, 201, 238, 0.55);
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.12);
+}
+.mid-act-btn--hover {
+  opacity: 0.9;
+}
+.mid-act-btn--cooldown {
+  opacity: 0.65;
+}
+.mid-act-btn--cooldown .mid-act-txt {
+  font-size: 28rpx;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .answer-btn-placeholder {
@@ -578,7 +634,7 @@ onShareAppMessage(() => {
   min-height: 86rpx;
   border-radius: 20rpx;
   background: rgba(255, 255, 255, 0.15);
-  border: 2rpx dashed rgba(180, 160, 140, 0.25);
+  border: 2rpx dashed rgba(169, 201, 238, 0.4);
 }
 
 .slot-char {

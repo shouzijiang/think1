@@ -119,6 +119,24 @@ export const api = {
     })
   },
 
+  /** 首页「本期更新」：无需登录；无数据时返回 null */
+  getChangelogLatest() {
+    return request({
+      url: '/pun/changelog/latest',
+      method: 'GET',
+      skipAuth: true,
+    })
+  },
+
+  /** 首页统计：进度表人数与累计通关次数（初+中级 JSON 长度之和），无需登录 */
+  getHomeStats() {
+    return request({
+      url: '/pun/stats/home',
+      method: 'GET',
+      skipAuth: true,
+    })
+  },
+
   /**
    * 提交答案
    */
@@ -132,6 +150,18 @@ export const api = {
       url: '/pun/answer/submit',
       method: 'POST',
       data: { level, userAnswer, ...extra },
+    })
+  },
+
+  /**
+   * 分步揭字提示（每次多揭示一个字，其余为 X）
+   * @param {Object} data - { level, gameTier: 'mid'|'battle'|'beginner', roomId?, questionIndex? }
+   */
+  revealHint(data) {
+    return request({
+      url: '/pun/level/reveal-hint',
+      method: 'POST',
+      data: data || {},
     })
   },
 

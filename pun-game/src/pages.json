@@ -4,7 +4,8 @@
       "path": "pages/index/index",
       "style": {
         "navigationStyle": "custom",
-        "navigationBarTitleText": "谐音梗图"
+        "navigationBarTitleText": "谐音梗图",
+        "backgroundColor": "#0a1628"
       }
     },
     {
@@ -22,10 +23,10 @@
       }
     },
     {
-      "path": "pages/forum/forum",
+      "path": "pages/mine/mine",
       "style": {
         "navigationStyle": "custom",
-        "navigationBarTitleText": "闲聊"
+        "navigationBarTitleText": "我的"
       }
     },
     {
@@ -89,6 +90,39 @@
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "谐音梗图",
     "navigationBarBackgroundColor": "#fff",
-    "backgroundColor": "#f5f0e8"
+    "backgroundColor": "#f5f0e8",
+    "enableShareTimeline": true
   }
+  // "tabBar": {
+  //   "color": "#8eadcf",
+  //   "selectedColor": "#5a9e52",
+  //   "backgroundColor": "#ffffff",
+  //   "borderStyle": "white",
+  //   "list": [
+  //     {
+  //       "pagePath": "pages/index/index",
+  //       "text": "游戏",
+  //       "iconPath": "static/tab/game.png",
+  //       "selectedIconPath": "static/tab/game-active.png"
+  //     },
+  //     {
+  //       "pagePath": "pages/rank/rank",
+  //       "text": "排行",
+  //       "iconPath": "static/tab/rank.png",
+  //       "selectedIconPath": "static/tab/rank-active.png"
+  //     },
+  //     {
+  //       "pagePath": "pages/levels/levels",
+  //       "text": "关卡",
+  //       "iconPath": "static/tab/levels.png",
+  //       "selectedIconPath": "static/tab/levels-active.png"
+  //     },
+  //     {
+  //       "pagePath": "pages/mine/mine",
+  //       "text": "我的",
+  //       "iconPath": "static/tab/mine.png",
+  //       "selectedIconPath": "static/tab/mine-active.png"
+  //     }
+  //   ]
+  // }
 }

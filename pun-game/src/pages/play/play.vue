@@ -3,6 +3,7 @@
     <view class="bg-wrap">
       <view class="bg-gradient" />
       <view class="bg-dots" />
+      <view class="bg-glow" />
     </view>
 
     <!-- 顶部状态栏占位 -->
@@ -85,7 +86,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onLoad, onShow, onHide, onShareAppMessage } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getLevelPuzzle } from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
@@ -263,9 +264,29 @@ onShareAppMessage(() => {
     path: `/pages/play/play?level=${level.value}`,
   }
 })
+
+onShareTimeline(() => {
+  const img = puzzle.value.imageUrl && String(puzzle.value.imageUrl).startsWith('http')
+    ? puzzle.value.imageUrl
+    : ''
+  if (cocreateId.value) {
+    return {
+      title: '这条谐音梗等你来猜！',
+      query: `cocreateId=${cocreateId.value}`,
+      ...(img ? { imageUrl: img } : {}),
+    }
+  }
+  return {
+    title: `第${level.value}关求助，快来帮我猜谐音梗！`,
+    query: `level=${level.value}`,
+    ...(img ? { imageUrl: img } : {}),
+  }
+})
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   position: relative;
@@ -273,62 +294,9 @@ onShareAppMessage(() => {
   padding-left: 40rpx;
   padding-right: 40rpx;
   box-sizing: border-box;
+  @include pt-page-background;
 }
 
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #fff9f3 0%, #ffefe6 50%, #fce8e0 100%);
-}
-.bg-dots {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(circle at 1px 1px, #e8d5ce 1px, transparent 0);
-  background-size: 40rpx 40rpx;
-}
-
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 居中整个导航栏的内容 */
-  margin-bottom: 32rpx;
-}
-.nav-btn {
-  position: absolute; /* 绝对定位到左侧，不影响标题居中 */
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-.nav-icon {
-  font-size: 36rpx;
-  line-height: 1;
-}
-.nav-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-}
-.nav-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.04em;
-}
 .nav-star { font-size: 30rpx; }
 .btn-help {
   position: absolute; /* 绝对定位到右侧，因为微信胶囊存在，其实这块区域容易被挡住，看需求可以留着或隐藏 */
@@ -337,16 +305,16 @@ onShareAppMessage(() => {
   padding: 18rpx 28rpx;
   border: none;
   border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.9);
-  color: #6b5b52;
+  background: rgba(255, 255, 255, 0.92);
+  color: #5a6d7a;
   font-size: inherit;
   line-height: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
 }
 .btn-help::after {
   border: none;
@@ -360,9 +328,9 @@ onShareAppMessage(() => {
   margin-bottom: 32rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(180, 120, 100, 0.1), 0 2rpx 8rpx rgba(0,0,0,0.04);
+  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18), 0 2rpx 8rpx rgba(0,0,0,0.04);
   background: rgba(255, 255, 255, 0.95);
-  border: 2rpx solid rgba(200, 160, 140, 0.15);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .card-inner {
   min-height: 400rpx;
@@ -382,13 +350,13 @@ onShareAppMessage(() => {
   align-items: center;
   justify-content: center;
   font-size: 28rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 .puzzle-hint {
   margin-top: 24rpx;
   padding: 0 24rpx 28rpx;
   font-size: 32rpx;
-  color: #3d3530;
+  color: #5a6d7a;
   font-weight: 500;
   text-align: center;
 }
@@ -402,10 +370,10 @@ onShareAppMessage(() => {
   gap: 22rpx;
   padding: 28rpx 24rpx;
   margin-bottom: 32rpx;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border-radius: 24rpx;
-  box-shadow: 0 6rpx 20rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.15);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 
 .answer-left {
@@ -428,7 +396,7 @@ onShareAppMessage(() => {
   z-index: 2;
   text-align: center;
   font-size: 24rpx;
-  color: #a89f98;
+  color: #8eadcf;
   margin-top: -16rpx;
   margin-bottom: 32rpx;
 }
@@ -447,15 +415,15 @@ onShareAppMessage(() => {
   border: none;
   border-radius: 24rpx;
   background: rgba(255, 255, 255, 0.95);
-  color: #6b5b52;
+  color: #5a6d7a;
   font-size: inherit;
   line-height: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8rpx;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.15);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 
 .answer-btn-placeholder {
@@ -468,15 +436,15 @@ onShareAppMessage(() => {
 .slot {
   width: 76rpx;
   height: 76rpx;
-  border: 2rpx dashed rgba(180, 140, 120, 0.4);
+  border: 2rpx dashed rgba(169, 201, 238, 0.75);
   border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
   font-weight: 600;
-  color: #3d3530;
-  background: rgba(255, 255, 255, 0.8);
+  color: #5a6d7a;
+  background: rgba(255, 255, 255, 0.9);
 }
 .slot-error {
   border-color: #c04a38;
@@ -574,23 +542,23 @@ onShareAppMessage(() => {
   width: 88rpx;
   height: 88rpx;
   border-radius: 50%;
-  background: linear-gradient(145deg, #d45d4a 0%, #c04a38 100%);
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 55%, #7ec876 100%);
   color: #fff;
   font-size: 36rpx;
   font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6rpx 20rpx rgba(192, 74, 56, 0.3), inset 0 2rpx 0 rgba(255,255,255,0.2);
-  border: 2rpx solid transparent;
+  box-shadow: 0 6rpx 20rpx rgba(111, 184, 104, 0.35), inset 0 2rpx 0 rgba(255,255,255,0.35);
+  border: 2rpx solid rgba(255, 255, 255, 0.35);
 }
 .char-btn:active {
   transform: scale(0.96);
 }
 .char-btn-used {
-  background: rgba(200, 180, 170, 0.5);
-  color: #a89f98;
+  background: rgba(234, 246, 249, 0.85);
+  color: #8eadcf;
   box-shadow: none;
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 </style>

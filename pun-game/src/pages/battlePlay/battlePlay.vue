@@ -3,6 +3,7 @@
     <view class="bg-wrap">
       <view class="bg-gradient" />
       <view class="bg-dots" />
+      <view class="bg-glow" />
     </view>
 
     <!-- 顶部状态栏占位 -->
@@ -90,6 +91,19 @@
       <view class="answer-left finished-msg" v-else>
         <text>你已完成所有题目，等待对手中...</text>
       </view>
+
+      <view class="answer-right" v-if="!finished && !gameOver">
+        <button
+          class="btn-hint-battle"
+          :class="{ 'btn-hint-battle--cooldown': hintCooldownLeft > 0 }"
+          :loading="hintLoading"
+          :disabled="hintLoading || hintCooldownLeft > 0"
+          @click="onRevealHint"
+        >
+          <text class="hint-icon">💡</text>
+          <text class="hint-text">{{ hintCooldownLeft > 0 ? '答案 ' + hintCooldownLeft + 's' : '答案' }}</text>
+        </button>
+      </view>
     </view>
 
     <!-- 通关成功动画弹层 -->
@@ -118,14 +132,19 @@
 <script setup>
 import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
-import { getMidLevelPuzzle } from '../../data/levels'
+import { getMidLevelPuzzle, prefetchBattleMidImages } from '../../data/levels'
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
 import { playBgmPlay, stopBgm, playCongratsOnce } from '../../utils/gameAudio'
 import { getUserInfo } from '../../utils/auth'
+import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+// #ifdef MP-WEIXIN
+useWechatPageShare('1V1 对战中 · 谐音梗图')
+// #endif
 
 const roomId = ref('')
 const levels = ref([])
@@ -167,6 +186,31 @@ const puzzle = ref({
 })
 const loading = ref(true)
 const submitting = ref(false)
+const hintLoading = ref(false)
+/** 答案按钮冷却剩余秒数，0 表示可点 */
+const hintCooldownLeft = ref(0)
+let hintCooldownTimer = null
+const HINT_COOLDOWN_SEC = 20
+
+function clearHintCooldown() {
+  if (hintCooldownTimer) {
+    clearInterval(hintCooldownTimer)
+    hintCooldownTimer = null
+  }
+  hintCooldownLeft.value = 0
+}
+
+function startHintCooldown() {
+  clearHintCooldown()
+  hintCooldownLeft.value = HINT_COOLDOWN_SEC
+  hintCooldownTimer = setInterval(() => {
+    hintCooldownLeft.value--
+    if (hintCooldownLeft.value <= 0) {
+      clearHintCooldown()
+    }
+  }, 1000)
+}
+
 const feedback = ref([])
 const slotShake = ref(false)
 const showSuccess = ref(false)
@@ -184,6 +228,30 @@ const caretIndex = computed(() => {
 
 function formatTime(ms) {
   return (ms / 1000).toFixed(1) + 's'
+}
+
+async function onRevealHint() {
+  if (finished.value || gameOver.value || hintLoading.value || loading.value || hintCooldownLeft.value > 0) return
+  const lv = parseInt(levels.value[currentQuestionIndex.value], 10)
+  if (!Number.isFinite(lv) || !roomId.value) return
+  hintLoading.value = true
+  try {
+    const data = await api.revealHint({
+      level: lv,
+      gameTier: 'battle',
+      roomId: roomId.value,
+      questionIndex: currentQuestionIndex.value,
+    })
+    uni.showModal({
+      title: data.isComplete ? '已全部提示' : `提示 (${data.step}/${data.maxSteps})`,
+      content: data.hintText,
+      showCancel: false,
+    })
+  } catch (e) {
+    uni.showToast({ title: e.message || '获取失败', icon: 'none' })
+  } finally {
+    hintLoading.value = false
+  }
 }
 
 function isSlotError(index) {
@@ -306,6 +374,7 @@ function loadCurrentQuestion() {
     feedback.value = []
     answerInputValue.value = ''
     loading.value = false
+    startHintCooldown()
   }).catch((err) => {
     console.error('加载题目失败', err)
     loading.value = false
@@ -335,6 +404,7 @@ onHide(() => {
 })
 
 onUnmounted(() => {
+  clearHintCooldown()
   if (timer) clearInterval(timer)
   wsApi.off('sync_progress')
   wsApi.off('opponent_finish')
@@ -351,6 +421,9 @@ onLoad((opts) => {
     try {
       levels.value = JSON.parse(opts.levels)
     } catch (e) {}
+  }
+  if (Array.isArray(levels.value) && levels.value.length > 0) {
+    prefetchBattleMidImages(levels.value)
   }
   if (opts.myName) myName.value = decodeURIComponent(opts.myName)
   if (opts.opponentName) opponentName.value = decodeURIComponent(opts.opponentName)
@@ -460,6 +533,8 @@ async function reconnectBattleState() {
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   position: relative;
@@ -469,62 +544,7 @@ async function reconnectBattleState() {
   box-sizing: border-box;
   max-width: 100vh;
   overflow: hidden;
-}
-
-.page--mid .bg-gradient {
-  background: linear-gradient(165deg, #e8f4fc 0%, #d4e8f8 45%, #c5dff5 100%);
-}
-.page--mid .bg-dots {
-  opacity: 0.45;
-  background-image: radial-gradient(circle at 1px 1px, rgba(120, 160, 200, 0.35) 1px, transparent 0);
-  background-size: 40rpx 40rpx;
-}
-
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 居中整个导航栏的内容 */
-  margin-bottom: 32rpx;
-}
-.nav-btn {
-  position: absolute; /* 绝对定位到左侧，不影响标题居中 */
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-.page--mid .nav-btn {
-  border-color: rgba(140, 170, 210, 0.35);
-  box-shadow: 0 4rpx 16rpx rgba(100, 140, 180, 0.12);
-}
-.nav-icon {
-  font-size: 36rpx;
-  line-height: 1;
-}
-.nav-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-}
-.nav-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.04em;
+  @include pt-page-background;
 }
 
 .battle-status {
@@ -584,7 +604,7 @@ async function reconnectBattleState() {
 .time-value {
   font-size: 36rpx;
   font-weight: 900;
-  color: #3d3530;
+  color: #5a6d7a;
   font-variant-numeric: tabular-nums;
 }
 
@@ -594,15 +614,15 @@ async function reconnectBattleState() {
   margin-bottom: 32rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(180, 120, 100, 0.1), 0 2rpx 8rpx rgba(0,0,0,0.04);
+  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18), 0 2rpx 8rpx rgba(0,0,0,0.04);
   background: rgba(255, 255, 255, 0.95);
-  border: 2rpx solid rgba(200, 160, 140, 0.15);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .card--mid {
   overflow: visible;
   border-radius: 28rpx;
-  box-shadow: 0 12rpx 36rpx rgba(100, 140, 180, 0.14), 0 2rpx 10rpx rgba(0,0,0,0.05);
-  border-color: rgba(180, 200, 230, 0.5);
+  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22), 0 2rpx 10rpx rgba(0,0,0,0.05);
+  border-color: rgba(169, 201, 238, 0.55);
 }
 
 .keyword-tab {
@@ -611,9 +631,9 @@ async function reconnectBattleState() {
   right: 18rpx;
   z-index: 4;
   padding: 14rpx 20rpx;
-  background: #d45d4a;
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   border-radius: 14rpx;
-  box-shadow: 0 10rpx 24rpx rgba(212, 93, 74, 0.25);
+  box-shadow: 0 10rpx 24rpx rgba(111, 184, 104, 0.28);
 }
 .keyword-tab-text {
   font-size: 26rpx;
@@ -653,7 +673,7 @@ async function reconnectBattleState() {
   font-size: 30rpx;
   font-weight: 700;
   color: #2c3a4a;
-  margin-top: -90rpx;
+  margin-top: -60rpx;
 }
 
 .answer-row {
@@ -661,20 +681,56 @@ async function reconnectBattleState() {
   z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 20rpx;
   padding: 28rpx 24rpx;
   margin-bottom: 32rpx;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
   border-radius: 24rpx;
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
+  box-shadow: 0 4rpx 16rpx rgba(169, 201, 238, 0.1);
 }
 .answer-left {
   position: relative;
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
+.answer-right {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+}
+.btn-hint-battle {
+  margin: 0;
+  padding: 18rpx 18rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.95);
+  color: #5a6d7a;
+  font-size: inherit;
+  line-height: inherit;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.15);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
+}
+.btn-hint-battle::after {
+  border: none;
+}
+.btn-hint-battle--cooldown {
+  opacity: 0.68;
+}
+.hint-icon { font-size: 30rpx; line-height: 1; flex-shrink: 0; }
+.hint-text { font-size: 28rpx; font-weight: 600; line-height: 1.2; white-space: nowrap; }
 .finished-msg {
   font-size: 30rpx;
   font-weight: bold;
@@ -707,14 +763,15 @@ async function reconnectBattleState() {
 .slot {
   width: 76rpx;
   height: 76rpx;
-  border: 2rpx dashed rgba(180, 140, 120, 0.4);
+  border: 2rpx dashed rgba(169, 201, 238, 0.75);
   border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 36rpx;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.8);
+  color: #5a6d7a;
+  background: rgba(255, 255, 255, 0.9);
 }
 .slot-char { line-height: 1; }
 .slot-caret {
@@ -789,10 +846,11 @@ async function reconnectBattleState() {
   margin-bottom: 60rpx;
 }
 .btn-home {
-  background: #3b82f6;
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   color: #fff;
   border-radius: 100rpx;
   height: 88rpx;
   line-height: 88rpx;
+  box-shadow: 0 8rpx 24rpx rgba(111, 184, 104, 0.3);
 }
 </style>

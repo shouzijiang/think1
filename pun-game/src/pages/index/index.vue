@@ -9,15 +9,19 @@
     <!-- 顶部状态栏占位 -->
     <view :style="{ height: statusBarHeight + 'px', width: '100%' }"></view>
 
-    <!-- 顶部留白，代替原来的 padding-top -->
-    <view :style="{ height: Math.max(10, navBarHeight - 10) + 'px', width: '100%' }"></view>
-
-    <!-- 用户头像与昵称（微信内可点击授权/修改，保存到本地与后端） -->
-    <view class="user-header">
+    <!-- 与 forum.vue 一致：nav-bar 高度 = 胶囊区；头像区尺寸 = nav-btn（menuButtonHeight） -->
+    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
+      <!-- 用户头像与昵称（微信内可点击授权/修改，保存到本地与后端） -->
+      <view class="user-header">
       <!-- #ifdef MP-WEIXIN -->
       <view class="user-info">
         <view class="avatar-wrapper">
-          <button class="avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
+          <button
+            class="avatar-btn avatar-btn--nav"
+            open-type="chooseAvatar"
+            :style="navBtnSizeStyle"
+            @chooseavatar="onChooseAvatar"
+          >
             <image
               v-if="userInfo?.avatar"
               class="user-avatar"
@@ -26,7 +30,6 @@
             />
             <view v-else class="user-avatar user-avatar-placeholder">👤</view>
           </button>
-          <!-- <text class="edit-hint">点击修改头像</text> -->
         </view>
         <view class="nickname-wrapper">
           <input
@@ -43,22 +46,33 @@
       <!-- #endif -->
       <!-- #ifndef MP-WEIXIN -->
       <view class="user-info user-info-readonly">
-        <image
-          v-if="userInfo?.avatar"
-          class="user-avatar"
-          :src="userInfo.avatar"
-          mode="aspectFill"
-        />
-        <view v-else class="user-avatar user-avatar-placeholder">👤</view>
-        <text class="user-nickname">{{ userInfo?.nickname || '用户' }}</text>
+        <view class="avatar-wrapper">
+          <view class="avatar-fallback" :style="navBtnSizeStyle">
+            <image
+              v-if="userInfo?.avatar"
+              class="user-avatar"
+              :src="userInfo.avatar"
+              mode="aspectFill"
+            />
+            <view v-else class="user-avatar user-avatar-placeholder">👤</view>
+          </view>
+        </view>
+        <view class="nickname-wrapper">
+          <text class="user-nickname">{{ userInfo?.nickname || '用户' }}</text>
+        </view>
       </view>
       <!-- #endif -->
+      </view>
     </view>
 
     <!-- 删除了原有的文字标题，改用统一的副标题 -->
     <view class="hero">
       <view class="hero-badge">
-        <text class="hero-emoji">💡</text>
+        <image
+          class="hero-badge-img"
+          src="/static/index-badge.jpg"
+          mode="aspectFit"
+        />
       </view>
       <text class="title">谐音梗猜一猜</text>
       <text class="subtitle">看图猜词 · 挑战你的脑洞</text>
@@ -73,9 +87,15 @@
         <text class="btn-start-icon">🔥</text>
         <text class="btn-start-text">开始(画中寻梗)</text>
       </view>
-      <view class="btn-start" @click="startGame">
-        <text class="btn-start-icon">🌱</text>
-        <text class="btn-start-text">开始(梗图填词)</text>
+      <view class="start-row">
+        <view class="btn-start btn-start--pair" @click="startGame">
+          <!-- <text class="btn-start-icon">🌱</text> -->
+          <text class="btn-start-text">🌱梗图填词</text>
+        </view>
+        <view class="btn-start btn-start-xhs btn-start--pair" @click="showXhsAlbumComingSoon">
+          <!-- <text class="btn-start-icon">📕</text> -->
+          <text class="btn-start-text">📕小红书专辑</text>
+        </view>
       </view>
     </view>
 
@@ -92,6 +112,22 @@
 
     <view class="stats">
       <text class="stats-text">已有 {{ stats.players }} 位好友在玩 · 累计 {{ stats.answers }} 次答题</text>
+    </view>
+
+    <!-- 本期更新弹窗 -->
+    <view v-if="changelogVisible" class="changelog-mask" @click="dismissChangelog">
+      <view class="changelog-card" @click.stop>
+        <text class="changelog-title">{{ changelogTitle }}</text>
+        <scroll-view scroll-y class="changelog-scroll">
+          <view v-for="(line, idx) in changelogLines" :key="idx" class="changelog-line-wrap">
+            <text class="changelog-dot">•</text>
+            <text class="changelog-line">{{ line }}</text>
+          </view>
+        </scroll-view>
+        <view class="changelog-btn" @click="dismissChangelog">
+          <text class="changelog-btn-text">知道了</text>
+        </view>
+      </view>
     </view>
 
     <view class="side-toolbar">
@@ -119,8 +155,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { onShow, onHide } from '@dcloudio/uni-app'
+import { ref, computed } from 'vue'
+import { onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getCurrentLevel, loadMidLevelList, pickMidLevelFromProgress } from '../../data/levels'
 import { getUserInfo, wechatLogin } from '../../utils/auth'
 import { api } from '../../utils/api'
@@ -132,11 +168,68 @@ import {
   stopBgm,
 } from '../../utils/gameAudio'
 
-const { statusBarHeight, navBarHeight } = useNavBar()
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
-const stats = ref({ players: 28, answers: 45684 })
+/** 与 forum 页 nav-btn 一致：宽高等于微信胶囊按钮高度 */
+const navBtnSizeStyle = computed(() => {
+  const h = menuButtonHeight.value
+  return {
+    width: `${h}px`,
+    height: `${h}px`,
+  }
+})
+
+const CHANGELOG_SEEN_KEY = 'pun_changelog_seen_version'
+
+const stats = ref({ players: 0, answers: 0 })
 const userInfo = ref(null)
 const bgmOn = ref(isGameAudioEnabled())
+
+const changelogVisible = ref(false)
+const changelogTitle = ref('本期更新')
+const changelogLines = ref([])
+const changelogVersion = ref('')
+
+function dismissChangelog() {
+  if (changelogVersion.value) {
+    uni.setStorageSync(CHANGELOG_SEEN_KEY, changelogVersion.value)
+  }
+  changelogVisible.value = false
+}
+
+async function loadHomeStats() {
+  try {
+    const data = await api.getHomeStats()
+    if (!data || typeof data !== 'object') return
+    const p = data.players ?? data.player_count
+    const a = data.answers ?? data.answer_count
+    stats.value = {
+      players: typeof p === 'number' && !Number.isNaN(p) ? p : 0,
+      answers: typeof a === 'number' && !Number.isNaN(a) ? a : 0,
+    }
+  } catch (e) {
+    console.warn('home stats', e)
+  }
+}
+
+async function tryShowChangelog() {
+  try {
+    const data = await api.getChangelogLatest()
+    if (!data) return
+    const versionCode = data.versionCode ?? data.version_code
+    if (!versionCode) return
+    const seen = uni.getStorageSync(CHANGELOG_SEEN_KEY) || ''
+    if (String(seen) === String(versionCode)) return
+    const lines = Array.isArray(data.lines) ? data.lines.filter(Boolean) : []
+    if (lines.length === 0) return
+    changelogTitle.value = data.title || '本期更新'
+    changelogLines.value = lines
+    changelogVersion.value = String(versionCode)
+    changelogVisible.value = true
+  } catch (e) {
+    console.warn('changelog', e)
+  }
+}
 
 function toggleBgm() {
   const next = !bgmOn.value
@@ -240,11 +333,24 @@ onShow(async () => {
   if (bgmOn.value) {
     playBgmHome()
   }
+  loadHomeStats()
+  tryShowChangelog()
 })
 
 onHide(() => {
   stopBgm()
 })
+
+// #ifdef MP-WEIXIN
+onShareAppMessage(() => ({
+  title: '谐音梗猜一猜，看图填词挑战脑洞！',
+  path: '/pages/index/index',
+}))
+onShareTimeline(() => ({
+  title: '谐音梗猜一猜 · 看图填词',
+  query: '',
+}))
+// #endif
 
 function goRank() {
   uni.navigateTo({ url: '/pages/rank/rank' })
@@ -265,6 +371,10 @@ function goCocreate() {
 
 function goBattle() {
   uni.navigateTo({ url: '/pages/battleRoom/battleRoom' })
+}
+
+function showXhsAlbumComingSoon() {
+  uni.showToast({ title: '4月15号上线', icon: 'none' })
 }
 async function startGameMid() {
   const goPlay = (lv) => { uni.navigateTo({ url: `/pages/playMid/playMid?level=${lv}` }) }
@@ -306,6 +416,7 @@ function startGame() {
 </script>
 
 <style lang="scss" scoped>
+/* 参考：浅粉蓝底 + 薄荷绿主色 + 浅蓝描边（柔和不刺眼） */
 .page {
   min-height: 100vh;
   display: flex;
@@ -315,62 +426,103 @@ function startGame() {
   overflow: hidden;
   padding: 0 40rpx;
   box-sizing: border-box;
+  background: #eaf6f9;
 }
 
 .bg-wrap {
   position: fixed;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
 }
 .bg-gradient {
   position: absolute;
   inset: 0;
-  background: linear-gradient(165deg, #f0f7ff 0%, #e0eafd 35%, #d1e1fb 70%, #c4d7f9 100%); /* 改为清新的蓝底色，更显活泼 */
+  background:
+    radial-gradient(ellipse 200rpx 120rpx at 12% 22%, rgba(255, 235, 200, 0.45), transparent 55%),
+    radial-gradient(ellipse 180rpx 100rpx at 88% 18%, rgba(210, 200, 245, 0.35), transparent 50%),
+    radial-gradient(ellipse 220rpx 140rpx at 72% 78%, rgba(255, 210, 190, 0.28), transparent 55%),
+    linear-gradient(180deg, #eaf6f9 0%, #e4f3f8 45%, #eaf6f9 100%);
 }
 .bg-dots {
   position: absolute;
   inset: 0;
-  opacity: 0.5;
-  background-image: radial-gradient(circle at 2px 2px, rgba(160,190,240,0.4) 2px, transparent 0);
-  background-size: 48rpx 48rpx;
+  opacity: 0.35;
+  background-image: radial-gradient(circle at 2px 2px, rgba(169, 201, 238, 0.45) 2px, transparent 0);
+  background-size: 40rpx 40rpx;
 }
 .bg-glow {
   position: absolute;
-  top: -10%;
+  top: -5%;
   left: 50%;
   transform: translateX(-50%);
-  width: 140%;
-  height: 60%;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.8) 0%, rgba(255,255,255,0) 70%);
+  width: 120%;
+  height: 50%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.65) 0%,
+    rgba(234, 246, 249, 0) 68%
+  );
   pointer-events: none;
 }
 
-.user-header {
+/* 与 forum.vue .nav-bar 同构：条内左侧区域对齐「返回/首页」nav-btn 位置 */
+.nav-bar {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 520rpx;
-  margin-bottom: 40rpx;
+  box-sizing: border-box;
+  margin-bottom: 24rpx;
 }
+
+.user-header {
+  position: absolute;
+  left: -20rpx;
+  top: 60%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .user-info {
   display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 24rpx;
-  padding: 16rpx 20rpx;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  border-radius: 100rpx; /* 胶囊状，更显精致 */
-  box-shadow: 0 8rpx 24rpx rgba(100, 140, 200, 0.15), inset 0 2rpx 0 rgba(255,255,255,0.8);
-  border: 4rpx solid rgba(255, 255, 255, 0.6);
+  gap: 20rpx;
+  max-width: 100%;
+  padding: 8rpx 20rpx 8rpx 12rpx;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 100rpx;
+  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.22);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  box-sizing: border-box;
 }
 .user-info-readonly {
-  padding: 16rpx 24rpx;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 20rpx;
+  max-width: 100%;
+  padding: 8rpx 20rpx 8rpx 12rpx;
   border-radius: 100rpx;
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.22);
+  box-sizing: border-box;
 }
 .avatar-wrapper {
+  flex-shrink: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
   position: relative;
 }
 .avatar-btn {
@@ -384,24 +536,52 @@ function startGame() {
 .avatar-btn::after {
   border: none;
 }
-.user-avatar {
-  width: 96rpx;
-  height: 96rpx;
+/* 对齐 forum .nav-btn：固定为 menuButtonHeight 正方形 */
+.avatar-btn--nav {
+  flex-shrink: 0;
+  box-sizing: border-box;
   border-radius: 50%;
-  border: 6rpx solid #fff;
-  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.65);
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
+}
+.avatar-fallback {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.65);
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
+}
+.avatar-btn--nav .user-avatar,
+.avatar-fallback .user-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: none;
   display: block;
 }
 .user-avatar-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
   font-size: 48rpx;
-  background: #e8f0fe;
-  color: #8ab4f8;
+  background: rgba(234, 246, 249, 0.95);
+  filter: saturate(0.88);
 }
 .nickname-wrapper {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -409,9 +589,9 @@ function startGame() {
 }
 .nickname-input {
   width: 100%;
-  font-size: 32rpx;
-  font-weight: 800;
-  color: #2c3e50;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #5a6d7a;
   background: transparent;
   border: none;
   padding: 0;
@@ -420,24 +600,22 @@ function startGame() {
   line-height: 1.2;
 }
 .nickname-input::placeholder {
-  color: #94a3b8;
+  color: #8eadcf;
   font-weight: 600;
 }
 .edit-hint {
   font-size: 20rpx;
-  color: #64748b;
-  font-weight: 500;
-  background: rgba(255,255,255,0.6);
-  padding: 2rpx 12rpx;
+  color: #8eadcf;
+  font-weight: 400;
   border-radius: 12rpx;
   display: inline-block;
   align-self: flex-start;
 }
 .user-nickname {
   flex: 1;
-  font-size: 32rpx;
-  font-weight: 800;
-  color: #2c3e50;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #5a6d7a;
 }
 
 .hero {
@@ -446,7 +624,7 @@ function startGame() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 4vh;
+  margin-bottom: 6vh;
   animation: float 3s ease-in-out infinite;
 }
 @keyframes float {
@@ -456,36 +634,43 @@ function startGame() {
 .hero-badge {
   width: 200rpx;
   height: 200rpx;
-  border-radius: 40rpx; /* 圆角矩形，像游戏App图标 */
-  background: linear-gradient(135deg, #fff 0%, #f1f5f9 100%);
-  border: 8rpx solid #fff;
+  border-radius: 36rpx;
+  background: rgba(255, 255, 255, 0.55);
+  border: 6rpx solid rgba(255, 255, 255, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24rpx;
-  box-shadow: 0 20rpx 40rpx rgba(100, 140, 200, 0.25), inset 0 -8rpx 16rpx rgba(0,0,0,0.05);
-  transform: rotate(-5deg);
+  margin: 24rpx auto 30rpx;
+  box-shadow: 0 12rpx 32rpx rgba(169, 201, 238, 0.35), 0 4rpx 0 rgba(255, 255, 255, 0.8) inset;
+  transform: rotate(-4deg);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.hero-badge-img {
+  width: 100%;
+  height: 100%;
 }
 .hero-emoji {
   font-size: 100rpx;
   filter: drop-shadow(0 8rpx 8rpx rgba(0,0,0,0.1));
 }
 .title {
-  font-size: 72rpx;
+  font-size: 56rpx;
   font-weight: 900;
-  color: #1e293b;
-  letter-spacing: 0.1em;
+  color: #91d58b;
+  letter-spacing: 0.08em;
   margin-bottom: 12rpx;
-  text-shadow: 0 4rpx 0 #fff, 0 8rpx 16rpx rgba(100,140,200,0.3);
+  text-shadow: 0 3rpx 0 rgba(111, 184, 104, 0.35), 0 6rpx 18rpx rgba(145, 213, 139, 0.2);
 }
 .subtitle {
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.08em;
-  background: rgba(255,255,255,0.7);
-  padding: 8rpx 24rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #8eadcf;
+  letter-spacing: 0.06em;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10rpx 26rpx;
   border-radius: 100rpx;
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 
 .start-wrap {
@@ -498,22 +683,33 @@ function startGame() {
   gap: 32rpx;
   margin-bottom: 60rpx;
 }
+.start-row {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 20rpx;
+  width: 100%;
+}
 .btn-start {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16rpx;
-  padding: 32rpx 48rpx;
-  background: linear-gradient(135deg, #ff7a63 0%, #e04a35 100%);
-  border-radius: 32rpx;
-  color: #fff;
-  font-size: 36rpx;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  box-shadow: 0 16rpx 32rpx rgba(224, 74, 53, 0.4), 0 10rpx 0 #b33624, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
-  transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 14rpx;
+  padding: 28rpx 40rpx;
+  border-radius: 24rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
   overflow: hidden;
+  box-sizing: border-box;
+
+  /* 主按钮：薄荷绿实底 + 白字 */
+  background: linear-gradient(180deg, #a3dd9c 0%, #91d58b 55%, #85c97f 100%);
+  color: #fff;
+  border: 3rpx solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 8rpx 22rpx rgba(145, 213, 139, 0.38), inset 0 2rpx 0 rgba(255, 255, 255, 0.35);
 
   &::before {
     content: '';
@@ -521,59 +717,69 @@ function startGame() {
     top: 0;
     left: 0;
     right: 0;
-    height: 50%;
-    background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent);
-    border-radius: 32rpx 32rpx 0 0;
+    height: 48%;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.28), transparent);
+    // border-radius: 999rpx 999rpx 0 0;
+    pointer-events: none;
   }
 
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 50%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
-    transform: skewX(-20deg);
-    animation: shine 3s infinite;
-  }
-
+  /* 画中寻梗：青绿主色 rgb(102, 222, 209) */
   &.btn-start-2 {
-    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-    box-shadow: 0 16rpx 32rpx rgba(59, 130, 246, 0.4), 0 10rpx 0 #2563eb, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
-    &::after {
-      animation-delay: 1.5s;
+    background: linear-gradient(
+      180deg,
+      rgb(142, 236, 224) 0%,
+      rgb(102, 222, 209) 55%,
+      rgb(72, 200, 186) 100%
+    );
+    color: #fff;
+    border: 3rpx solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 8rpx 22rpx rgba(102, 222, 209, 0.42), inset 0 2rpx 0 rgba(255, 255, 255, 0.35);
+  }
+
+  &.btn-start-xhs {
+    background: rgba(255, 255, 255, 0.75);
+    color: #d4899c;
+    border: 3rpx solid rgba(245, 137, 163, 0.45);
+    box-shadow: 0 6rpx 18rpx rgba(245, 137, 163, 0.15);
+  }
+
+  &.btn-start--pair {
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 8rpx;
+    padding: 24rpx 14rpx;
+    font-size: 26rpx;
+    border-radius: 24rpx;
+    background: rgba(255, 255, 255, 0.72);
+    color: #8eadcf;
+    border: 3rpx solid rgba(169, 201, 238, 0.8);
+    box-shadow: 0 6rpx 16rpx rgba(169, 201, 238, 0.18);
+    .btn-start-icon {
+      font-size: 40rpx;
+      filter: saturate(0.9) opacity(0.95);
+    }
+    .btn-start-text {
+      font-size: 24rpx;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.35;
     }
   }
 
-  &.btn-start-battle {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-    box-shadow: 0 16rpx 32rpx rgba(245, 158, 11, 0.4), 0 10rpx 0 #b45309, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
-    &::after {
-      animation-delay: 0.75s;
-    }
+  &.btn-start-xhs.btn-start--pair {
+    color: #c97b8e;
+    border-color: rgba(245, 137, 163, 0.5);
   }
 }
 .btn-start:active {
-  transform: translateY(8rpx);
-  box-shadow: 0 4rpx 10rpx rgba(224, 74, 53, 0.4), 0 2rpx 0 #b33624, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
-  &.btn-start-2 {
-    box-shadow: 0 4rpx 10rpx rgba(59, 130, 246, 0.4), 0 2rpx 0 #2563eb, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
-  }
-  &.btn-start-battle {
-    box-shadow: 0 4rpx 10rpx rgba(245, 158, 11, 0.4), 0 2rpx 0 #b45309, inset 0 4rpx 10rpx rgba(255, 255, 255, 0.4);
-  }
+  transform: scale(0.98);
+  opacity: 0.94;
 }
 .btn-start-icon {
-  font-size: 40rpx;
+  font-size: 38rpx;
   line-height: 1;
-  filter: drop-shadow(0 4rpx 4rpx rgba(0,0,0,0.2));
-}
-
-@keyframes shine {
-  0% { left: -100%; }
-  20% { left: 200%; }
-  100% { left: 200%; }
+  filter: saturate(0.88) brightness(1.02);
 }
 
 .btn-cocreate-text-sub {
@@ -605,25 +811,25 @@ function startGame() {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  padding: 28rpx 20rpx;
-  background: rgba(255, 255, 255, 0.9);
+  padding: 26rpx 18rpx;
+  background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(10px);
-  border-radius: 28rpx;
-  color: #475569;
+  border-radius: 24rpx;
+  color: #8eadcf;
   font-size: 26rpx;
   font-weight: 700;
-  box-shadow: 0 10rpx 20rpx rgba(100, 140, 200, 0.1), 0 6rpx 0 #e2e8f0;
-  border: 4rpx solid #fff;
-  transition: all 0.1s;
+  box-shadow: 0 6rpx 18rpx rgba(169, 201, 238, 0.2);
+  border: 3rpx solid rgba(169, 201, 238, 0.55);
+  transition: transform 0.12s ease;
 }
 .btn-entry:active {
-  transform: translateY(4rpx);
-  box-shadow: 0 4rpx 10rpx rgba(100, 140, 200, 0.1), 0 2rpx 0 #e2e8f0;
+  transform: scale(0.98);
+  opacity: 0.95;
 }
 .btn-icon {
-  font-size: 48rpx;
+  font-size: 46rpx;
   line-height: 1;
-  filter: drop-shadow(0 4rpx 4rpx rgba(0,0,0,0.1));
+  filter: saturate(0.88) opacity(0.92);
 }
 
 .stats {
@@ -634,13 +840,14 @@ function startGame() {
   margin-bottom: 20rpx;
 }
 .stats-text {
-  font-size: 24rpx;
+  font-size: 22rpx;
   font-weight: 600;
-  color: #94a3b8;
-  letter-spacing: 0.04em;
-  background: rgba(255,255,255,0.6);
-  padding: 8rpx 24rpx;
+  color: #8eadcf;
+  letter-spacing: 0.03em;
+  background: rgba(255, 255, 255, 0.65);
+  padding: 10rpx 26rpx;
   border-radius: 100rpx;
+  border: 2rpx solid rgba(169, 201, 238, 0.4);
 }
 
 .side-toolbar {
@@ -651,11 +858,12 @@ function startGame() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-radius: 60rpx;
-  border: 4rpx solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 10rpx 30rpx rgba(100, 140, 200, 0.15);
+  border: 3rpx solid rgba(169, 201, 238, 0.45);
+  box-shadow: 0 8rpx 24rpx rgba(169, 201, 238, 0.2);
   padding: 16rpx 0;
 }
 
@@ -678,19 +886,93 @@ function startGame() {
 .toolbar-divider {
   width: 50rpx;
   height: 2rpx;
-  background: rgba(100, 140, 200, 0.1);
+  background: rgba(169, 201, 238, 0.35);
   margin: 8rpx 0;
 }
 
 .toolbar-icon {
-  font-size: 36rpx;
+  font-size: 34rpx;
   line-height: 1;
+  filter: saturate(0.88);
+  opacity: 0.92;
 }
 
 .toolbar-text {
   font-size: 20rpx;
-  color: #64748b;
+  color: #8eadcf;
   font-weight: 600;
+}
+
+.changelog-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(90, 120, 130, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  box-sizing: border-box;
+}
+.changelog-card {
+  width: 100%;
+  max-width: 600rpx;
+  max-height: 70vh;
+  background: rgba(255, 255, 255, 0.96);
+  border-radius: 32rpx;
+  padding: 40rpx 36rpx 32rpx;
+  box-shadow: 0 16rpx 40rpx rgba(169, 201, 238, 0.35);
+  border: 3rpx solid rgba(169, 201, 238, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+.changelog-title {
+  font-size: 34rpx;
+  font-weight: 800;
+  color: #6fb868;
+  text-align: center;
+  margin-bottom: 28rpx;
+}
+.changelog-scroll {
+  flex: 1;
+  max-height: 48vh;
+  margin-bottom: 28rpx;
+}
+.changelog-line-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  margin-bottom: 16rpx;
+}
+.changelog-dot {
+  font-size: 26rpx;
+  color: #91d58b;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+.changelog-line {
+  flex: 1;
+  font-size: 26rpx;
+  line-height: 1.55;
+  color: #6a7f8c;
+  font-weight: 600;
+}
+.changelog-btn {
+  align-self: center;
+  padding: 18rpx 72rpx;
+  background: linear-gradient(180deg, #a3dd9c 0%, #91d58b 100%);
+  border-radius: 100rpx;
+  border: 3rpx solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 6rpx 18rpx rgba(145, 213, 139, 0.35);
+}
+.changelog-btn:active {
+  opacity: 0.92;
+  transform: scale(0.98);
+}
+.changelog-btn-text {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #fff;
 }
 
 </style>

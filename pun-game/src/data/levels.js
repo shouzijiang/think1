@@ -173,6 +173,82 @@ export function getMidNextLevel(levelNum) {
 }
 
 /**
+ * 中级 CDN 图地址（与 getMidLevelPuzzle 一致）：w{level}-1 上图、w{level}-2 下图
+ * @returns {{ imageUrlTop: string, imageUrlBottom: string } | null}
+ */
+export function getMidLevelImageUrls(levelNum) {
+  const lv = parseInt(levelNum, 10)
+  if (!Number.isFinite(lv) || lv <= 0) return null
+  return {
+    imageUrlTop: `${MID_IMAGE_BASE}/w${lv}-1.png`,
+    imageUrlBottom: `${MID_IMAGE_BASE}/w${lv}-2.png`,
+  }
+}
+
+/**
+ * 使用 downloadFile 预热 CDN 图片缓存（小程序等端有效；失败静默）
+ * @param {string[]} urls
+ * @param {number} [concurrency=4]
+ */
+export function prefetchImageUrls(urls, concurrency = 4) {
+  const list = [...new Set((urls || []).filter(Boolean))]
+  if (!list.length) return Promise.resolve()
+  if (typeof uni === 'undefined' || typeof uni.downloadFile !== 'function') {
+    return Promise.resolve()
+  }
+  const limit = Math.max(1, parseInt(concurrency, 10) || 4)
+  async function run() {
+    for (let i = 0; i < list.length; i += limit) {
+      const chunk = list.slice(i, i + limit)
+      await Promise.all(
+        chunk.map(
+          (url) =>
+            new Promise((resolve) => {
+              uni.downloadFile({
+                url,
+                complete: () => resolve(),
+              })
+            })
+        )
+      )
+    }
+  }
+  return run().catch(() => {})
+}
+
+/**
+ * 单机中级：当前关加载完成后，预取「下一关」两张图（依赖 issue2 顺序）
+ */
+export function prefetchNextMidLevelImages(currentLevelNum) {
+  return getMidNextLevel(currentLevelNum)
+    .then((next) => {
+      if (next == null) return
+      const imgs = getMidLevelImageUrls(next)
+      if (!imgs) return
+      return prefetchImageUrls([imgs.imageUrlTop, imgs.imageUrlBottom], 2)
+    })
+    .catch((e) => {
+      console.warn('[prefetchNextMidLevelImages]', e)
+    })
+}
+
+/**
+ * 1V1 对战：根据本局 levels 预取 5 关共 10 张图
+ * @param {number[]} levelIds
+ */
+export function prefetchBattleMidImages(levelIds) {
+  const ids = Array.isArray(levelIds) ? levelIds : []
+  const urls = []
+  for (const id of ids) {
+    const imgs = getMidLevelImageUrls(id)
+    if (imgs) {
+      urls.push(imgs.imageUrlTop, imgs.imageUrlBottom)
+    }
+  }
+  return prefetchImageUrls(urls, 4)
+}
+
+/**
  * 中级：从 issue2.json 中找到 level 对应条目，并拼出上下两张图
  */
 export function getMidLevelPuzzle(levelNum) {
@@ -186,6 +262,7 @@ export function getMidLevelPuzzle(levelNum) {
     }
 
     const answerLength = Math.max(1, parseInt(item.answerLength, 10) || 3)
+    const imgs = getMidLevelImageUrls(lv)
     return normalizePuzzle({
       hintText: item.tips || '',
       topCaption: item.question ? `这是${item.question}` : '',
@@ -193,8 +270,8 @@ export function getMidLevelPuzzle(levelNum) {
       keywordHint: item.answerType || '',
       wordArray: [],
       answerLength,
-      imageUrlTop: `${MID_IMAGE_BASE}/w${lv}-1.png`,
-      imageUrlBottom: `${MID_IMAGE_BASE}/w${lv}-2.png`,
+      imageUrlTop: imgs ? imgs.imageUrlTop : '',
+      imageUrlBottom: imgs ? imgs.imageUrlBottom : '',
       isReviewMode: false,
       answer: item.answer != null ? String(item.answer).trim() : '',
     })

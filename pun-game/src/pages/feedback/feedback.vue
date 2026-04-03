@@ -3,6 +3,7 @@
     <view class="bg-wrap">
       <view class="bg-gradient" />
       <view class="bg-dots" />
+      <view class="bg-glow" />
     </view>
 
     <!-- 顶部状态栏占位 -->
@@ -68,8 +69,13 @@
 import { ref } from 'vue'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
+import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+// #ifdef MP-WEIXIN
+useWechatPageShare('意见反馈 · 谐音梗图')
+// #endif
 
 const typeOptions = [
   { value: '', label: '请选择' },
@@ -124,6 +130,8 @@ function submit() {
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   position: relative;
@@ -131,55 +139,7 @@ function submit() {
   padding-left: 40rpx;
   padding-right: 40rpx;
   box-sizing: border-box;
-}
-
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #fff9f3 0%, #ffefe6 50%, #fce8e0 100%);
-}
-.bg-dots {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(circle at 1px 1px, #e8d5ce 1px, transparent 0);
-  background-size: 40rpx 40rpx;
-}
-
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 居中标题 */
-  margin-bottom: 48rpx;
-}
-.nav-btn {
-  position: absolute; /* 绝对定位左侧 */
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-.nav-icon {
-  font-size: 36rpx;
-  line-height: 1;
-}
-.nav-title {
-  font-size: 38rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.06em;
+  @include pt-page-background;
 }
 
 .form-wrap {
@@ -192,7 +152,7 @@ function submit() {
 .label {
   display: block;
   font-size: 28rpx;
-  color: #6b5b52;
+  color: #5a6d7a;
   margin-bottom: 14rpx;
   font-weight: 500;
 }
@@ -201,31 +161,31 @@ function submit() {
 }
 .picker-value,
 .input {
-  background: rgba(255, 255, 255, 0.9);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.5);
   border-radius: 20rpx;
   padding: 26rpx 28rpx;
   font-size: 30rpx;
-  color: #3d3530;
-  box-shadow: 0 2rpx 12rpx rgba(180, 120, 100, 0.06);
+  color: #5a6d7a;
+  box-shadow: 0 2rpx 12rpx rgba(169, 201, 238, 0.1);
 }
 .textarea {
   width: 100%;
   min-height: 240rpx;
   padding: 26rpx 28rpx;
   box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.9);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.5);
   border-radius: 20rpx;
   font-size: 30rpx;
-  color: #3d3530;
-  box-shadow: 0 2rpx 12rpx rgba(180, 120, 100, 0.06);
+  color: #5a6d7a;
+  box-shadow: 0 2rpx 12rpx rgba(169, 201, 238, 0.1);
 }
 .counter {
   display: block;
   text-align: right;
   font-size: 24rpx;
-  color: #a89f98;
+  color: #8eadcf;
   margin-top: 10rpx;
 }
 .btn-wrap {
@@ -235,13 +195,13 @@ function submit() {
   height: 96rpx;
   line-height: 96rpx;
   text-align: center;
-  background: linear-gradient(145deg, #d45d4a 0%, #c04a38 100%);
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   color: #fff;
   border-radius: 28rpx;
   font-size: 34rpx;
   font-weight: 700;
   letter-spacing: 0.06em;
-  box-shadow: 0 12rpx 32rpx rgba(192, 74, 56, 0.3), 0 4rpx 0 rgba(160, 50, 40, 0.15);
+  box-shadow: 0 12rpx 32rpx rgba(111, 184, 104, 0.28), 0 4rpx 0 rgba(111, 184, 104, 0.12);
 }
 .btn-submit:active {
   transform: scale(0.98);

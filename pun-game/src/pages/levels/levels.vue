@@ -66,8 +66,13 @@ import { onShow } from '@dcloudio/uni-app'
 import { LEVELS_PER_PAGE, getCurrentLevel, getPassedLevels, loadMidLevelList } from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
+import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+// #ifdef MP-WEIXIN
+useWechatPageShare('我的关卡 · 谐音梗图')
+// #endif
 
 // tier: beginner=初级；mid=中级（issue2.json 的顺序为准）
 const tier = ref('mid')
@@ -205,6 +210,8 @@ function back() {
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   position: relative;
@@ -212,70 +219,7 @@ function back() {
   padding-left: 40rpx;
   padding-right: 40rpx;
   box-sizing: border-box;
-}
-
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #fff9f3 0%, #ffefe6 45%, #fce8e0 100%);
-}
-.bg-dots {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(circle at 1px 1px, #e8d5ce 1px, transparent 0);
-  background-size: 40rpx 40rpx;
-}
-.bg-glow {
-  position: absolute;
-  top: -15%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120%;
-  height: 45%;
-  background: radial-gradient(ellipse at center, rgba(255, 180, 150, 0.2) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 居中标题 */
-  margin-bottom: 40rpx;
-}
-.nav-btn {
-  position: absolute; /* 绝对定位左侧 */
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-.nav-icon {
-  font-size: 36rpx;
-  line-height: 1;
-}
-.nav-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.nav-title {
-  font-size: 38rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.06em;
+  @include pt-page-background;
 }
 
 .tabs-wrap {
@@ -290,22 +234,22 @@ function back() {
   gap: 18rpx;
   padding: 10rpx;
   border-radius: 40rpx;
-  background: rgba(255, 255, 255, 0.65);
-  box-shadow: 0 6rpx 20rpx rgba(180, 120, 100, 0.10);
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.14);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .tab {
   padding: 14rpx 44rpx;
   border-radius: 32rpx;
   font-size: 28rpx;
   font-weight: 600;
-  color: #8c7a70;
+  color: #8eadcf;
   transition: all 0.2s ease;
 }
 .tab.active {
   color: #ffffff;
-  background: #d45d4a;
-  box-shadow: 0 10rpx 30rpx rgba(212, 93, 74, 0.25);
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
+  box-shadow: 0 10rpx 28rpx rgba(111, 184, 104, 0.25);
 }
 
 .levels-loading {
@@ -318,7 +262,7 @@ function back() {
 }
 .levels-loading-text {
   font-size: 28rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .grid-wrap {
@@ -342,14 +286,14 @@ function back() {
   align-items: center;
   justify-content: center;
   position: relative;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.15);
+  box-shadow: 0 4rpx 16rpx rgba(169, 201, 238, 0.12);
+  border: 2rpx solid rgba(169, 201, 238, 0.4);
 }
 .cell.done {
-  background: linear-gradient(145deg, #7eb88a 0%, #5a9e6a 100%);
+  background: linear-gradient(145deg, #a8e6a2 0%, #7ec876 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 6rpx 20rpx rgba(90, 158, 106, 0.35), inset 0 2rpx 0 rgba(255,255,255,0.25);
+  box-shadow: 0 6rpx 20rpx rgba(111, 184, 104, 0.35), inset 0 2rpx 0 rgba(255,255,255,0.25);
 }
 .cell.done .cell-star {
   position: absolute;
@@ -372,17 +316,17 @@ function back() {
   justify-content: center;
 }
 .cell.current {
-  background: linear-gradient(145deg, #d45d4a 0%, #c04a38 100%);
+  background: linear-gradient(145deg, #b8e8b2 0%, #91d58b 100%);
   color: #fff;
   border-color: transparent;
-  box-shadow: 0 8rpx 24rpx rgba(192, 74, 56, 0.4), inset 0 2rpx 0 rgba(255,255,255,0.2);
+  box-shadow: 0 8rpx 24rpx rgba(111, 184, 104, 0.38), inset 0 2rpx 0 rgba(255,255,255,0.28);
 }
 .cell.locked {
-  background: rgba(255, 255, 255, 0.6);
-  color: #b8b0a8;
-  border-color: rgba(200, 160, 140, 0.2);
+  background: rgba(255, 255, 255, 0.72);
+  color: #b8c4d0;
+  border-color: rgba(169, 201, 238, 0.35);
 }
-.cell.locked .cell-num { color: #a89f98; }
+.cell.locked .cell-num { color: #8eadcf; }
 .cell.locked .cell-lock {
   position: absolute;
   bottom: 10rpx;
@@ -405,19 +349,19 @@ function back() {
   padding: 16rpx 32rpx;
   background: rgba(255, 255, 255, 0.92);
   border-radius: 48rpx;
-  box-shadow: 0 8rpx 28rpx rgba(180, 120, 100, 0.12);
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .pager-btn {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
-  background: linear-gradient(145deg, #d45d4a 0%, #c04a38 100%);
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 12rpx rgba(192, 74, 56, 0.25);
+  box-shadow: 0 4rpx 14rpx rgba(111, 184, 104, 0.28);
 }
 .pager-btn:active {
   transform: scale(0.95);
@@ -429,7 +373,7 @@ function back() {
 }
 .pager-text {
   font-size: 28rpx;
-  color: #6b5b52;
+  color: #5a6d7a;
   font-weight: 500;
   min-width: 72rpx;
   text-align: center;

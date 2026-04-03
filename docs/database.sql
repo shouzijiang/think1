@@ -163,3 +163,23 @@ CREATE TABLE `pun_game_battle_record` (
   KEY `idx_challenger` (`challenger_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='好友1V1对战记录表';
 
+-- 12. 游戏版本更新说明（首页「本期更新」弹窗）
+CREATE TABLE `pun_game_changelog` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `version_code` varchar(32) NOT NULL COMMENT '版本标识，唯一，用于客户端本地已读判断',
+  `title` varchar(128) NOT NULL DEFAULT '' COMMENT '弹窗标题',
+  `body` mediumtext NOT NULL COMMENT '正文：每行一条要点，或 JSON 字符串数组',
+  `is_published` tinyint(1) unsigned NOT NULL DEFAULT '1' COMMENT '1 上架展示，0 下架',
+  `published_at` datetime DEFAULT NULL COMMENT '发布时间（排序用）',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_version_code` (`version_code`),
+  KEY `idx_published_at` (`is_published`, `published_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏版本更新说明';
+
+INSERT INTO `pun_game_changelog` (`version_code`, `title`, `body`, `is_published`, `published_at`) VALUES
+('2026.04.02', '本期更新',
+'好友 1V1 对战：创建房间与好友实时对战。\n画中寻梗：画中寻梗：支持答案查看。\n新增通用分享能力，各页转发/朋友圈。\n初级闯关、排行榜、我的关卡、共创与意见反馈等页面体验与文案优化。',
+1, NOW());
+

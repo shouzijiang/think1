@@ -2,9 +2,12 @@
 
 namespace app\service;
 
+use app\model\PunGameBattleRecord;
 use app\model\PunGameRank;
 use app\model\PunGameLevelProgress;
 use app\model\PunGameFeedback;
+use app\model\PunGameChangelog;
+use think\facade\Cache;
 use think\facade\Config;
 use think\facade\Db;
 
@@ -30,6 +33,115 @@ class PunService
             return 'battle';
         }
         return 'beginner';
+    }
+
+    /**
+     * 分步揭字提示：第 k 次请求显示前 k 个字，其余为 X；由服务端递增步数
+     *
+     * @param int|null $questionIndex 对战模式 0-4
+     * @return array{hintText:string,step:int,maxSteps:int,isComplete:bool}
+     */
+    public function revealHint(int $userId, int $level, string $mode, ?string $roomId, ?int $questionIndex): array
+    {
+        $mode = $this->normalizeMode($mode);
+        if ($level <= 0) {
+            throw new \InvalidArgumentException('关卡参数无效');
+        }
+
+        if ($mode === 'intermediate' || $mode === 'battle') {
+            $answersRaw = Config::get('pun_levels_issue2', []);
+            $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
+        } else {
+            $answers = Config::get('pun_levels', []);
+            $correct = isset($answers[$level]) && is_array($answers[$level]) ? $answers[$level] : [];
+        }
+        if ($correct === []) {
+            throw new \InvalidArgumentException('关卡不存在');
+        }
+
+        if ($mode === 'battle') {
+            if ($roomId === null || $roomId === '' || $questionIndex === null) {
+                throw new \InvalidArgumentException('对战模式需传房间号与题号');
+            }
+            $this->assertBattleRoomQuestion($userId, $roomId, $questionIndex, $level);
+            $cacheKey = $this->hintCacheKeyBattle($userId, $roomId, $questionIndex, $level);
+        } elseif ($mode === 'intermediate') {
+            $cacheKey = $this->hintCacheKeySolo($userId, 'mid', $level);
+        } else {
+            $cacheKey = $this->hintCacheKeySolo($userId, 'beg', $level);
+        }
+
+        $n = count($correct);
+        $hintsUsed = (int) Cache::get($cacheKey, 0);
+        if ($hintsUsed >= $n) {
+            throw new \InvalidArgumentException('本题提示已用尽');
+        }
+
+        $hintsUsed++;
+        Cache::set($cacheKey, $hintsUsed, 7 * 86400);
+
+        $hintText = $this->buildHintMask($correct, $hintsUsed);
+        $isComplete = $hintsUsed >= $n;
+
+        return [
+            'hintText'   => $hintText,
+            'step'       => $hintsUsed,
+            'maxSteps'   => $n,
+            'isComplete' => $isComplete,
+        ];
+    }
+
+    private function hintCacheKeySolo(int $userId, string $bucket, int $level): string
+    {
+        return 'pun_hint:' . $userId . ':' . $bucket . ':' . $level;
+    }
+
+    private function hintCacheKeyBattle(int $userId, string $roomId, int $questionIndex, int $level): string
+    {
+        return 'pun_hint:' . $userId . ':bt:' . md5($roomId) . ':q' . $questionIndex . ':lv' . $level;
+    }
+
+    /**
+     * @param int[] $correct 按字的答案数组
+     * 展示为「已揭示字 + 空格 + 未揭示位为 _」，例如：一 _ _ _
+     */
+    private function buildHintMask(array $correct, int $revealCount): string
+    {
+        $n = count($correct);
+        if ($n === 0) {
+            return '';
+        }
+        $k = min(max(1, $revealCount), $n);
+        $parts = [];
+        for ($i = 0; $i < $n; $i++) {
+            $parts[] = $i < $k ? (string) $correct[$i] : '_';
+        }
+
+        return implode(' ', $parts);
+    }
+
+    private function assertBattleRoomQuestion(int $userId, string $roomId, int $questionIndex, int $level): void
+    {
+        if ($questionIndex < 0 || $questionIndex > 4) {
+            throw new \InvalidArgumentException('题号无效');
+        }
+        $record = PunGameBattleRecord::where('room_id', $roomId)->find();
+        if (!$record) {
+            throw new \InvalidArgumentException('房间不存在');
+        }
+        $uid = (int) $userId;
+        $cid = (int) $record->creator_id;
+        $hid = (int) ($record->challenger_id ?? 0);
+        if ($uid !== $cid && $uid !== $hid) {
+            throw new \InvalidArgumentException('无权访问该房间');
+        }
+        $arr = $record->levels_json;
+        if (!is_array($arr)) {
+            $arr = is_string($arr) ? (json_decode($arr, true) ?: []) : [];
+        }
+        if (!isset($arr[$questionIndex]) || (int) $arr[$questionIndex] !== $level) {
+            throw new \InvalidArgumentException('题目与房间不匹配');
+        }
     }
 
     /**
@@ -568,6 +680,74 @@ class PunService
             Db::rollback();
             throw $e;
         }
+    }
+
+    /**
+     * 首页统计：基于 pun_game_level_progress
+     * - players：表行数（有进度记录的用户数）
+     * - answers：全表 passed_levels、passed_levels_mid 两个 JSON 数组元素个数之和
+     *
+     * @return array{players:int, answers:int}
+     */
+    public function getHomeProgressStats(): array
+    {
+        $players = (int) Db::name('pun_game_level_progress')->count();
+        $aggRows = Db::name('pun_game_level_progress')
+            ->fieldRaw(
+                'COALESCE(SUM(IFNULL(JSON_LENGTH(`passed_levels`), 0) + IFNULL(JSON_LENGTH(`passed_levels_mid`), 0)), 0) AS agg_total'
+            )
+            ->select();
+        $answers = 0;
+        $first = $aggRows[0] ?? null;
+        if ($first !== null) {
+            $arr = is_array($first) ? $first : (method_exists($first, 'toArray') ? $first->toArray() : []);
+            $answers = (int) ($arr['agg_total'] ?? 0);
+        }
+
+        return [
+            'players' => $players,
+            'answers' => $answers,
+        ];
+    }
+
+    /**
+     * 首页「本期更新」：取最新一条已发布说明（无则返回 null）
+     *
+     * @return array{versionCode:string,title:string,lines:string[]}|null
+     */
+    public function getLatestChangelog(): ?array
+    {
+        $row = PunGameChangelog::where('is_published', 1)
+            ->order('published_at', 'desc')
+            ->order('id', 'desc')
+            ->find();
+        if (!$row) {
+            return null;
+        }
+        $body = (string) ($row->body ?? '');
+        $lines = [];
+        $decoded = json_decode($body, true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $item) {
+                if (is_string($item) && trim($item) !== '') {
+                    $lines[] = trim($item);
+                }
+            }
+        }
+        if ($lines === []) {
+            foreach (preg_split("/\r\n|\n|\r/", $body) as $line) {
+                $t = trim($line);
+                if ($t !== '') {
+                    $lines[] = $t;
+                }
+            }
+        }
+
+        return [
+            'versionCode' => (string) $row->version_code,
+            'title'       => (string) $row->title,
+            'lines'       => $lines,
+        ];
     }
 
 }

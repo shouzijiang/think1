@@ -1,6 +1,20 @@
 <script>
 import { wechatLogin } from './utils/auth'
 
+/** 微信小程序：右上角菜单展示「转发」「分享到朋友圈」（需页面实现对应生命周期） */
+function enableWechatShareMenu() {
+  // #ifdef MP-WEIXIN
+  if (typeof uni.showShareMenu !== 'function') return
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+    fail(err) {
+      console.warn('[showShareMenu]', err)
+    },
+  })
+  // #endif
+}
+
 export default {
   onLaunch: async function () {
     console.log('App Launch')
@@ -37,9 +51,11 @@ export default {
         }
       })
     }
+    enableWechatShareMenu()
   },
   onShow: function () {
     console.log('App Show')
+    enableWechatShareMenu()
   },
   onHide: function () {
     console.log('App Hide')

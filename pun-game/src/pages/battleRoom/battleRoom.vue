@@ -2,6 +2,8 @@
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
+      <view class="bg-dots" />
+      <view class="bg-glow" />
     </view>
     <view :style="{ height: statusBarHeight + 'px', width: '100%' }"></view>
     <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
@@ -109,7 +111,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onLoad, onUnload, onShow, onShareAppMessage } from '@dcloudio/uni-app'
+import { onLoad, onUnload, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
@@ -213,6 +215,14 @@ onShareAppMessage(() => {
   return {
     title: '来和我1V1对战谐音梗图吧！',
     path: `/pages/battleRoom/battleRoom?roomId=${roomId.value}`
+  }
+})
+
+onShareTimeline(() => {
+  const rid = roomId.value
+  return {
+    title: '来和我1V1对战谐音梗图吧！',
+    query: rid ? `roomId=${encodeURIComponent(rid)}` : '',
   }
 })
 
@@ -462,72 +472,28 @@ function goHistory() {
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
-  padding: 0 40rpx
+  padding: 0 40rpx;
+  @include pt-page-background;
 }
 
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #f0f7ff 0%, #e0eafd 100%);
-}
-
-.nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  margin-bottom: 32rpx;
-}
-.nav-btn {
-  position: absolute;
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-.nav-icon {
-  font-size: 36rpx;
-  line-height: 1;
-}
-.nav-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-}
-.nav-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.04em;
-}
 .btn-history {
   position: absolute;
   right: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.92);
+  color: #5a6d7a;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
+  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.22);
+  border: 2rpx solid rgba(169, 201, 238, 0.65);
 }
 .history-icon {
   font-size: 36rpx;
@@ -567,7 +533,7 @@ function goHistory() {
   width: 80%;
 }
 .btn-create {
-  background: linear-gradient(135deg, #ff7a63 0%, #e04a35 100%);
+  background: linear-gradient(135deg, #a8e6a2 0%, #91d58b 100%);
   color: #fff;
   border-radius: 100rpx;
   padding: 0 80rpx;
@@ -575,36 +541,36 @@ function goHistory() {
   line-height: 96rpx;
   font-size: 32rpx;
   font-weight: bold;
-  box-shadow: 0 16rpx 32rpx rgba(224, 74, 53, 0.3);
+  box-shadow: 0 16rpx 32rpx rgba(111, 184, 104, 0.28);
   margin-bottom: 30rpx;
   &::after { border: none; }
 }
 .btn-history-big {
   background: #fff;
-  color: #475569;
+  color: #5a6d7a;
   border-radius: 100rpx;
   padding: 0 80rpx;
   height: 96rpx;
   line-height: 92rpx;
   font-size: 32rpx;
   font-weight: bold;
-  border: 4rpx solid #cbd5e1;
+  border: 4rpx solid rgba(169, 201, 238, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8rpx 20rpx rgba(169, 201, 238, 0.12);
   &::after { border: none; }
 }
 
 .room-card {
   width: 100%;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(10px);
   border-radius: 40rpx;
   padding: 60rpx 40rpx;
-  box-shadow: 0 20rpx 40rpx rgba(100, 140, 200, 0.15);
-  border: 4rpx solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 20rpx 40rpx rgba(169, 201, 238, 0.2);
+  border: 4rpx solid rgba(169, 201, 238, 0.4);
 }
 
 .room-header {
@@ -614,10 +580,11 @@ function goHistory() {
 .room-title {
   font-size: 32rpx;
   font-weight: 800;
-  color: #1e293b;
-  background: #f1f5f9;
+  color: #5a6d7a;
+  background: rgba(234, 246, 249, 0.95);
   padding: 12rpx 32rpx;
   border-radius: 100rpx;
+  border: 2rpx solid rgba(169, 201, 238, 0.35);
 }
 .role-hint {
   display: block;

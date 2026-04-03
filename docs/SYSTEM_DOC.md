@@ -17,10 +17,11 @@
 
 ### 2. 谐音梗图游戏相关表
 - **pun_game_rank**: 游戏排行榜（user_id, max_level, max_mid_level, updated_at）
-- **pun_game_level_progress**: 初级关卡进度表（user_id, level, passed）
+- **pun_game_level_progress**: 关卡进度表（`user_id`，`passed_levels` / `passed_levels_mid` 为 JSON 数组）
 - **pun_game_cocreate**: 共创关卡表（user_id, answer, hint_image_prompt, word_array, status 等）
 - **pun_game_feedback**: 意见反馈表（user_id, type, content, contact）
 - **pun_game_battle_record**: 1V1对战房间与记录表（room_id, creator_id, challenger_id, levels_json, total_time_ms, winner_id, status）
+- **pun_game_changelog**: 版本更新说明（首页弹窗，`version_code` 唯一，`body` 为每行一条或 JSON 数组）
 - *(论坛相关表)*: 帖子表 (topic)、回复表 (reply)
 
 ### 3. 久坐提醒相关表
@@ -46,6 +47,9 @@
 | --- | --- | --- |
 | `/pun/level/progress` | GET | 获取当前进度（传 `gameTier=mid` 获取中级进度）|
 | `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级逻辑分支） |
+| `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
+| `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
+| `/pun/stats/home` | GET | 首页统计（无需 Token）：`players` 为 `pun_game_level_progress` 行数，`answers` 为全表 `JSON_LENGTH(passed_levels)+JSON_LENGTH(passed_levels_mid)` 之和 |
 | `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier` 区分） |
 | `/pun/cocreate/words/generate`| POST | 根据答案生成 20 个共创候选字/词 |
 | `/pun/cocreate/image/generate`| POST | AI 生成提示图/答案图 (`type: hint/answer`) |
@@ -61,6 +65,17 @@
 | `/pun/battle/create` | POST | 1V1：创建对战房间 |
 | `/pun/battle/history` | GET | 1V1：获取个人历史对战记录 |
 
+#### 分步提示 `/pun/level/reveal-hint`（需登录）
+
+| 字段 | 类型 | 必填 | 说明 |
+| --- | --- | --- | --- |
+| `level` | int | ✅ | 关卡 ID（与题库配置一致） |
+| `gameTier` | string | ✅ | `beginner` / `mid`（或 `intermediate`）/ `battle` |
+| `roomId` | string | 对战必填 | 房间号 |
+| `questionIndex` | int | 对战必填 | 本题在本局中的索引 `0`～`4` |
+
+成功时 `data` 示例：`{ "hintText": "火 _ _", "step": 1, "maxSteps": 3, "isComplete": false }`。同一用户同一题多次点击步数递增；用尽后返回业务错误「本题提示已用尽」。
+
 ### 2.1 谐音梗图 WebSocket 接口 (1V1 对战)
 | 事件/指令 (`action`) | 发送方 | 说明 |
 | --- | --- | --- |
@@ -69,6 +84,7 @@
 | `room_info` | Server -> Client | 广播房间最新状态；含 `creatorId`/`challengerId`（来自 DB，断线重连时仍可用）与在线连接上的 `creator`/`challenger` 用户信息 |
 | `ready` | Client -> Server | 玩家点击“准备” |
 | `start_game` | Server -> Client | 双方均准备后，广播游戏开始并下发5道题目 |
+| `resume_game` | Server -> Client | 断线重连且房间已在进行中时下发；含 `levels`、`myProgress`、`opponentProgress`、`timePassed`、双方昵称等 |
 | `progress` | Client -> Server | 玩家答对一题后上报进度（第几题，当前耗时） |
 | `sync_progress` | Server -> Client | 广播双方的答题进度 |
 | `finish` | Client -> Server | 玩家完成所有5题后上报总耗时 |
@@ -93,9 +109,21 @@
 - **API 规范**：遵循 `uniapp-apis.mdc` 规范，禁止使用原生的 `fetch` 或 `window`，必须统一使用 `uni.request` 和 `uni.setStorageSync`。
 - **中级模式关卡逻辑**：中级关卡的 `level` 往往不连续，不能用 ID 大小判断进度，必须依赖接口 `/pun/level/progress` 返回的 `midCurrentIndex`、`midTotalLevels` 等索引字段渲染关卡锁定/解锁状态。
 - **共创分享直达**：共创关卡页的分享路径需携带 `?cocreateId=xxx`，在 `onLoad` 中拦截并直接拉取该共创详情。
+- **首页更新弹窗**：进入首页请求 `/pun/changelog/latest`，与本地 `pun_changelog_seen_version`（`version_code`）比对，未读则弹窗；点「知道了」写入本地已读。
 
 ### 2. 后端 (ThinkPHP 8) 注意事项
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
 - **中级防跳关**：在提交答案 `/pun/answer/submit` 且 `gameTier=mid` 时，后端必须通过 `issue2.json` 的索引顺序校验，仅在“提交的是下一关”时才推进 `max_mid_level`，防止恶意跳关。
+- **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
 - **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发久坐提醒。
 - **统一响应封装**：所有接口均需返回 `{ "code": 200, "message": "...", "data": {...} }` 格式。
+
+### 3. 运维扩展（可选）
+- **飞书机器人（对战开房/开局通知）**：在根目录 `.env` 配置 `FEISHU_WEBHOOK_URL`、`FEISHU_WEBHOOK_SECRET`（勿提交仓库）。逻辑见 `app/common/FeishuBotHelper.php`，由 `BattleService::createRoom` 与 `WebSocket` 对局开始时触发。
+
+---
+
+## 五、 文档维护约定
+
+- **唯一总览**：新增或变更 HTTP 接口、WebSocket 事件、数据库表、前端 `api.js` 封装时，须同步更新本文档对应章节；详见项目根目录 `.cursor/rules/documentation.mdc`。
+- **数据库脚本**：表结构变更同时维护 `docs/database.sql`。

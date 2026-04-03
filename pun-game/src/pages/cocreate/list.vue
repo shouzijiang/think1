@@ -64,8 +64,13 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
+import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+// #ifdef MP-WEIXIN
+useWechatPageShare('共创关卡 · 谐音梗图')
+// #endif
 
 const list = ref([])
 const loading = ref(false)
@@ -130,6 +135,8 @@ function play(id) {
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   position: relative;
@@ -137,63 +144,9 @@ function play(id) {
   padding-left: 40rpx;
   padding-right: 40rpx;
   box-sizing: border-box;
+  @include pt-page-background;
 }
 
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #fff9f3 0%, #ffefe6 45%, #fce8e0 100%);
-}
-.bg-dots {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(circle at 1px 1px, #e8d5ce 1px, transparent 0);
-  background-size: 40rpx 40rpx;
-}
-.bg-glow {
-  position: absolute;
-  top: -15%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120%;
-  height: 40%;
-  background: radial-gradient(ellipse at center, rgba(255, 180, 150, 0.2) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 居中标题 */
-  margin-bottom: 32rpx;
-}
-.nav-btn {
-  position: absolute;
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-.nav-icon { font-size: 36rpx; line-height: 1; }
-.nav-title {
-  font-size: 38rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.06em;
-}
 .btn-upload {
   position: absolute;
   right: 0;
@@ -201,12 +154,13 @@ function play(id) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, #d45d4a 0%, #c04a38 100%);
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   color: #fff;
   border-radius: 24rpx;
   font-size: 28rpx;
   font-weight: 600;
-  box-shadow: 0 6rpx 20rpx rgba(192, 74, 56, 0.3);
+  box-shadow: 0 6rpx 20rpx rgba(111, 184, 104, 0.28);
+  border: 2rpx solid rgba(169, 201, 238, 0.35);
 }
 .btn-upload-text { color: #fff; }
 
@@ -224,8 +178,8 @@ function play(id) {
   align-items: center;
   gap: 24rpx;
   padding: 20rpx;
-  box-shadow: 0 6rpx 20rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.15);
+  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.14);
+  border: 2rpx solid rgba(169, 201, 238, 0.4);
 }
 .card-img-wrap {
   width: 160rpx;
@@ -241,7 +195,7 @@ function play(id) {
 .card-img-placeholder {
   width: 100%;
   height: 100%;
-  background: rgba(240, 230, 220, 0.8);
+  background: rgba(234, 246, 249, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -257,17 +211,17 @@ function play(id) {
 .card-answer {
   font-size: 30rpx;
   font-weight: 600;
-  color: #3d3530;
+  color: #5a6d7a;
 }
 .card-meta {
   font-size: 24rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 .card-play {
   display: flex;
   align-items: center;
   gap: 8rpx;
-  color: #c04a38;
+  color: #6fb868;
   font-size: 28rpx;
   font-weight: 600;
 }
@@ -280,18 +234,19 @@ function play(id) {
   align-items: center;
   gap: 24rpx;
 }
-.empty-text { font-size: 28rpx; color: #a89f98; }
+.empty-text { font-size: 28rpx; color: #8eadcf; }
 .empty-btn {
   padding: 20rpx 40rpx;
-  background: linear-gradient(145deg, #d45d4a 0%, #c04a38 100%);
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   color: #fff;
   border-radius: 24rpx;
   font-size: 28rpx;
   font-weight: 600;
+  box-shadow: 0 6rpx 18rpx rgba(111, 184, 104, 0.22);
 }
 .loading-wrap {
   padding: 24rpx;
   text-align: center;
 }
-.loading-text { font-size: 26rpx; color: #a89f98; }
+.loading-text { font-size: 26rpx; color: #8eadcf; }
 </style>

@@ -3,6 +3,7 @@
     <view class="bg-wrap">
       <view class="bg-gradient" />
       <view class="bg-dots" />
+      <view class="bg-glow" />
     </view>
 
     <!-- 顶部状态栏占位 -->
@@ -117,8 +118,13 @@
 import { ref, computed } from 'vue'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
+import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+// #ifdef MP-WEIXIN
+useWechatPageShare('上传共创关卡 · 谐音梗图')
+// #endif
 
 const form = ref({
   answer: '',
@@ -263,59 +269,24 @@ function submit() {
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   position: relative;
   padding-bottom: 40rpx;
   box-sizing: border-box;
-}
-
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #fff9f3 0%, #ffefe6 50%, #fce8e0 100%);
-}
-.bg-dots {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(circle at 1px 1px, #e8d5ce 1px, transparent 0);
-  background-size: 40rpx 40rpx;
+  @include pt-page-background;
 }
 
 .nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 居中标题 */
   padding: 0 40rpx;
   margin-bottom: 24rpx;
 }
 .nav-btn {
-  position: absolute;
   left: 40rpx;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
 }
 .nav-icon { font-size: 44rpx; font-weight: bold; line-height: 1; }
-.nav-title {
-  font-size: 38rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.06em;
-}
 
 .form-scroll {
   position: relative;
@@ -329,26 +300,26 @@ function submit() {
   border-radius: 22rpx;
   padding: 24rpx 28rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 6rpx 20rpx rgba(180, 120, 100, 0.08);
-  border: 2rpx solid rgba(200, 160, 140, 0.15);
+  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.14);
+  border: 2rpx solid rgba(169, 201, 238, 0.4);
 }
 .card-label {
   display: block;
   font-size: 28rpx;
-  color: #5c534d;
+  color: #5a6d7a;
   font-weight: 600;
   margin-bottom: 14rpx;
   &.card-label1 {
-    color: #4a8c5a;
+    color: #6fb868;
   }
 }
 .input {
   width: 100%;
   padding: 22rpx 24rpx;
   font-size: 30rpx;
-  color: #3d3530;
-  background: rgba(255,255,255,0.8);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
+  color: #5a6d7a;
+  background: rgba(255,255,255,0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.5);
   border-radius: 16rpx;
   box-sizing: border-box;
   height: 80rpx;
@@ -359,15 +330,15 @@ function submit() {
   min-height: 140rpx;
   padding: 22rpx 24rpx;
   font-size: 30rpx;
-  color: #3d3530;
-  background: rgba(255,255,255,0.8);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
+  color: #5a6d7a;
+  background: rgba(255,255,255,0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.5);
   border-radius: 16rpx;
   box-sizing: border-box;
 }
 
 .words-area {
-  border: 2rpx dashed rgba(200, 160, 140, 0.35);
+  border: 2rpx dashed rgba(169, 201, 238, 0.55);
   border-radius: 16rpx;
   padding: 20rpx;
   min-height: 120rpx;
@@ -380,8 +351,8 @@ function submit() {
 }
 .word-tag {
   padding: 10rpx 18rpx;
-  background: rgba(212, 93, 74, 0.15);
-  color: #c04a38;
+  background: rgba(145, 213, 139, 0.2);
+  color: #5a9e54;
   border-radius: 12rpx;
   font-size: 28rpx;
   font-weight: 600;
@@ -398,13 +369,14 @@ function submit() {
   font-weight: 600;
 }
 .btn-gen {
-  background: linear-gradient(145deg, #d45d4a 0%, #c04a38 100%);
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   color: #fff;
+  box-shadow: 0 6rpx 18rpx rgba(111, 184, 104, 0.22);
 }
 .btn-add {
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  border: 2rpx solid rgba(200, 160, 140, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  color: #5a6d7a;
+  border: 2rpx solid rgba(169, 201, 238, 0.5);
 }
 
 .images-row {
@@ -419,9 +391,9 @@ function submit() {
   width: 100%;
   aspect-ratio: 1;
   border-radius: 16rpx;
-  border: 2rpx dashed rgba(200, 160, 140, 0.4);
+  border: 2rpx dashed rgba(169, 201, 238, 0.55);
   overflow: hidden;
-  background: rgba(250, 240, 235, 0.8);
+  background: rgba(234, 246, 249, 0.9);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -437,7 +409,7 @@ function submit() {
   gap: 8rpx;
 }
 .placeholder-icon { font-size: 48rpx; }
-.placeholder-text { font-size: 26rpx; color: #8a7f78; }
+.placeholder-text { font-size: 26rpx; color: #8eadcf; }
 
 .btn-submit-wrap {
   padding: 32rpx 0 48rpx;
@@ -446,13 +418,13 @@ function submit() {
   height: 96rpx;
   line-height: 96rpx;
   text-align: center;
-  background: linear-gradient(145deg, #5a9e6a 0%, #4a8c5a 100%);
+  background: linear-gradient(145deg, #a8e6a2 0%, #91d58b 100%);
   color: #fff;
   border-radius: 28rpx;
   font-size: 34rpx;
   font-weight: 700;
   letter-spacing: 0.06em;
-  box-shadow: 0 12rpx 32rpx rgba(90, 158, 106, 0.35);
+  box-shadow: 0 12rpx 32rpx rgba(111, 184, 104, 0.28);
 }
 .btn-submit:active {
   transform: scale(0.98);

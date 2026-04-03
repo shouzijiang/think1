@@ -2,6 +2,8 @@
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
+      <view class="bg-dots" />
+      <view class="bg-glow" />
     </view>
     <view :style="{ height: statusBarHeight + 'px', width: '100%' }"></view>
     <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
@@ -68,8 +70,13 @@ import { onLoad } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import { getUserInfo } from '../../utils/auth'
+import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+// #ifdef MP-WEIXIN
+useWechatPageShare('对战记录 · 谐音梗图')
+// #endif
 const userInfo = ref(getUserInfo())
 const listHeight = ref(0)
 
@@ -152,64 +159,15 @@ function calcListHeight() {
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   position: relative;
   padding: 0 40rpx;
-}
-
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #f0f7ff 0%, #e0eafd 100%);
-}
-
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center; /* 居中整个导航栏的内容 */
-  margin-bottom: 32rpx;
-}
-.nav-btn {
-  position: absolute; /* 绝对定位到左侧，不影响标题居中 */
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-.page--mid .nav-btn {
-  border-color: rgba(140, 170, 210, 0.35);
-  box-shadow: 0 4rpx 16rpx rgba(100, 140, 180, 0.12);
-}
-.nav-icon {
-  font-size: 36rpx;
-  line-height: 1;
-}
-.nav-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-}
-.nav-title {
-  font-size: 36rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.04em;
+  @include pt-page-background;
 }
 
 .history-list {
@@ -220,14 +178,14 @@ function calcListHeight() {
 }
 
 .history-item {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-radius: 24rpx;
   padding: 30rpx;
   margin-bottom: 30rpx;
-  box-shadow: 0 8rpx 24rpx rgba(100, 140, 200, 0.1);
-  border: 4rpx solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 8rpx 24rpx rgba(169, 201, 238, 0.18);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
   position: relative;
   overflow: hidden;
 }
@@ -289,7 +247,7 @@ function calcListHeight() {
 .name {
   font-size: 26rpx;
   font-weight: 600;
-  color: #1e293b;
+  color: #5a6d7a;
   margin-bottom: 8rpx;
   max-width: 160rpx;
   overflow: hidden;

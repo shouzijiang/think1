@@ -140,8 +140,13 @@ import { ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
+import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+// #ifdef MP-WEIXIN
+useWechatPageShare('闲聊 · 谐音梗图')
+// #endif
 
 const loading = ref(false)
 const posting = ref(false)
@@ -305,6 +310,8 @@ onShow(async () => {
 </script>
 
 <style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
 .page {
   min-height: 100vh;
   position: relative;
@@ -312,77 +319,7 @@ onShow(async () => {
   box-sizing: border-box;
   padding-left: 40rpx;
   padding-right: 40rpx;
-}
-
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(165deg, #f0f7ff 0%, #e0eafd 35%, #d1e1fb 70%, #c4d7f9 100%);
-}
-
-.bg-dots {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(circle at 2px 2px, rgba(160, 190, 240, 0.4) 2px, transparent 0);
-  background-size: 48rpx 48rpx;
-}
-
-.bg-glow {
-  position: absolute;
-  top: -12%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 140%;
-  height: 45%;
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 70%);
-  pointer-events: none;
-}
-
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 40rpx;
-}
-
-.nav-btn {
-  position: absolute;
-  left: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #5c534d;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4rpx 16rpx rgba(180, 120, 100, 0.1);
-  border: 2rpx solid rgba(200, 160, 140, 0.25);
-}
-
-.nav-icon {
-  font-size: 36rpx;
-  line-height: 1;
-}
-
-.nav-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nav-title {
-  font-size: 38rpx;
-  font-weight: 700;
-  color: #3d3530;
-  letter-spacing: 0.06em;
+  @include pt-page-background;
 }
 
 .loading-wrap {
@@ -396,7 +333,7 @@ onShow(async () => {
 
 .loading-text {
   font-size: 28rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .list {
@@ -412,15 +349,15 @@ onShow(async () => {
   border-radius: 24rpx;
   padding: 22rpx;
   margin-bottom: 20rpx;
-  border: 2rpx solid rgba(200, 160, 140, 0.16);
-  box-shadow: 0 6rpx 22rpx rgba(180, 120, 100, 0.08);
+  border: 2rpx solid rgba(169, 201, 238, 0.45);
+  box-shadow: 0 6rpx 22rpx rgba(169, 201, 238, 0.14);
 }
 
 .post-title {
   display: block;
   font-size: 30rpx;
   font-weight: 800;
-  color: #3d3530;
+  color: #5a6d7a;
   margin-bottom: 12rpx;
   text-align: center;
 }
@@ -430,10 +367,10 @@ onShow(async () => {
   height: 78rpx;
   box-sizing: border-box;
   border-radius: 16rpx;
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  border: 2rpx solid rgba(169, 201, 238, 0.5);
   background: rgba(255, 255, 255, 0.95);
   font-size: 27rpx;
-  color: #3d3530;
+  color: #5a6d7a;
   padding: 0 20rpx;
   margin-bottom: 12rpx;
 }
@@ -443,10 +380,10 @@ onShow(async () => {
   min-height: 180rpx;
   box-sizing: border-box;
   border-radius: 16rpx;
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  border: 2rpx solid rgba(169, 201, 238, 0.5);
   background: rgba(255, 255, 255, 0.95);
   font-size: 27rpx;
-  color: #3d3530;
+  color: #5a6d7a;
   padding: 16rpx 20rpx;
 }
 
@@ -460,16 +397,16 @@ onShow(async () => {
 
 .post-counter {
   font-size: 24rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .post-submit {
   min-width: 210rpx;
   padding: 16rpx 18rpx;
   border-radius: 20rpx;
-  background: linear-gradient(135deg, #4f8cff 0%, #6aa6ff 100%);
-  border: 2rpx solid rgba(79, 140, 255, 0.35);
-  box-shadow: 0 10rpx 24rpx rgba(79, 140, 255, 0.3);
+  background: linear-gradient(135deg, #a8e6a2 0%, #91d58b 100%);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  box-shadow: 0 10rpx 24rpx rgba(111, 184, 104, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -477,8 +414,8 @@ onShow(async () => {
 
 .post-submit.disabled {
   opacity: 0.55;
-  background: linear-gradient(135deg, #a8bcd8 0%, #c0d0e6 100%);
-  border-color: rgba(120, 145, 176, 0.3);
+  background: linear-gradient(135deg, #cfe8f0 0%, #dceef5 100%);
+  border-color: rgba(169, 201, 238, 0.4);
   box-shadow: none;
 }
 
@@ -498,7 +435,7 @@ onShow(async () => {
 
 .empty-text {
   font-size: 28rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .item-wrap {
@@ -514,7 +451,7 @@ onShow(async () => {
 .item {
   background: rgba(255, 255, 255, 0.92);
   padding: 26rpx 22rpx;
-  border: 2rpx solid rgba(200, 160, 140, 0.15);
+  border: 2rpx solid rgba(169, 201, 238, 0.15);
   display: flex;
   gap: 18rpx;
 }
@@ -529,7 +466,7 @@ onShow(async () => {
   width: 78rpx;
   height: 78rpx;
   border-radius: 50%;
-  border: 2rpx solid rgba(200, 160, 140, 0.2);
+  border: 2rpx solid rgba(169, 201, 238, 0.2);
   background: rgba(240, 230, 220, 0.8);
   display: flex;
   align-items: center;
@@ -558,13 +495,13 @@ onShow(async () => {
   flex: 1;
   font-size: 30rpx;
   font-weight: 800;
-  color: #3d3530;
+  color: #5a6d7a;
   word-break: break-all;
 }
 
 .item-chevron {
   font-size: 22rpx;
-  color: #a89f98;
+  color: #8eadcf;
   flex-shrink: 0;
   padding-top: 4rpx;
 }
@@ -585,7 +522,7 @@ onShow(async () => {
 
 .meta-text {
   font-size: 24rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .meta-text--time {
@@ -595,7 +532,7 @@ onShow(async () => {
 /* 阶梯展开区 */
 .thread-ladder {
   background: rgba(248, 250, 255, 0.96);
-  border: 2rpx solid rgba(200, 160, 140, 0.15);
+  border: 2rpx solid rgba(169, 201, 238, 0.15);
   border-top: none;
   border-radius: 0 0 24rpx 24rpx;
   padding: 20rpx 22rpx 24rpx;
@@ -610,19 +547,19 @@ onShow(async () => {
 
 .expand-loading-text {
   font-size: 26rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .ladder-topic {
   padding-bottom: 16rpx;
-  border-bottom: 1rpx dashed rgba(200, 160, 140, 0.25);
+  border-bottom: 1rpx dashed rgba(169, 201, 238, 0.25);
   margin-bottom: 16rpx;
 }
 
 .ladder-topic-title {
   font-size: 30rpx;
   font-weight: 800;
-  color: #3d3530;
+  color: #5a6d7a;
   margin-bottom: 10rpx;
   word-break: break-all;
 }
@@ -645,7 +582,7 @@ onShow(async () => {
   display: block;
   font-size: 28rpx;
   font-weight: 800;
-  color: #3d3530;
+  color: #5a6d7a;
   margin-bottom: 12rpx;
 }
 
@@ -659,7 +596,7 @@ onShow(async () => {
 
 .ladder-empty-text {
   font-size: 26rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .ladder-reply {
@@ -675,7 +612,7 @@ onShow(async () => {
   display: block;
   font-size: 26rpx;
   font-weight: 800;
-  color: #3d3530;
+  color: #5a6d7a;
   margin-bottom: 6rpx;
 }
 
@@ -691,13 +628,13 @@ onShow(async () => {
   display: block;
   margin-top: 8rpx;
   font-size: 22rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .ladder-reply-form {
   margin-top: 8rpx;
   padding-top: 16rpx;
-  border-top: 1rpx dashed rgba(200, 160, 140, 0.25);
+  border-top: 1rpx dashed rgba(169, 201, 238, 0.25);
 }
 
 .ladder-textarea {
@@ -706,10 +643,10 @@ onShow(async () => {
   box-sizing: border-box;
   padding: 18rpx 20rpx;
   border-radius: 16rpx;
-  border: 2rpx solid rgba(200, 160, 140, 0.22);
+  border: 2rpx solid rgba(169, 201, 238, 0.22);
   background: rgba(255, 255, 255, 0.95);
   font-size: 26rpx;
-  color: #3d3530;
+  color: #5a6d7a;
 }
 
 .ladder-form-actions {
@@ -722,7 +659,7 @@ onShow(async () => {
 
 .ladder-counter {
   font-size: 24rpx;
-  color: #a89f98;
+  color: #8eadcf;
 }
 
 .ladder-submit {

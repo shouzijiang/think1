@@ -96,7 +96,7 @@ export async function forceLogin() {
 export function logout() {
   uni.removeStorageSync('token')
   uni.removeStorageSync('userInfo')
-  uni.reLaunch({
+  uni.switchTab({
     url: '/pages/index/index',
   })
 }
@@ -121,7 +121,7 @@ export function handleLoginExpired() {
     success: (res) => {
       if (res.confirm) {
         // 重新加载小程序
-        uni.reLaunch({
+        uni.switchTab({
           url: '/pages/index/index',
         })
       }

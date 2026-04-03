@@ -21,6 +21,25 @@ class Pun extends BaseController
     }
 
     /**
+     * 首页更新说明 GET /pun/changelog/latest（无需登录）
+     */
+    public function changelogLatest()
+    {
+        $data = $this->punService->getLatestChangelog();
+        return ResponseHelper::success($data);
+    }
+
+    /**
+     * 首页进度统计 GET /pun/stats/home（无需登录）
+     * data: { players: int, answers: int }
+     */
+    public function homeStats()
+    {
+        $data = $this->punService->getHomeProgressStats();
+        return ResponseHelper::success($data);
+    }
+
+    /**
      * 排行榜列表 GET /pun/rank/list?page=1&page_size=20
      */
     public function rankList(Request $request)
@@ -69,6 +88,41 @@ class Pun extends BaseController
         } catch (\Throwable $e) {
             \think\facade\Log::error('pun/answer/submit 异常: ' . $e->getMessage() . ' trace: ' . $e->getTraceAsString());
             return ResponseHelper::error('提交失败：' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * 分步揭字提示 POST /pun/level/reveal-hint
+     * Body: { "level": 1, "gameTier": "mid"|"battle"|"beginner", "roomId"?: "", "questionIndex"?: 0 }
+     */
+    public function revealHint(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+        $level = (int) $request->post('level', 0);
+        $mode = (string) $request->post('gameTier', 'beginner');
+        $roomId = $request->post('roomId', '');
+        $qRaw = $request->post('questionIndex');
+        $questionIndex = ($qRaw === null || $qRaw === '') ? null : (int) $qRaw;
+
+        try {
+            $data = $this->punService->revealHint(
+                (int) $userId,
+                $level,
+                $mode,
+                is_string($roomId) && $roomId !== '' ? $roomId : null,
+                $questionIndex
+            );
+
+            return ResponseHelper::success($data);
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::badRequest($e->getMessage());
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('pun/level/reveal-hint 异常: ' . $e->getMessage());
+
+            return ResponseHelper::error('获取提示失败', 500);
         }
     }
 

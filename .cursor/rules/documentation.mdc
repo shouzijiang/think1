@@ -1,22 +1,37 @@
 ---
-description: 项目文档编写与维护规范
-globs: 
+description: 变更 API、路由、WS、数据库或前端 api 时同步更新 docs/SYSTEM_DOC.md；禁止散落零碎文档
+globs:
   - "docs/**/*.md"
-  - "*.md"
-alwaysApply: false
+  - "route/**/*.php"
+  - "app/controller/**/*.php"
+  - "app/service/**/*.php"
+  - "app/command/**/*.php"
+  - "pun-game/src/utils/api.js"
+alwaysApply: true
 ---
-# 项目文档规范
+# 项目文档规范（与 SYSTEM_DOC 同步）
+
+## 何时必须更新 `docs/SYSTEM_DOC.md`
+
+在以下任一改动时，**同一任务内**应同步更新 `docs/SYSTEM_DOC.md` 对应章节（除非纯重构且无行为变化）：
+
+| 改动类型 | 更新章节 |
+|----------|----------|
+| 新增/修改/删除 **HTTP 路由**（`route/`） | 三、核心接口清单 |
+| 新增/修改 **Controller/Service** 对外行为、参数、响应 | 三、核心接口清单；必要时「四、开发与联调」 |
+| 新增/修改 **WebSocket** 事件或字段（`app/command/WebSocket.php` 等） | 三、2.1 WebSocket |
+| **数据库** 表/字段变更 | `docs/database.sql` + 二、数据库核心表结构 |
+| **前端** `pun-game/src/utils/api.js` 新增/修改接口封装 | 三、核心接口清单（与后端一致） |
+| 新增 **环境变量** / 第三方集成（飞书、微信等） | 四、开发与联调（或新增小节说明变量名与用途） |
 
 ## 1. 文档结构
-- 项目所有的系统架构、API 接口和数据库表结构必须统一在 `docs/SYSTEM_DOC.md` 中进行维护。
-- 禁止在项目中散落创建零碎的说明文档，所有相关说明均应合并入统一文档体系。
+- 系统架构、HTTP API、WS、数据库表结构以 **`docs/SYSTEM_DOC.md`** 为唯一权威说明。
+- **禁止**在项目根目录随意新增 `README-*.md`、`*-API.md` 等重复文档；说明合并进 `SYSTEM_DOC.md`。若确需独立文档，放在 `docs/` 并在 `SYSTEM_DOC.md` 中增加一行引用。
 
 ## 2. 数据库设计
-- 项目当前的数据库定义文件应当存放于 `docs/database.sql`。
-- 如果有任何数据库表结构的调整（新增表、修改字段），必须：
-  1. 更新 `docs/database.sql` 里的语句。
-  2. 同步更新 `docs/SYSTEM_DOC.md` 里的「二、 数据库核心表结构」板块。
+- 表结构定义见 `docs/database.sql`。
+- 表结构有变更时：先更新 `database.sql`，再更新 `SYSTEM_DOC.md`「二、数据库核心表结构」。
 
 ## 3. 编写格式
-- 文档需使用规范的 Markdown 语法。
-- 接口文档必须包含：接口路径、请求方法、作用说明、是否需 Token、详细的请求体与响应体示例。
+- 使用规范 Markdown。
+- 新接口在「三、核心接口清单」中至少包含：**路径、方法、是否需 Token、一句话说明**；复杂接口补充请求/响应字段说明。
