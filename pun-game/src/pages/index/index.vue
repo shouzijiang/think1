@@ -79,18 +79,18 @@
     </view>
 
     <view class="start-wrap">
-      <view class="btn-start btn-start-2" @click="startGameMid">
+      <view class="btn-start" @click="startGameMid">
         <text class="btn-start-icon">🔥</text>
         <text class="btn-start-text">开始(画中寻梗)</text>
       </view>
-      <view class="btn-start btn-start-battle" @click="goBattle">
-        <text class="btn-start-icon">⚔️</text>
-        <text class="btn-start-text">好友1V1对战</text>
+      <view class="btn-start btn-start-2" @click="startGame">
+        <text class="btn-start-icon">🌱</text>
+        <text class="btn-start-text">开始(梗图填词)</text>
       </view>
       <view class="start-row">
-        <view class="btn-start btn-start--pair" @click="startGame">
-          <!-- <text class="btn-start-icon">🌱</text> -->
-          <text class="btn-start-text">🌱梗图填词</text>
+        <view class="btn-start btn-start--pair" @click="goBattle">
+          <!-- <text class="btn-start-icon">⚔️</text> -->
+          <text class="btn-start-text">⚔️1V1对战</text>
         </view>
         <view class="btn-start btn-start-xhs btn-start--pair" @click="showXhsAlbumComingSoon">
           <!-- <text class="btn-start-icon">📕</text> -->
