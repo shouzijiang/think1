@@ -137,7 +137,7 @@ import { getMidLevelPuzzle, prefetchBattleMidImages } from '../../data/levels'
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
-import { playBgmPlay, stopBgm, playCongratsOnce } from '../../utils/gameAudio'
+import { playBgmPlay, stopBgm, playCongratsOnce, playErrorOnce } from '../../utils/gameAudio'
 import { getUserInfo } from '../../utils/auth'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
@@ -346,6 +346,7 @@ async function checkAnswer() {
     }
 
     feedback.value = data.feedback || []
+    playErrorOnce()
     slotShake.value = true
     uni.showToast({ title: '再想想～', icon: 'none' })
     setTimeout(() => {

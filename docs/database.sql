@@ -84,6 +84,7 @@ CREATE TABLE `pun_game_rank` (
   `user_id` int(11) unsigned NOT NULL COMMENT '用户id',
   `max_level` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '闯到的最高关卡号 1~253',
   `max_level_mid` int(11) NOT NULL DEFAULT '-1' COMMENT '中级闯到的最高关卡号，未参与为-1',
+  `max_level_xhs` int(11) NOT NULL DEFAULT '-1' COMMENT '小红书专辑闯到的最高关卡号，未参与为-1',
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近一次通过关卡的时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_id` (`user_id`),
@@ -96,11 +97,25 @@ CREATE TABLE `pun_game_level_progress` (
   `user_id` int(11) unsigned NOT NULL COMMENT '用户id',
   `passed_levels` json NOT NULL COMMENT '已通过关卡号数组 [1,2,3,...]',
   `passed_levels_mid` json DEFAULT NULL COMMENT '中级已通过关卡号数组 [0,1,2,...]',
+  `passed_levels_xhs` json DEFAULT NULL COMMENT '小红书专辑已通过关卡号数组 [1,...]',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏关卡进度';
+
+-- 若线上已存在表，按以下顺序执行迁移 SQL：
+-- 1) 排行榜表新增 xhs 最高关字段
+ALTER TABLE `pun_game_rank`
+  ADD COLUMN `max_level_xhs` int(11) NOT NULL DEFAULT '-1' COMMENT '小红书专辑闯到的最高关卡号，未参与为-1' AFTER `max_level_mid`;
+
+-- 2) 进度表新增 xhs 已通过关卡数组字段
+ALTER TABLE `pun_game_level_progress`
+  ADD COLUMN `passed_levels_xhs` json DEFAULT NULL COMMENT '小红书专辑已通过关卡号数组 [1,...]' AFTER `passed_levels_mid`;
+
+-- 3) 校验字段存在性
+-- DESC `pun_game_rank`;
+-- DESC `pun_game_level_progress`;
 
 -- 8. 意见反馈表
 CREATE TABLE `pun_game_feedback` (
@@ -182,6 +197,6 @@ CREATE TABLE `pun_game_changelog` (
 
 INSERT INTO `pun_game_changelog` (`version_code`, `title`, `body`, `is_published`, `published_at`) VALUES
 ('2026.04.02', '本期更新',
-'好友 1V1 对战：创建房间与好友实时对战。\n画中寻梗：画中寻梗：支持答案查看。\n新增通用分享能力，各页转发/朋友圈。\n初级闯关、排行榜、我的关卡、共创与意见反馈等页面体验与文案优化。',
+'好友 1V1 对战：创建房间与好友实时对战。\n经典：经典：支持答案查看。\n新增通用分享能力，各页转发/朋友圈。\n初级闯关、排行榜、我的关卡、共创与意见反馈等页面体验与文案优化。',
 1, NOW());
 

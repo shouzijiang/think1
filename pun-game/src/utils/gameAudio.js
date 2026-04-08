@@ -1,85 +1,55 @@
 /**
  * 游戏 BGM / 音效
  *
- * - 微信小程序：BGM 使用 wx.getBackgroundAudioManager（后台可继续播，需设置 title 等元信息）
- * - 通关短音效：仍用 InnerAudioContext，与背景音乐并行，不替换 BGM 的 src
- * - 其他端：BGM 与音效均用 uni.createInnerAudioContext
+ * - 全端（含微信小程序）：BGM 与音效均使用 uni.createInnerAudioContext
+ * - 说明：不再使用 wx.getBackgroundAudioManager，可避免微信系统音乐控件常驻显示
  */
 
 const STORAGE_KEY = 'pun_game_bgm_enabled'
 
-const BGM_HOME = 'https://sofun.online/static/punGame/mp3/BGMMain.wav'
-const BGM_PLAY = 'https://sofun.online/static/punGame/mp3/BGMGame1.wav'
-const SFX_CONGRATS = 'https://sofun.online/static/punGame/mp3/SFXCongrats.wav'
-
-/** 微信背景音频必填元信息（锁屏/控制台展示，部分机型不设可能影响播放） */
-const WX_BGM_META = {
-  title: '谐音梗猜一猜',
-  epname: '背景音乐',
-  singer: '休闲小游戏',
-}
+const BGM_HOME = 'https://static2.sofun.online/mp3/BGMMain.wav'
+const BGM_PLAY = 'https://static2.sofun.online/mp3/BGMGame1.wav'
+const SFX_CONGRATS = 'https://static2.sofun.online/mp3/SFXCongrats.wav'
+const SFX_ERROR = 'https://static2.sofun.online/mp3/error.mp3'
+const AUDIO_PRELOAD_LIST = [BGM_HOME, BGM_PLAY, SFX_CONGRATS, SFX_ERROR]
 
 let bgmCtx = null
 let sfxCongratsCtx = null
+let sfxErrorCtx = null
 let currentBgmUrl = ''
+let preloadStarted = false
+let preloadPromise = null
 
-// #ifdef MP-WEIXIN
-let wxBgmEndedHooked = false
-
-function hookWxBackgroundBgmLoop() {
-  if (wxBgmEndedHooked) return
-  wxBgmEndedHooked = true
-  try {
-    const bgm = wx.getBackgroundAudioManager()
-    bgm.onEnded(() => {
-      if (!isGameAudioEnabled() || !currentBgmUrl) return
-      try {
-        bgm.title = WX_BGM_META.title
-        bgm.epname = WX_BGM_META.epname
-        bgm.singer = WX_BGM_META.singer
-        bgm.src = currentBgmUrl
-      } catch (e) {
-        console.warn('[gameAudio] wx bgm onEnded relaunch', e)
-      }
-    })
-    bgm.onError((err) => {
-      console.warn('[gameAudio] wx BackgroundAudioManager error', err)
-    })
-  } catch (e) {
-    console.warn('[gameAudio] hook wx bgm failed', e)
+/**
+ * 预热音频资源缓存，降低首次播放卡顿。
+ * 说明：downloadFile 在小程序/uni 环境可触发本地缓存命中；失败时静默降级。
+ */
+export function preloadGameAudio() {
+  if (preloadStarted) {
+    return preloadPromise || Promise.resolve()
   }
-}
-
-function playBgmWx(url) {
-  hookWxBackgroundBgmLoop()
-  if (!isGameAudioEnabled()) return
-  try {
-    const bgm = wx.getBackgroundAudioManager()
-    currentBgmUrl = url
-    bgm.title = WX_BGM_META.title
-    bgm.epname = WX_BGM_META.epname
-    bgm.singer = WX_BGM_META.singer
-    bgm.src = url
-    // 文档：设置 src 后会自动播放；部分机型再补一次 play
-    try {
-      bgm.play()
-    } catch (e) {
-      /* noop */
-    }
-  } catch (e) {
-    console.warn('[gameAudio] wx playBgm failed', e)
+  preloadStarted = true
+  if (typeof uni === 'undefined' || typeof uni.downloadFile !== 'function') {
+    preloadPromise = Promise.resolve()
+    return preloadPromise
   }
-}
 
-function stopBgmWx() {
-  currentBgmUrl = ''
-  try {
-    wx.getBackgroundAudioManager().stop()
-  } catch (e) {
-    /* noop */
-  }
+  preloadPromise = Promise.all(
+    AUDIO_PRELOAD_LIST.map(
+      (url) =>
+        new Promise((resolve) => {
+          uni.downloadFile({
+            url,
+            complete: () => resolve(),
+          })
+        })
+    )
+  )
+    .then(() => {})
+    .catch(() => {})
+
+  return preloadPromise
 }
-// #endif
 
 function applyCtxDefaults(ctx, loop) {
   ctx.loop = !!loop
@@ -119,6 +89,7 @@ export function setGameAudioEnabled(on) {
   if (!on) {
     stopBgm()
     stopCongratsSfx()
+    stopErrorSfx()
   }
 }
 
@@ -136,6 +107,14 @@ function getCongratsContext() {
     applyCtxDefaults(sfxCongratsCtx, false)
   }
   return sfxCongratsCtx
+}
+
+function getErrorContext() {
+  if (!sfxErrorCtx) {
+    sfxErrorCtx = uni.createInnerAudioContext()
+    applyCtxDefaults(sfxErrorCtx, false)
+  }
+  return sfxErrorCtx
 }
 
 function safePlay(ctx) {
@@ -200,12 +179,8 @@ function playBgmInner(url) {
 
 function playBgm(url) {
   if (!isGameAudioEnabled()) return
-  // #ifdef MP-WEIXIN
-  playBgmWx(url)
-  // #endif
-  // #ifndef MP-WEIXIN
+  preloadGameAudio()
   playBgmInner(url)
-  // #endif
 }
 
 export function playBgmHome() {
@@ -217,10 +192,6 @@ export function playBgmPlay() {
 }
 
 export function stopBgm() {
-  // #ifdef MP-WEIXIN
-  stopBgmWx()
-  // #endif
-  // #ifndef MP-WEIXIN
   currentBgmUrl = ''
   if (!bgmCtx) return
   try {
@@ -228,11 +199,11 @@ export function stopBgm() {
   } catch (e) {
     /* noop */
   }
-  // #endif
 }
 
 export function playCongratsOnce() {
   if (!isGameAudioEnabled()) return
+  preloadGameAudio()
   const ctx = getCongratsContext()
   applyCtxDefaults(ctx, false)
   try {
@@ -244,10 +215,33 @@ export function playCongratsOnce() {
   playWhenReady(ctx, () => safePlay(ctx))
 }
 
+export function playErrorOnce() {
+  if (!isGameAudioEnabled()) return
+  preloadGameAudio()
+  const ctx = getErrorContext()
+  applyCtxDefaults(ctx, false)
+  try {
+    ctx.stop()
+  } catch (e) {
+    /* noop */
+  }
+  ctx.src = SFX_ERROR
+  playWhenReady(ctx, () => safePlay(ctx))
+}
+
 function stopCongratsSfx() {
   if (!sfxCongratsCtx) return
   try {
     sfxCongratsCtx.stop()
+  } catch (e) {
+    /* noop */
+  }
+}
+
+function stopErrorSfx() {
+  if (!sfxErrorCtx) return
+  try {
+    sfxErrorCtx.stop()
   } catch (e) {
     /* noop */
   }

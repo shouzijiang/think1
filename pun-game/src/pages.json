@@ -44,6 +44,13 @@
       }
     },
     {
+      "path": "pages/playXhs/playXhs",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "小红书专辑"
+      }
+    },
+    {
       "path": "pages/feedback/feedback",
       "style": {
         "navigationStyle": "custom",
@@ -93,35 +100,32 @@
     "backgroundColor": "#f5f0e8",
     "enableShareTimeline": true
   }
-  // "tabBar": {
-  //   "color": "#8eadcf",
-  //   "selectedColor": "#5a9e52",
-  //   "backgroundColor": "#ffffff",
-  //   "borderStyle": "white",
+  // ,"tabBar": {
+  //   "custom": true,
   //   "list": [
   //     {
   //       "pagePath": "pages/index/index",
   //       "text": "游戏",
-  //       "iconPath": "static/tab/game.png",
-  //       "selectedIconPath": "static/tab/game-active.png"
+  //       "iconPath": "static/tabbar/tab-game.png",
+  //       "selectedIconPath": "static/tabbar/tab-game-active.png"
   //     },
   //     {
   //       "pagePath": "pages/rank/rank",
   //       "text": "排行",
-  //       "iconPath": "static/tab/rank.png",
-  //       "selectedIconPath": "static/tab/rank-active.png"
+  //       "iconPath": "static/tabbar/tab-rank.png",
+  //       "selectedIconPath": "static/tabbar/tab-rank-active.png"
   //     },
   //     {
   //       "pagePath": "pages/levels/levels",
   //       "text": "关卡",
-  //       "iconPath": "static/tab/levels.png",
-  //       "selectedIconPath": "static/tab/levels-active.png"
+  //       "iconPath": "static/tabbar/tab-levels.png",
+  //       "selectedIconPath": "static/tabbar/tab-levels-active.png"
   //     },
   //     {
   //       "pagePath": "pages/mine/mine",
   //       "text": "我的",
-  //       "iconPath": "static/tab/mine.png",
-  //       "selectedIconPath": "static/tab/mine-active.png"
+  //       "iconPath": "static/tabbar/tab-mine.png",
+  //       "selectedIconPath": "static/tabbar/tab-mine-active.png"
   //     }
   //   ]
   // }

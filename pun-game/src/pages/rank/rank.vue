@@ -23,9 +23,10 @@
 
     <view class="tabs-wrap">
       <view class="tabs">
-        <view :class="['tab', { active: currentTab === 'mid' }]" @click="switchTab('mid')">画中寻梗</view>
+        <view :class="['tab', { active: currentTab === 'mid' }]" @click="switchTab('mid')">经典</view>
+        <view :class="['tab', { active: currentTab === 'xhs' }]" @click="switchTab('xhs')">小红书</view>
         <view :class="['tab', { active: currentTab === 'beginner' }]" @click="switchTab('beginner')">梗图填词</view>
-        <view :class="['tab', { active: currentTab === 'battle' }]" @click="switchTab('battle')">1V1对战</view>
+        <view :class="['tab', { active: currentTab === 'battle' }]" @click="switchTab('battle')">对战</view>
       </view>
     </view>
 
@@ -107,7 +108,7 @@ function loadRank() {
       ? api.getBattleRankList(params)
       : api.getRankList({
           ...params,
-          gameTier: tab === 'mid' ? 'mid' : 'beginner',
+          gameTier: tab === 'mid' ? 'mid' : (tab === 'xhs' ? 'xhs' : 'beginner'),
         })
   req
     .then((data) => {
@@ -187,7 +188,7 @@ function switchTab(tab) {
   border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .tab {
-  padding: 12rpx 40rpx;
+  padding: 12rpx 30rpx;
   font-size: 28rpx;
   font-weight: 500;
   color: #8eadcf;

@@ -15,7 +15,7 @@
       </view>
       <view class="nav-center">
         <text class="nav-title">{{ cocreateId ? '共创关卡' : '第' + level + '关' }}</text>
-        <text class="nav-star">⭐</text>
+        <!-- <text class="nav-star">⭐</text> -->
       </view>
     </view>
 
@@ -90,7 +90,7 @@ import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcl
 import { getLevelPuzzle } from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
-import { playBgmPlay, stopBgm, playCongratsOnce } from '../../utils/gameAudio'
+import { playBgmPlay, stopBgm, playCongratsOnce, playErrorOnce } from '../../utils/gameAudio'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
@@ -223,6 +223,7 @@ async function checkAnswer() {
       return
     }
     feedback.value = data.feedback || []
+    playErrorOnce()
     slotShake.value = true
     uni.showToast({ title: '再想想～', icon: 'none' })
     setTimeout(() => {

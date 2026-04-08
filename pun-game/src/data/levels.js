@@ -53,6 +53,10 @@ const LEVEL_DATA_BASE = 'https://sofun.online/static/punGame/issue'
 const MID_ISSUE_URL = 'https://sofun.online/static/punGame/issue2.json'
 /** 中级题目图片：w{level}-1 为上图，w{level}-2 为下图 */
 const MID_IMAGE_BASE = 'https://sofun.online/static/punGame/img2'
+/** 小红书专辑题库 */
+const XHS_ISSUE_URL = 'https://sofun.online/static/punGame/issue3.json'
+/** 小红书专辑题目图片：{level}.webp */
+const XHS_IMAGE_BASE = 'https://static2.sofun.online'
 
 const FALLBACK_PUZZLE = {
   hintText: '题库加载失败，请稍后重试',
@@ -72,6 +76,9 @@ let midIssueCache = null
 let midIssuePromise = null
 let midMaxLevel = null
 let midLevels = null
+let xhsIssueCache = null
+let xhsIssuePromise = null
+let xhsLevels = null
 
 function normalizePuzzle(data) {
   const answerLength = Math.max(1, parseInt(data.answerLength, 10) || 3)
@@ -87,6 +94,7 @@ function normalizePuzzle(data) {
     imageUrlBottom: data.imageUrlBottom || data.image_url_bottom || '',
     isReviewMode: !!data.isReviewMode,
     answer: data.answer != null ? String(data.answer).trim() : '',
+    author: data.author != null ? String(data.author).trim() : '',
   }
 }
 
@@ -128,12 +136,40 @@ function fetchMidIssues() {
   return midIssuePromise
 }
 
+function fetchXhsIssues() {
+  if (xhsIssueCache) return Promise.resolve(xhsIssueCache)
+  if (xhsIssuePromise) return xhsIssuePromise
+
+  xhsIssuePromise = request({ url: XHS_ISSUE_URL, method: 'GET' })
+    .then((res) => {
+      const list = Array.isArray(res.data) ? res.data : []
+      xhsIssueCache = list
+      const levels = list
+        .map((it) => (it && it.level != null ? parseInt(it.level, 10) : NaN))
+        .filter((n) => Number.isFinite(n) && n > 0)
+        .sort((a, b) => a - b)
+      xhsLevels = Array.from(new Set(levels))
+      return list
+    })
+    .catch(() => {
+      xhsIssueCache = []
+      xhsLevels = []
+      return []
+    })
+
+  return xhsIssuePromise
+}
+
 export function getMidMaxLevel() {
   return midMaxLevel || 0
 }
 
 export function getMidLevelList() {
   return Array.isArray(midLevels) ? midLevels : []
+}
+
+export function getXhsLevelList() {
+  return Array.isArray(xhsLevels) ? xhsLevels : []
 }
 
 /**
@@ -143,6 +179,11 @@ export function getMidLevelList() {
 export async function loadMidLevelList() {
   await fetchMidIssues()
   return getMidLevelList()
+}
+
+export async function loadXhsLevelList() {
+  await fetchXhsIssues()
+  return getXhsLevelList()
 }
 
 /**
@@ -159,6 +200,15 @@ export function pickMidLevelFromProgress(data, orderedLevels) {
   return list.length ? list[0] : null
 }
 
+export function pickXhsLevelFromProgress(data, orderedLevels) {
+  const list = Array.isArray(orderedLevels) ? orderedLevels : getXhsLevelList()
+  if (!data) return list.length ? list[0] : null
+
+  const lv = data.currentLevel != null ? Number(data.currentLevel) : null
+  if (Number.isFinite(lv) && list.includes(lv)) return lv
+  return list.length ? list[0] : null
+}
+
 /**
  * 中级：获取当前 level 的“下一个真实存在的 level”（与 issue2.json 完全一致）
  */
@@ -166,6 +216,16 @@ export function getMidNextLevel(levelNum) {
   const current = parseInt(levelNum, 10)
   return fetchMidIssues().then(() => {
     const levels = getMidLevelList()
+    const idx = levels.indexOf(current)
+    if (idx < 0) return null
+    return idx + 1 < levels.length ? levels[idx + 1] : null
+  })
+}
+
+export function getXhsNextLevel(levelNum) {
+  const current = parseInt(levelNum, 10)
+  return fetchXhsIssues().then(() => {
+    const levels = getXhsLevelList()
     const idx = levels.indexOf(current)
     if (idx < 0) return null
     return idx + 1 < levels.length ? levels[idx + 1] : null
@@ -184,6 +244,12 @@ export function getMidLevelImageUrls(levelNum) {
     imageUrlTop: `${MID_IMAGE_BASE}/w${lv}-1.png`,
     imageUrlBottom: `${MID_IMAGE_BASE}/w${lv}-2.png`,
   }
+}
+
+export function getXhsLevelImageUrl(levelNum) {
+  const lv = parseInt(levelNum, 10)
+  if (!Number.isFinite(lv) || lv <= 0) return ''
+  return `${XHS_IMAGE_BASE}/${lv}.webp`
 }
 
 /**
@@ -233,6 +299,19 @@ export function prefetchNextMidLevelImages(currentLevelNum) {
     })
 }
 
+export function prefetchNextXhsLevelImage(currentLevelNum) {
+  return getXhsNextLevel(currentLevelNum)
+    .then((next) => {
+      if (next == null) return
+      const img = getXhsLevelImageUrl(next)
+      if (!img) return
+      return prefetchImageUrls([img], 1)
+    })
+    .catch((e) => {
+      console.warn('[prefetchNextXhsLevelImage]', e)
+    })
+}
+
 /**
  * 1V1 对战：根据本局 levels 预取 5 关共 10 张图
  * @param {number[]} levelIds
@@ -275,6 +354,36 @@ export function getMidLevelPuzzle(levelNum) {
       imageUrlBottom: imgs ? imgs.imageUrlBottom : '',
       isReviewMode: false,
       answer: item.answer != null ? String(item.answer).trim() : '',
+    })
+  })
+}
+
+/**
+ * 小红书专辑：从 issue3.json 找到 level 对应条目，并拼出单图与作者
+ */
+export function getXhsLevelPuzzle(levelNum) {
+  const lv = parseInt(levelNum, 10)
+  return fetchXhsIssues().then((list) => {
+    const item = list.find((x) => x && parseInt(x.level, 10) === lv)
+    if (!item) {
+      throw new Error(`题目(level=${lv})未找到`)
+    }
+
+    const answerLength = Math.max(1, parseInt(item.answerLength, 10) || 3)
+    const imageUrl = getXhsLevelImageUrl(lv)
+    return normalizePuzzle({
+      hintText: '',
+      topCaption: '',
+      bottomCaption: '',
+      keywordHint: '',
+      wordArray: [],
+      answerLength,
+      imageUrl,
+      imageUrlTop: imageUrl,
+      imageUrlBottom: '',
+      isReviewMode: false,
+      answer: item.answer != null ? String(item.answer).trim() : '',
+      author: item.author != null ? String(item.author).trim() : '',
     })
   })
 }

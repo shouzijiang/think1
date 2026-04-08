@@ -16,8 +16,8 @@
 - **users (或 pun_game_user)**: 用户基础信息表（openid, nickname, avatar）
 
 ### 2. 谐音梗图游戏相关表
-- **pun_game_rank**: 游戏排行榜（user_id, max_level, max_mid_level, updated_at）
-- **pun_game_level_progress**: 关卡进度表（`user_id`，`passed_levels` / `passed_levels_mid` 为 JSON 数组）
+- **pun_game_rank**: 游戏排行榜（user_id, max_level, max_level_mid, max_level_xhs, updated_at）
+- **pun_game_level_progress**: 关卡进度表（`user_id`，`passed_levels` / `passed_levels_mid` / `passed_levels_xhs` 为 JSON 数组）
 - **pun_game_cocreate**: 共创关卡表（user_id, answer, hint_image_prompt, word_array, status 等）
 - **pun_game_feedback**: 意见反馈表（user_id, type, content, contact）
 - **pun_game_battle_record**: 1V1对战房间与记录表（room_id, creator_id, challenger_id, levels_json, creator_progress, challenger_progress, total_time_ms, winner_id, status）
@@ -45,12 +45,12 @@
 ### 2. 谐音梗图游戏模块 (Pun Game)
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
-| `/pun/level/progress` | GET | 获取当前进度（传 `gameTier=mid` 获取中级进度）|
-| `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级逻辑分支） |
+| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）|
+| `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支） |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
 | `/pun/stats/home` | GET | 首页统计（无需 Token）：`players` 为 `pun_game_level_progress` 行数，`answers` 为全表 `JSON_LENGTH(passed_levels)+JSON_LENGTH(passed_levels_mid)` 之和 |
-| `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier` 区分） |
+| `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分） |
 | `/pun/cocreate/words/generate`| POST | 根据答案生成 20 个共创候选字/词 |
 | `/pun/cocreate/image/generate`| POST | AI 生成提示图/答案图 (`type: hint/answer`) |
 | `/pun/cocreate/submit` | POST | 提交玩家自创关卡 |
@@ -71,7 +71,7 @@
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `level` | int | ✅ | 关卡 ID（与题库配置一致） |
-| `gameTier` | string | ✅ | `beginner` / `mid`（或 `intermediate`）/ `battle` |
+| `gameTier` | string | ✅ | `beginner` / `mid`（或 `intermediate`）/ `xhs` / `battle` |
 | `roomId` | string | 对战必填 | 房间号 |
 | `questionIndex` | int | 对战必填 | 本题在本局中的索引 `0`～`4` |
 
@@ -108,13 +108,13 @@
 
 ### 1. 前端 (UniApp) 注意事项
 - **API 规范**：遵循 `uniapp-apis.mdc` 规范，禁止使用原生的 `fetch` 或 `window`，必须统一使用 `uni.request` 和 `uni.setStorageSync`。
-- **中级模式关卡逻辑**：中级关卡的 `level` 往往不连续，不能用 ID 大小判断进度，必须依赖接口 `/pun/level/progress` 返回的 `midCurrentIndex`、`midTotalLevels` 等索引字段渲染关卡锁定/解锁状态。
+- **中级与小红书关卡逻辑**：`mid` 与 `xhs` 关卡 `level` 均可能不连续，不能用 ID 大小判断进度，必须依赖接口 `/pun/level/progress` 返回的 `currentLevel`、`passedLevels`、`totalLevels` 渲染锁定/解锁状态。
 - **共创分享直达**：共创关卡页的分享路径需携带 `?cocreateId=xxx`，在 `onLoad` 中拦截并直接拉取该共创详情。
 - **首页更新弹窗**：进入首页请求 `/pun/changelog/latest`，与本地 `pun_changelog_seen_version`（`version_code`）比对，未读则弹窗；点「知道了」写入本地已读。
 
 ### 2. 后端 (ThinkPHP 8) 注意事项
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
-- **中级防跳关**：在提交答案 `/pun/answer/submit` 且 `gameTier=mid` 时，后端必须通过 `issue2.json` 的索引顺序校验，仅在“提交的是下一关”时才推进 `max_mid_level`，防止恶意跳关。
+- **中级/小红书防跳关**：在提交答案 `/pun/answer/submit` 且 `gameTier=mid|xhs` 时，后端分别通过 `issue2`/`issue3` 题库顺序校验，仅在“提交的是下一关”时推进 `max_level_mid` / `max_level_xhs`，防止恶意跳关。
 - **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
 - **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发久坐提醒。
 - **统一响应封装**：所有接口均需返回 `{ "code": 200, "message": "...", "data": {...} }` 格式。

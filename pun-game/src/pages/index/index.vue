@@ -79,30 +79,26 @@
     </view>
 
     <view class="start-wrap">
-      <view class="btn-start" @click="startGameMid">
+      <view class="btn-start btn-start-main" @click="startGameMid">
         <text class="btn-start-icon">🔥</text>
-        <text class="btn-start-text">开始(画中寻梗)</text>
+        <text class="btn-start-text">开始游戏</text>
       </view>
-      <view class="btn-start btn-start-2" @click="startGame">
-        <text class="btn-start-icon">🌱</text>
-        <text class="btn-start-text">开始(梗图填词)</text>
-      </view>
-      <view class="start-row">
-        <view class="btn-start btn-start--pair" @click="goBattle">
-          <!-- <text class="btn-start-icon">⚔️</text> -->
-          <text class="btn-start-text">⚔️1V1对战</text>
+      <view class="start-sub-row">
+        <view class="btn-start btn-start-2" @click="startGame">
+          <text class="btn-icon">🌱</text>
+          <text class="btn-text">梗图填词</text>
         </view>
-        <view class="btn-start btn-start-xhs btn-start--pair" @click="showXhsAlbumComingSoon">
-          <!-- <text class="btn-start-icon">📕</text> -->
-          <text class="btn-start-text">📕小红书专辑</text>
+        <view class="btn-start btn-start-xhs" @click="startGameXhs">
+          <text class="btn-icon">📕</text>
+          <text class="btn-text">小红书专辑</text>
         </view>
       </view>
     </view>
 
     <view class="top-actions">
-      <view class="btn-entry" @click="goRank">
-        <text class="btn-icon">🏆</text>
-        <text class="btn-text">排行榜</text>
+      <view class="btn-entry" @click="goBattle">
+        <text class="btn-icon">⚔️</text>
+        <text class="btn-text">1V1对战</text>
       </view>
       <view class="btn-entry btn-levels" @click="goLevels">
         <text class="btn-icon">📖</text>
@@ -135,6 +131,10 @@
         <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
         <text class="toolbar-text">{{ bgmOn ? '音乐' : '静音' }}</text>
       </view>
+      <view class="toolbar-item" @click.stop="goRank">
+        <text class="toolbar-icon">🏆</text>
+        <text class="toolbar-text">榜单</text>
+      </view>
       <!-- <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goForum">
         <text class="toolbar-icon">☕</text>
@@ -157,13 +157,14 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import { getCurrentLevel, loadMidLevelList, pickMidLevelFromProgress } from '../../data/levels'
+import { getCurrentLevel, loadMidLevelList, loadXhsLevelList, pickMidLevelFromProgress, pickXhsLevelFromProgress } from '../../data/levels'
 import { getUserInfo, wechatLogin } from '../../utils/auth'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import {
   isGameAudioEnabled,
   setGameAudioEnabled,
+  preloadGameAudio,
   playBgmHome,
   stopBgm,
 } from '../../utils/gameAudio'
@@ -319,6 +320,7 @@ async function saveNickname(nickname) {
 }
 
 onShow(async () => {
+  preloadGameAudio()
   // #ifdef MP-WEIXIN
   try {
     // 确保登录完成后再读取本地 userInfo，避免 onShow 过早读取
@@ -373,8 +375,30 @@ function goBattle() {
   uni.navigateTo({ url: '/pages/battleRoom/battleRoom' })
 }
 
-function showXhsAlbumComingSoon() {
-  uni.showToast({ title: '4月15号上线', icon: 'none' })
+async function startGameXhs() {
+  // uni.showToast({ title: '4月15号上线,尽情期待~', icon: 'none' })
+  const goPlay = (lv) => { uni.navigateTo({ url: `/pages/playXhs/playXhs?level=${lv}` }) }
+  try {
+    const data = await api.getLevelProgress({ gameTier: 'xhs' })
+    const list = await loadXhsLevelList()
+    const totalRaw = data && data.totalLevels != null ? Number(data.totalLevels) : list.length
+    const total = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : list.length
+    const passedCount = data && Array.isArray(data.passedLevels)
+      ? new Set(
+        data.passedLevels
+          .map((x) => Number(x))
+          .filter((x) => Number.isFinite(x) && list.includes(x))
+      ).size
+      : 0
+    if (total > 0 && passedCount >= total) {
+      uni.showToast({ title: '专辑持续更新中，敬请期待~', icon: 'none' })
+      return
+    }
+    const lv = pickXhsLevelFromProgress(data)
+    goPlay(lv != null ? lv : 1)
+  } catch {
+    goPlay(1)
+  }
 }
 async function startGameMid() {
   const goPlay = (lv) => { uni.navigateTo({ url: `/pages/playMid/playMid?level=${lv}` }) }
@@ -624,7 +648,7 @@ function startGame() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 6vh;
+  margin: 4vh 0 9vh;
   animation: float 3s ease-in-out infinite;
 }
 @keyframes float {
@@ -677,18 +701,16 @@ function startGame() {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 480rpx;
+  max-width: 530rpx;
   display: flex;
   flex-direction: column;
   gap: 32rpx;
-  margin-bottom: 60rpx;
+  margin-bottom: 50rpx;
 }
-.start-row {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 20rpx;
+.start-sub-row {
   width: 100%;
+  display: flex;
+  gap: 16rpx;
 }
 .btn-start {
   position: relative;
@@ -697,19 +719,23 @@ function startGame() {
   justify-content: center;
   gap: 14rpx;
   padding: 28rpx 40rpx;
-  border-radius: 24rpx;
+  border-radius: 28rpx;
   font-size: 30rpx;
   font-weight: 700;
   letter-spacing: 0.04em;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
   overflow: hidden;
   box-sizing: border-box;
 
   /* 主按钮：薄荷绿实底 + 白字 */
   background: linear-gradient(180deg, #a3dd9c 0%, #91d58b 55%, #85c97f 100%);
   color: #fff;
-  border: 3rpx solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 8rpx 22rpx rgba(145, 213, 139, 0.38), inset 0 2rpx 0 rgba(255, 255, 255, 0.35);
+  border: 2rpx solid rgba(255, 255, 255, 0.68);
+  box-shadow:
+    0 22rpx 32rpx rgba(145, 213, 139, 0.38),
+    0 12rpx 0 rgba(72, 145, 68, 0.34),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.4),
+    inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.16);
 
   &::before {
     content: '';
@@ -717,13 +743,34 @@ function startGame() {
     top: 0;
     left: 0;
     right: 0;
-    height: 48%;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.28), transparent);
+    height: 58%;
+    background: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.5) 0%,
+      rgba(255, 255, 255, 0.22) 36%,
+      transparent 100%
+    );
     // border-radius: 999rpx 999rpx 0 0;
     pointer-events: none;
   }
+  &::after {
+    content: '';
+    position: absolute;
+    left: 8%;
+    bottom: 12%;
+    width: 42%;
+    height: 24%;
+    border-radius: 120rpx;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(255, 255, 255, 0.34) 0%,
+      rgba(255, 255, 255, 0.08) 55%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    pointer-events: none;
+  }
 
-  /* 画中寻梗：青绿主色 rgb(102, 222, 209) */
+  /* 经典：青绿主色 rgb(102, 222, 209) */
   &.btn-start-2 {
     background: linear-gradient(
       180deg,
@@ -732,54 +779,61 @@ function startGame() {
       rgb(72, 200, 186) 100%
     );
     color: #fff;
-    border: 3rpx solid rgba(255, 255, 255, 0.55);
-    box-shadow: 0 8rpx 22rpx rgba(102, 222, 209, 0.42), inset 0 2rpx 0 rgba(255, 255, 255, 0.35);
+    border: 2rpx solid rgba(255, 255, 255, 0.64);
+    box-shadow:
+      0 20rpx 30rpx rgba(102, 222, 209, 0.42),
+      0 12rpx 0 rgba(38, 156, 144, 0.3),
+      inset 0 2rpx 0 rgba(255, 255, 255, 0.36),
+      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.14);
   }
 
   &.btn-start-xhs {
-    background: rgba(255, 255, 255, 0.75);
-    color: #d4899c;
-    border: 3rpx solid rgba(245, 137, 163, 0.45);
-    box-shadow: 0 6rpx 18rpx rgba(245, 137, 163, 0.15);
-  }
-
-  &.btn-start--pair {
-    flex: 1;
-    min-width: 0;
-    flex-direction: column;
-    gap: 8rpx;
-    padding: 24rpx 14rpx;
-    font-size: 26rpx;
-    border-radius: 24rpx;
-    background: rgba(255, 255, 255, 0.72);
-    color: #8eadcf;
-    border: 3rpx solid rgba(169, 201, 238, 0.8);
-    box-shadow: 0 6rpx 16rpx rgba(169, 201, 238, 0.18);
-    .btn-start-icon {
-      font-size: 40rpx;
-      filter: saturate(0.9) opacity(0.95);
-    }
-    .btn-start-text {
-      font-size: 24rpx;
-      font-weight: 700;
-      text-align: center;
-      line-height: 1.35;
-    }
-  }
-
-  &.btn-start-xhs.btn-start--pair {
-    color: #c97b8e;
-    border-color: rgba(245, 137, 163, 0.5);
+    background: linear-gradient(
+      180deg,
+      rgb(255, 216, 229) 0%,
+      rgb(245, 175, 200) 55%,
+      rgb(231, 139, 174) 100%
+    );
+    color: #fff;
+    border: 2rpx solid rgba(255, 255, 255, 0.64);
+    box-shadow:
+      0 20rpx 30rpx rgba(245, 137, 163, 0.36),
+      0 12rpx 0 rgba(189, 90, 126, 0.26),
+      inset 0 2rpx 0 rgba(255, 255, 255, 0.35),
+      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.14);
   }
 }
+.btn-start-main {
+  width: 100%;
+  padding: 36rpx 40rpx;
+  font-size: 40rpx;
+  // 字间距
+  letter-spacing: 0.2em;
+}
+.start-sub-row .btn-start {
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12rpx;
+  padding: 24rpx 18rpx;
+  font-size: 26rpx;
+}
 .btn-start:active {
-  transform: scale(0.98);
-  opacity: 0.94;
+  transform: translateY(10rpx) scale(0.985);
+  filter: brightness(0.97);
+  box-shadow:
+    0 4rpx 8rpx rgba(0, 0, 0, 0.2),
+    0 1rpx 0 rgba(0, 0, 0, 0.12),
+    inset 0 3rpx 0 rgba(255, 255, 255, 0.2),
+    inset 0 -8rpx 12rpx rgba(0, 0, 0, 0.2);
 }
 .btn-start-icon {
   font-size: 38rpx;
   line-height: 1;
-  filter: saturate(0.88) brightness(1.02);
+  filter: saturate(1) brightness(1.06) drop-shadow(0 3rpx 6rpx rgba(0, 0, 0, 0.16));
+}
+.btn-start-text {
+  text-shadow: 0 3rpx 8rpx rgba(0, 0, 0, 0.2);
 }
 
 .btn-cocreate-text-sub {
@@ -802,7 +856,7 @@ function startGame() {
   display: flex;
   gap: 24rpx;
   width: 100%;
-  max-width: 480rpx;
+  max-width: 530rpx;
 }
 .btn-entry {
   flex: 1;
@@ -818,18 +872,66 @@ function startGame() {
   color: #8eadcf;
   font-size: 26rpx;
   font-weight: 700;
-  box-shadow: 0 6rpx 18rpx rgba(169, 201, 238, 0.2);
-  border: 3rpx solid rgba(169, 201, 238, 0.55);
-  transition: transform 0.12s ease;
+  box-shadow:
+    0 18rpx 24rpx rgba(169, 201, 238, 0.26),
+    0 10rpx 0 rgba(117, 154, 194, 0.28),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.5),
+    inset 0 -8rpx 12rpx rgba(54, 84, 120, 0.12);
+  border: 2rpx solid rgba(169, 201, 238, 0.62);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  overflow: hidden;
+  position: relative;
+}
+.btn-entry::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56%;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.52) 0%,
+    rgba(255, 255, 255, 0.18) 36%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+.btn-entry::after {
+  content: '';
+  position: absolute;
+  left: 10%;
+  bottom: 12%;
+  width: 44%;
+  height: 22%;
+  border-radius: 100rpx;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.08) 58%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
 }
 .btn-entry:active {
-  transform: scale(0.98);
-  opacity: 0.95;
+  transform: translateY(8rpx) scale(0.985);
+  filter: brightness(0.97);
+  box-shadow:
+    0 4rpx 8rpx rgba(84, 116, 154, 0.24),
+    0 1rpx 0 rgba(84, 116, 154, 0.16),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.24),
+    inset 0 -7rpx 10rpx rgba(54, 84, 120, 0.2);
 }
 .btn-icon {
-  font-size: 46rpx;
-  line-height: 1;
-  filter: saturate(0.88) opacity(0.92);
+  font-size: 36rpx;
+  line-height: 1.2;
+  filter: saturate(0.95) brightness(1.03) drop-shadow(0 3rpx 6rpx rgba(54, 84, 120, 0.2));
+}
+.btn-text {
+  font-size: 26rpx;
+  font-weight: 700;
+  line-height: 1.2;
+  text-shadow: 0 2rpx 6rpx rgba(54, 84, 120, 0.18);
 }
 
 .stats {
@@ -853,7 +955,7 @@ function startGame() {
 .side-toolbar {
   position: fixed;
   right: 0rpx;
-  bottom: 220rpx;
+  top: 220rpx;
   z-index: 50;
   display: flex;
   flex-direction: column;
@@ -864,7 +966,7 @@ function startGame() {
   border-radius: 60rpx;
   border: 3rpx solid rgba(169, 201, 238, 0.45);
   box-shadow: 0 8rpx 24rpx rgba(169, 201, 238, 0.2);
-  padding: 16rpx 0;
+  padding: 20rpx 0;
 }
 
 .toolbar-item {
@@ -872,8 +974,8 @@ function startGame() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 90rpx;
-  height: 90rpx;
+  width: 100rpx;
+  height: 100rpx;
   gap: 6rpx;
   transition: all 0.15s ease;
 }

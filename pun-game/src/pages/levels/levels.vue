@@ -21,10 +21,13 @@
     <view class="tabs-wrap">
       <view class="tabs">
         <view :class="['tab', { active: tier === 'mid' }]" @click="switchTier('mid')">
-          画中寻梗
+          经典
         </view>
         <view :class="['tab', { active: tier === 'beginner' }]" @click="switchTier('beginner')">
           梗图填词
+        </view>
+        <view :class="['tab', { active: tier === 'xhs' }]" @click="switchTier('xhs')">
+          小红书
         </view>
       </view>
     </view>
@@ -64,7 +67,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { LEVELS_PER_PAGE, getCurrentLevel, getPassedLevels, loadMidLevelList } from '../../data/levels'
+import { LEVELS_PER_PAGE, getCurrentLevel, getPassedLevels, loadMidLevelList, loadXhsLevelList } from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
@@ -75,7 +78,7 @@ const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 useWechatPageShare('我的关卡 · 谐音梗图')
 // #endif
 
-// tier: beginner=初级；mid=中级（issue2.json 的顺序为准）
+// tier: beginner=初级；mid=中级（issue2.json 顺序）；xhs=小红书（issue3.json 顺序）
 const tier = ref('mid')
 
 const totalLevels = ref(0)
@@ -86,6 +89,8 @@ const currentLevel = ref(getCurrentLevel())
 
 // 中级完整列表（issue2.json 顺序）
 const midLevelList = ref([])
+// 小红书完整列表（issue3.json 顺序）
+const xhsLevelList = ref([])
 const loading = ref(false)
 
 const totalPages = computed(() => Math.ceil(totalLevels.value / perPage) || 1)
@@ -100,8 +105,10 @@ const displayLevelIds = computed(() => {
     for (let id = start + 1; id <= end; id++) arr.push(id)
     return arr
   }
-  // mid：用 issue2.json 的顺序表切片
-  const list = Array.isArray(midLevelList.value) ? midLevelList.value : []
+  // mid/xhs：按题库顺序切片
+  const list = tier.value === 'xhs'
+    ? (Array.isArray(xhsLevelList.value) ? xhsLevelList.value : [])
+    : (Array.isArray(midLevelList.value) ? midLevelList.value : [])
   return list.slice(start, end)
 })
 
@@ -127,6 +134,8 @@ function onLevelClick(levelId) {
   }
   if (tier.value === 'mid') {
     uni.navigateTo({ url: `/pages/playMid/playMid?level=${levelId}` })
+  } else if (tier.value === 'xhs') {
+    uni.navigateTo({ url: `/pages/playXhs/playXhs?level=${levelId}` })
   } else {
     uni.navigateTo({ url: `/pages/play/play?level=${levelId}` })
   }
@@ -169,6 +178,40 @@ function loadProgress() {
       })
       .catch(() => {
         midLevelList.value = []
+        totalLevels.value = 0
+        passedSet.value = new Set()
+        currentLevel.value = null
+      })
+      .finally(() => {
+        loading.value = false
+      })
+    return
+  }
+  if (tier.value === 'xhs') {
+    api.getLevelProgress({ gameTier: 'xhs' })
+      .then(async (data) => {
+        const list = await loadXhsLevelList()
+        xhsLevelList.value = list
+
+        const totalRaw = data && data.totalLevels != null ? Number(data.totalLevels) : list.length
+        const normalizedPassed = data && Array.isArray(data.passedLevels)
+          ? data.passedLevels
+            .map((x) => Number(x))
+            .filter((x) => Number.isFinite(x) && list.includes(x))
+          : []
+        const passed = new Set(normalizedPassed)
+
+        let cur = data && data.currentLevel != null ? Number(data.currentLevel) : null
+        if (!(cur != null && Number.isFinite(cur) && list.includes(cur))) {
+          cur = list.find((id) => !passed.has(id)) ?? null
+        }
+
+        totalLevels.value = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : list.length
+        passedSet.value = passed
+        currentLevel.value = cur
+      })
+      .catch(() => {
+        xhsLevelList.value = []
         totalLevels.value = 0
         passedSet.value = new Set()
         currentLevel.value = null
