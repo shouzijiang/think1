@@ -6,19 +6,17 @@
       <view class="bg-glow" />
     </view>
 
-    <!-- 顶部状态栏占位 -->
-    <view :style="{ height: statusBarHeight + 'px' }"></view>
-
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="back" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="nav-icon">🏠</text>
-      </view>
-      <view class="nav-center">
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      @left-click="back"
+    >
+      <template #title>
         <text class="nav-title" v-if="level !== 0">经典 · 第{{ level }}关</text>
         <text class="nav-title" v-else>经典 · 新手引导</text>
-        <!-- <text class="nav-star">⭐</text> -->
-      </view>
-    </view>
+      </template>
+    </PunPageNavBar>
 
     <view class="card card--mid">
       <view v-if="puzzle.keywordHint" class="keyword-tab">
@@ -71,47 +69,27 @@
         </view>
       </view>
 
-      <view class="mid-action-bar">
-        <view class="mid-action-inner">
-          <button
-            class="mid-act-btn mid-act-btn--hint"
-            :class="{ 'mid-act-btn--cooldown': hintCooldownLeft > 0 }"
-            :loading="hintLoading"
-            :disabled="hintLoading || hintCooldownLeft > 0"
-            hover-class="mid-act-btn--hover"
-            @click="onRevealHint"
-          >
-            <text class="mid-act-ico">💡</text>
-            <text class="mid-act-txt">{{ hintCooldownLeft > 0 ? '答案 ' + hintCooldownLeft + 's' : '答案' }}</text>
-          </button>
-          <button class="mid-act-btn mid-act-btn--share" open-type="share" hover-class="mid-act-btn--hover" @click="help">
-            <text class="mid-act-ico">💬</text>
-            <text class="mid-act-txt">求助</text>
-          </button>
-        </view>
-      </view>
+      <PunPlayHintShareBar
+        :hint-loading="hintLoading"
+        :hint-answer-quota="hintAnswerQuota"
+        :hint-locked="loading"
+        @hint="onRevealHint"
+        @help="help"
+        @share-intent="markShareIntent"
+      />
     </view>
 
     <!-- <view class="stuck-tip">
       <text>若通过后没进入下一关，请点击左上角重新游戏</text>
     </view> -->
 
-    <!-- 通关成功动画弹层 -->
-    <view v-if="showSuccess" class="success-overlay">
-      <view class="success-content">
-        <view class="success-icon-wrap">
-          <text class="success-icon">🎉</text>
-        </view>
-        <text class="success-title">回答正确~</text>
-        <!-- <text class="success-subtitle">太棒了，脑洞大开</text> -->
-      </view>
-    </view>
+    <PunPassSuccessOverlay :show="showSuccess" variant="rich" />
   </view>
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
-import { onLoad, onShow, onHide, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { ref } from 'vue'
+import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import {
   getMidLevelPuzzle,
   getMidNextLevel,
@@ -121,7 +99,18 @@ import {
 } from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
-import { playBgmPlay, stopBgm, playCongratsOnce, playErrorOnce } from '../../utils/gameAudio'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
+import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
+import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
+import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
+import { usePunShareReward } from '../../composables/usePunShareReward'
+import { usePunHanAnswerInput } from '../../composables/usePunHanAnswerInput'
+import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
+import {
+  punIsSlotError,
+  punScheduleWrongAnswerReset,
+  punRevealHintWithModal,
+} from '../../utils/punPlayShared'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
@@ -137,84 +126,31 @@ const puzzle = ref({
 })
 const loading = ref(true)
 const submitting = ref(false)
-const hintLoading = ref(false)
-/** 答案按钮冷却剩余秒数，0 表示可点 */
-const hintCooldownLeft = ref(0)
-let hintCooldownTimer = null
-const HINT_COOLDOWN_SEC = 20
-
-function clearHintCooldown() {
-  if (hintCooldownTimer) {
-    clearInterval(hintCooldownTimer)
-    hintCooldownTimer = null
-  }
-  hintCooldownLeft.value = 0
-}
-
-function startHintCooldown() {
-  clearHintCooldown()
-  hintCooldownLeft.value = HINT_COOLDOWN_SEC
-  hintCooldownTimer = setInterval(() => {
-    hintCooldownLeft.value--
-    if (hintCooldownLeft.value <= 0) {
-      clearHintCooldown()
-    }
-  }, 1000)
-}
 
 const feedback = ref([])
 const slotShake = ref(false)
-const showSuccess = ref(false)
+const { showSuccess, runPassSuccess } = usePunPassSuccess()
+const hintLoading = ref(false)
+const hintAnswerQuota = ref(0)
+const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota)
 
 const answerInputValue = ref('')
-const midInputRef = ref(null)
-const midInputFocused = ref(false)
-
-const caretIndex = computed(() => {
-  // 光标显示在“下一个将要输入的位置”的槽位里
-  // 用户输入长度到达 answerLen 后，隐藏光标（正在校验/已完成）
-  if (!midInputFocused.value) return -1
-  const n = answerChars.value.length
-  if (n >= answerLen.value) return -1
-  return n
+const {
+  inputRef: midInputRef,
+  caretIndex,
+  onInputFocus: onMidInputFocus,
+  onInputBlur: onMidInputBlur,
+  focusInput: focusMidInput,
+  onAnswerInput: onMidAnswerInput,
+} = usePunHanAnswerInput({
+  answerLen,
+  answerChars,
+  answerInputValue,
+  onFilled: () => checkAnswer(),
 })
 
 function isSlotError(index) {
-  const fb = feedback.value[index]
-  return fb && fb.isCorrect === false
-}
-
-function onMidInputFocus() {
-  midInputFocused.value = true
-}
-
-function onMidInputBlur() {
-  midInputFocused.value = false
-}
-
-function focusMidInput() {
-  nextTick(() => {
-    const el = midInputRef.value
-    if (el && typeof el.focus === 'function') el.focus()
-  })
-}
-
-function onMidAnswerInput(e) {
-  const raw = (e.detail && e.detail.value) || ''
-  // 不对原始输入做 maxlength 截断，否则拼音输入法（先输入字母再转汉字）会在字母长度达到 answerLen 时卡住。
-  answerInputValue.value = raw
-
-  // 只有当用户输入里已经出现汉字时，才根据 answerLength 计算槽位与自动判定。
-  // （中级题库答案主要是中文；如果你后续有非中文答案，可以再补一套规则。）
-  const hasHan = /[\u4e00-\u9fff]/.test(raw)
-  if (!hasHan) {
-    answerChars.value = []
-    return
-  }
-
-  const parts = Array.from(raw).slice(0, answerLen.value)
-  answerChars.value = parts
-  if (parts.length === answerLen.value) checkAnswer()
+  return punIsSlotError(feedback.value, index)
 }
 
 async function checkAnswer() {
@@ -228,11 +164,10 @@ async function checkAnswer() {
   try {
     const data = await api.submitAnswer(level.value, userAnswer, { gameTier: 'mid' })
     if (data.isCorrect) {
-      showSuccess.value = true
-      playCongratsOnce()
-      const nextLevel = await getMidNextLevel(level.value)
-        setTimeout(() => {
-          showSuccess.value = false
+      runPassSuccess({
+        durationMs: 1500,
+        afterPrepare: () => getMidNextLevel(level.value),
+        onAfter: (nextLevel) => {
           if (nextLevel == null) {
             uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
             setTimeout(() => {
@@ -242,22 +177,17 @@ async function checkAnswer() {
           }
           // 使用 redirectTo 替换当前页，避免连续 navigateTo 堆满页面栈（微信约 10 层上限）
           uni.redirectTo({ url: `/pages/playMid/playMid?level=${nextLevel}` })
-        }, 1500)
+        },
+      })
       return
     }
 
     feedback.value = data.feedback || []
-    playErrorOnce()
-    slotShake.value = true
-    uni.showToast({ title: '再想想～', icon: 'none' })
-    setTimeout(() => {
-      slotShake.value = false
-      setTimeout(() => {
-        answerChars.value = []
-        answerInputValue.value = ''
-        feedback.value = []
-      }, 200)
-    }, 600)
+    punScheduleWrongAnswerReset(slotShake, () => {
+      answerChars.value = []
+      answerInputValue.value = ''
+      feedback.value = []
+    })
   } catch (e) {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
@@ -270,15 +200,17 @@ function back() {
 }
 
 async function onRevealHint() {
-  if (hintLoading.value || hintCooldownLeft.value > 0 || loading.value) return
+  if (hintLoading.value || loading.value) return
+  if (hintAnswerQuota.value <= 0) {
+    uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
+    return
+  }
   hintLoading.value = true
   try {
-    const data = await api.revealHint({ level: level.value, gameTier: 'mid' })
-    uni.showModal({
-      title: data.isComplete ? '已全部提示' : `提示 (${data.step}/${data.maxSteps})`,
-      content: data.hintText,
-      showCancel: false,
-    })
+    const res = await punRevealHintWithModal({ level: level.value, gameTier: 'mid' })
+    if (typeof res.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = res.hintAnswerQuota
+    }
   } catch (e) {
     uni.showToast({ title: e.message || '获取失败', icon: 'none' })
   } finally {
@@ -308,12 +240,21 @@ onLoad(async (opts) => {
     loading.value = true
     try {
       const data = await api.getLevelProgress({ gameTier: 'mid' })
+      if (typeof data.hintAnswerQuota === 'number') {
+        hintAnswerQuota.value = data.hintAnswerQuota
+      }
       await loadMidLevelList()
       const resolved = pickMidLevelFromProgress(data)
       lv = resolved != null ? resolved : 0
     } catch {
       lv = 0
     }
+  } else {
+    api.getLevelProgress({ gameTier: 'mid' }).then((data) => {
+      if (typeof data.hintAnswerQuota === 'number') {
+        hintAnswerQuota.value = data.hintAnswerQuota
+      }
+    }).catch(() => {})
   }
 
   level.value = lv
@@ -332,22 +273,17 @@ onLoad(async (opts) => {
     feedback.value = []
     answerInputValue.value = ''
     loading.value = false
-    startHintCooldown()
     prefetchNextMidLevelImages(lv)
   }).catch(() => {
     loading.value = false
   })
 })
 
-onUnload(() => {
-  clearHintCooldown()
-})
-
 onShareAppMessage(() => {
-  return {
+  return withShareReward({
     title: `中级第${level.value}关，快来帮我猜谐音梗！`,
     path: `/pages/playMid/playMid?level=${level.value}`,
-  }
+  })
 })
 
 onShareTimeline(() => {
@@ -559,78 +495,6 @@ onShareTimeline(() => {
   box-sizing: border-box;
 }
 
-.mid-action-bar {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  padding: 16rpx 28rpx 20rpx;
-  background: rgba(250, 252, 255, 0.92);
-}
-
-/* 限制操作区总宽，避免两键拉满屏显得扁宽 */
-.mid-action-inner {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 18rpx;
-  width: 100%;
-  max-width: 520rpx;
-}
-
-.mid-act-btn {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  min-height: 76rpx;
-  padding: 0 18rpx;
-  border: none;
-  border-radius: 38rpx;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  box-sizing: border-box;
-  line-height: 1.2;
-}
-.mid-act-btn::after {
-  border: none;
-}
-.mid-act-ico {
-  font-size: 26rpx;
-  line-height: 1;
-  flex-shrink: 0;
-  opacity: 0.9;
-}
-.mid-act-txt {
-  font-size: 28rpx;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.mid-act-btn--hint {
-  color: #5a6d7a;
-  background: linear-gradient(180deg, #ffffff 0%, #f0faf9 100%);
-  border: 1rpx solid rgba(169, 201, 238, 0.55);
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.12);
-}
-.mid-act-btn--share {
-  color: #5a6d7a;
-  background: linear-gradient(180deg, #fbfdff 0%, #eaf6f9 100%);
-  border: 1rpx solid rgba(169, 201, 238, 0.55);
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.12);
-}
-.mid-act-btn--hover {
-  opacity: 0.9;
-}
-.mid-act-btn--cooldown {
-  opacity: 0.65;
-}
-.mid-act-btn--cooldown .mid-act-txt {
-  font-size: 28rpx;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
 .answer-btn-placeholder {
   width: 100%;
   min-height: 86rpx;
@@ -686,71 +550,5 @@ onShareTimeline(() => {
   80% { transform: translateX(6rpx); }
 }
 
-/* ---------------------------------
-   成功动画弹层样式
---------------------------------- */
-.success-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.3s ease-out forwards;
-}
-.success-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: linear-gradient(145deg, #ffffff 0%, #fdfbfb 100%);
-  padding: 60rpx 80rpx;
-  border-radius: 40rpx;
-  box-shadow: 0 20rpx 60rpx rgba(0,0,0,0.2);
-  transform: scale(0.8);
-  opacity: 0;
-  animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  animation-delay: 0.1s;
-}
-.success-icon-wrap {
-  width: 160rpx;
-  height: 160rpx;
-  background: #f0fdf4;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32rpx;
-  box-shadow: inset 0 0 20rpx rgba(74, 222, 128, 0.2);
-}
-.success-icon {
-  font-size: 80rpx;
-  animation: bounce 1s infinite;
-}
-.success-title {
-  font-size: 48rpx;
-  font-weight: 900;
-  color: #166534;
-  margin-bottom: 16rpx;
-}
-.success-subtitle {
-  font-size: 28rpx;
-  color: #22c55e;
-  font-weight: 600;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes popIn {
-  from { opacity: 0; transform: scale(0.8) translateY(40rpx); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-16rpx); }
-}
 </style>
 

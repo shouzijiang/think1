@@ -6,17 +6,16 @@
       <view class="bg-glow" />
     </view>
 
-    <!-- 顶部状态栏占位 -->
-    <view :style="{ height: statusBarHeight + 'px' }"></view>
-
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="goBack" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="nav-icon">🏠</text>
-      </view>
-      <view class="nav-center">
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      @left-click="goBack"
+    >
+      <template #title>
         <text class="nav-title">1V1 对战 · 第 {{ currentQuestionIndex + 1 }}/5 题</text>
-      </view>
-    </view>
+      </template>
+    </PunPageNavBar>
     
     <!-- 对战进度条 -->
     <view class="battle-status">
@@ -62,61 +61,51 @@
       </view>
     </view>
 
-    <view class="answer-row answer-row--mid">
-      <view class="answer-left" v-if="!finished">
-        <input
-          ref="midInputRef"
-          class="answer-mid-input-cover"
-          type="text"
-          :value="answerInputValue"
-          @input="onMidAnswerInput"
-          confirm-type="done"
-          @focus="onMidInputFocus"
-          @blur="onMidInputBlur"
-          @click.stop="focusMidInput()"
-        />
+    <view class="answer-block answer-block--mid">
+      <view class="answer-row answer-row--mid">
+        <view class="answer-left" v-if="!finished">
+          <input
+            ref="midInputRef"
+            class="answer-mid-input-cover"
+            type="text"
+            :value="answerInputValue"
+            @input="onMidAnswerInput"
+            confirm-type="done"
+            @focus="onMidInputFocus"
+            @blur="onMidInputBlur"
+            @click.stop="focusMidInput()"
+          />
 
-        <view class="answer-slots">
-          <view
-            v-for="i in answerLen"
-            :key="i"
-            :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
-          >
-            <text v-if="answerChars[i - 1]" class="slot-char">{{ answerChars[i - 1] }}</text>
-            <view v-else-if="caretIndex === i - 1" class="slot-caret" />
+          <view class="answer-slots">
+            <view
+              v-for="i in answerLen"
+              :key="i"
+              :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
+            >
+              <text v-if="answerChars[i - 1]" class="slot-char">{{ answerChars[i - 1] }}</text>
+              <view v-else-if="caretIndex === i - 1" class="slot-caret" />
+            </view>
           </view>
         </view>
-      </view>
-      
-      <view class="answer-left finished-msg" v-else>
-        <text v-if="gameOver">对战已结束，正在结算中...</text>
-        <text v-else>你已完成所有题目，等待对手中...</text>
-      </view>
 
-      <view class="answer-right" v-if="!finished && !gameOver">
-        <button
-          class="btn-hint-battle"
-          :class="{ 'btn-hint-battle--cooldown': hintCooldownLeft > 0 }"
-          :loading="hintLoading"
-          :disabled="hintLoading || hintCooldownLeft > 0"
-          @click="onRevealHint"
-        >
-          <text class="hint-icon">💡</text>
-          <text class="hint-text">{{ hintCooldownLeft > 0 ? '答案 ' + hintCooldownLeft + 's' : '答案' }}</text>
-        </button>
-      </view>
-    </view>
-
-    <!-- 通关成功动画弹层 -->
-    <view v-if="showSuccess" class="success-overlay">
-      <view class="success-content">
-        <view class="success-icon-wrap">
-          <text class="success-icon">🎉</text>
+        <view class="answer-left finished-msg" v-else>
+          <text v-if="gameOver">对战已结束，正在结算中...</text>
+          <text v-else>你已完成所有题目，等待对手中...</text>
         </view>
-        <text class="success-title">回答正确~</text>
       </view>
+
+      <PunPlayHintShareBar
+        v-if="!finished && !gameOver"
+        :show-share="false"
+        :hint-loading="hintLoading"
+        :hint-answer-quota="hintAnswerQuota"
+        :hint-locked="loading"
+        @hint="onRevealHint"
+      />
     </view>
-    
+
+    <PunPassSuccessOverlay :show="showSuccess" variant="battle" />
+
     <!-- 结算弹层 -->
     <view v-if="gameOver" class="result-overlay">
       <view class="result-card">
@@ -131,13 +120,23 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
 import { getMidLevelPuzzle, prefetchBattleMidImages } from '../../data/levels'
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
-import { playBgmPlay, stopBgm, playCongratsOnce, playErrorOnce } from '../../utils/gameAudio'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
+import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
+import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
+import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
+import { usePunHanAnswerInput } from '../../composables/usePunHanAnswerInput'
+import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
+import {
+  punIsSlotError,
+  punScheduleWrongAnswerReset,
+  punRevealHintWithModal,
+} from '../../utils/punPlayShared'
 import { getUserInfo } from '../../utils/auth'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
@@ -193,44 +192,26 @@ const puzzle = ref({
 })
 const loading = ref(true)
 const submitting = ref(false)
-const hintLoading = ref(false)
-/** 答案按钮冷却剩余秒数，0 表示可点 */
-const hintCooldownLeft = ref(0)
-let hintCooldownTimer = null
-const HINT_COOLDOWN_SEC = 20
-
-function clearHintCooldown() {
-  if (hintCooldownTimer) {
-    clearInterval(hintCooldownTimer)
-    hintCooldownTimer = null
-  }
-  hintCooldownLeft.value = 0
-}
-
-function startHintCooldown() {
-  clearHintCooldown()
-  hintCooldownLeft.value = HINT_COOLDOWN_SEC
-  hintCooldownTimer = setInterval(() => {
-    hintCooldownLeft.value--
-    if (hintCooldownLeft.value <= 0) {
-      clearHintCooldown()
-    }
-  }, 1000)
-}
 
 const feedback = ref([])
 const slotShake = ref(false)
-const showSuccess = ref(false)
+const { showSuccess, runPassSuccess } = usePunPassSuccess()
+const hintLoading = ref(false)
+const hintAnswerQuota = ref(0)
 
 const answerInputValue = ref('')
-const midInputRef = ref(null)
-const midInputFocused = ref(false)
-
-const caretIndex = computed(() => {
-  if (!midInputFocused.value) return -1
-  const n = answerChars.value.length
-  if (n >= answerLen.value) return -1
-  return n
+const {
+  inputRef: midInputRef,
+  caretIndex,
+  onInputFocus: onMidInputFocus,
+  onInputBlur: onMidInputBlur,
+  focusInput: focusMidInput,
+  onAnswerInput: onMidAnswerInput,
+} = usePunHanAnswerInput({
+  answerLen,
+  answerChars,
+  answerInputValue,
+  onFilled: () => checkAnswer(),
 })
 
 function formatTime(ms) {
@@ -238,22 +219,24 @@ function formatTime(ms) {
 }
 
 async function onRevealHint() {
-  if (finished.value || gameOver.value || hintLoading.value || loading.value || hintCooldownLeft.value > 0) return
+  if (finished.value || gameOver.value || hintLoading.value || loading.value) return
+  if (hintAnswerQuota.value <= 0) {
+    uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
+    return
+  }
   const lv = parseInt(levels.value[currentQuestionIndex.value], 10)
   if (!Number.isFinite(lv) || !roomId.value) return
   hintLoading.value = true
   try {
-    const data = await api.revealHint({
+    const res = await punRevealHintWithModal({
       level: lv,
       gameTier: 'battle',
       roomId: roomId.value,
       questionIndex: currentQuestionIndex.value,
     })
-    uni.showModal({
-      title: data.isComplete ? '已全部提示' : `提示 (${data.step}/${data.maxSteps})`,
-      content: data.hintText,
-      showCancel: false,
-    })
+    if (typeof res.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = res.hintAnswerQuota
+    }
   } catch (e) {
     uni.showToast({ title: e.message || '获取失败', icon: 'none' })
   } finally {
@@ -261,39 +244,16 @@ async function onRevealHint() {
   }
 }
 
+function refreshHintAnswerQuota() {
+  api.getLevelProgress({ gameTier: 'mid' }).then((data) => {
+    if (typeof data.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = data.hintAnswerQuota
+    }
+  }).catch(() => {})
+}
+
 function isSlotError(index) {
-  const fb = feedback.value[index]
-  return fb && fb.isCorrect === false
-}
-
-function onMidInputFocus() {
-  midInputFocused.value = true
-}
-
-function onMidInputBlur() {
-  midInputFocused.value = false
-}
-
-function focusMidInput() {
-  nextTick(() => {
-    const el = midInputRef.value
-    if (el && typeof el.focus === 'function') el.focus()
-  })
-}
-
-function onMidAnswerInput(e) {
-  const raw = (e.detail && e.detail.value) || ''
-  answerInputValue.value = raw
-
-  const hasHan = /[\u4e00-\u9fff]/.test(raw)
-  if (!hasHan) {
-    answerChars.value = []
-    return
-  }
-
-  const parts = Array.from(raw).slice(0, answerLen.value)
-  answerChars.value = parts
-  if (parts.length === answerLen.value) checkAnswer()
+  return punIsSlotError(feedback.value, index)
 }
 
 async function checkAnswer() {
@@ -309,54 +269,47 @@ async function checkAnswer() {
     const data = await api.submitAnswer(currentLevelId, userAnswer, { gameTier: 'battle' })
     // 修改这行：因为 submitAnswer 返回的结果结构有可能是 { isCorrect: true } 或者是原格式，根据实际情况适配
     if (data && data.isCorrect) {
-      showSuccess.value = true
-      playCongratsOnce()
-      
-      // 更新进度
-      myProgress.value++
-      const currentPassedTime = Date.now() - startTime
-      await ensureBattleWsConnected()
-      wsApi.send({
-        action: 'progress',
-        questionIndex: myProgress.value,
-        timeMs: currentPassedTime
+      runPassSuccess({
+        durationMs: 1000,
+        afterPrepare: async () => {
+          // 更新进度
+          myProgress.value++
+          const currentPassedTime = Date.now() - startTime
+          await ensureBattleWsConnected()
+          wsApi.send({
+            action: 'progress',
+            questionIndex: myProgress.value,
+            timeMs: currentPassedTime
+          })
+
+          // 最后一题答对后立刻结束，避免对手在动画期间继续作答
+          if (myProgress.value >= 5) {
+            finished.value = true
+            myTimeMs.value = currentPassedTime
+            if (timer) clearInterval(timer)
+            await ensureBattleWsConnected()
+            wsApi.send({
+              action: 'finish',
+              totalTimeMs: currentPassedTime
+            })
+          }
+        },
+        onAfter: () => {
+          if (myProgress.value < 5) {
+            currentQuestionIndex.value++
+            loadCurrentQuestion()
+          }
+        },
       })
-
-      // 最后一题答对后立刻结束，避免对手在动画期间继续作答
-      if (myProgress.value >= 5) {
-        finished.value = true
-        myTimeMs.value = currentPassedTime
-        if (timer) clearInterval(timer)
-        await ensureBattleWsConnected()
-        wsApi.send({
-          action: 'finish',
-          totalTimeMs: currentPassedTime
-        })
-      }
-
-      setTimeout(() => {
-        showSuccess.value = false
-        if (myProgress.value < 5) {
-          // 下一题
-          currentQuestionIndex.value++
-          loadCurrentQuestion()
-        }
-      }, 1000)
       return
     }
 
     feedback.value = data.feedback || []
-    playErrorOnce()
-    slotShake.value = true
-    uni.showToast({ title: '再想想～', icon: 'none' })
-    setTimeout(() => {
-      slotShake.value = false
-      setTimeout(() => {
-        answerChars.value = []
-        answerInputValue.value = ''
-        feedback.value = []
-      }, 200)
-    }, 600)
+    punScheduleWrongAnswerReset(slotShake, () => {
+      answerChars.value = []
+      answerInputValue.value = ''
+      feedback.value = []
+    })
   } catch (e) {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
@@ -382,7 +335,6 @@ function loadCurrentQuestion() {
     feedback.value = []
     answerInputValue.value = ''
     loading.value = false
-    startHintCooldown()
   }).catch((err) => {
     console.error('加载题目失败', err)
     loading.value = false
@@ -402,6 +354,7 @@ function goBack() {
 
 onShow(() => {
   if (gameOver.value) return
+  refreshHintAnswerQuota()
   // 唤醒后先同步一次，随后如果仍未结算再兜底同步
   if (wakeSyncTimer) {
     clearTimeout(wakeSyncTimer)
@@ -420,7 +373,6 @@ onHide(() => {
 })
 
 onUnmounted(() => {
-  clearHintCooldown()
   if (timer) clearInterval(timer)
   wsApi.off('sync_progress')
   wsApi.off('opponent_finish')
@@ -449,6 +401,7 @@ onLoad((opts) => {
   if (opts.myName) myName.value = decodeURIComponent(opts.myName)
   if (opts.opponentName) opponentName.value = decodeURIComponent(opts.opponentName)
   ensureBattleWsConnected()
+  refreshHintAnswerQuota()
 
   // 监听 WS
   wsApi.on('sync_progress', (data) => {
@@ -729,61 +682,30 @@ async function syncBattleStateForWake() {
   margin-top: -60rpx;
 }
 
-.answer-row {
+.answer-block {
   position: relative;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-  padding: 28rpx 24rpx;
   margin-bottom: 32rpx;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 24rpx;
-  border: 2rpx solid rgba(169, 201, 238, 0.45);
-  box-shadow: 0 4rpx 16rpx rgba(169, 201, 238, 0.1);
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 28rpx;
+  border: 2rpx solid rgba(180, 200, 230, 0.4);
+  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+.answer-row {
+  position: relative;
+  padding: 28rpx 24rpx 24rpx;
+}
+.answer-row--mid {
+  border-bottom: 1rpx solid rgba(160, 190, 220, 0.35);
 }
 .answer-left {
   position: relative;
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
-.answer-right {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  z-index: 4;
-}
-.btn-hint-battle {
-  margin: 0;
-  padding: 18rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.95);
-  color: #5a6d7a;
-  font-size: inherit;
-  line-height: inherit;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  justify-content: center;
-  gap: 10rpx;
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.15);
-  border: 2rpx solid rgba(169, 201, 238, 0.45);
-}
-.btn-hint-battle::after {
-  border: none;
-}
-.btn-hint-battle--cooldown {
-  opacity: 0.68;
-}
-.hint-icon { font-size: 30rpx; line-height: 1; flex-shrink: 0; }
-.hint-text { font-size: 28rpx; font-weight: 600; line-height: 1.2; white-space: nowrap; }
 .finished-msg {
   font-size: 30rpx;
   font-weight: bold;
@@ -811,7 +733,11 @@ async function syncBattleStateForWake() {
   position: relative;
   z-index: 1;
   display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
   gap: 18rpx;
+  flex-wrap: wrap;
 }
 .slot {
   width: 76rpx;
@@ -856,7 +782,7 @@ async function syncBattleStateForWake() {
   80% { transform: translateX(6rpx); }
 }
 
-.success-overlay, .result-overlay {
+.result-overlay {
   position: fixed;
   inset: 0;
   z-index: 999;
@@ -865,16 +791,6 @@ async function syncBattleStateForWake() {
   align-items: center;
   justify-content: center;
 }
-.success-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: #fff;
-  padding: 60rpx;
-  border-radius: 40rpx;
-}
-.success-icon { font-size: 80rpx; }
-.success-title { font-size: 40rpx; font-weight: bold; margin-top: 20rpx; }
 
 .result-card {
   background: #fff;

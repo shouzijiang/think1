@@ -107,6 +107,20 @@ CREATE TABLE `pun_game_level_progress` (
   UNIQUE KEY `uk_user_id` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏关卡进度';
 
+-- 7b. 揭字提示剩余次数（每用户一行，与 users 解耦）
+CREATE TABLE `pun_user_hint_quota` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL COMMENT '用户id',
+  `quota` int(10) unsigned NOT NULL DEFAULT '10' COMMENT '揭字剩余次数（每成功揭一步扣1，单题仍受答案字数封顶）',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_id` (`user_id`),
+  CONSTRAINT `fk_pun_hint_quota_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图揭字次数配额';
+
+-- 7c. 老库一次性给全员 +10 次揭字：见 `docs/migrations/add_hint_quota_10_all_users.sql`（勿重复执行）
+
 -- 若线上已存在表，按以下顺序执行迁移 SQL：
 -- 1) 排行榜表新增 xhs 最高关字段
 ALTER TABLE `pun_game_rank`

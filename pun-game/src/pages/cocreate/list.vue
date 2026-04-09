@@ -6,18 +6,19 @@
       <view class="bg-glow" />
     </view>
 
-    <!-- 顶部状态栏占位 -->
-    <view :style="{ height: statusBarHeight + 'px' }"></view>
-
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="back" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="nav-icon">🏠</text>
-      </view>
-      <text class="nav-title">共创列表</text>
-      <view class="btn-upload" @click="goUpload" :style="{ height: menuButtonHeight + 'px' }">
-        <text class="btn-upload-text">上传关卡</text>
-      </view>
-    </view>
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      title="共创列表"
+      @left-click="back"
+    >
+      <template #right>
+        <view class="btn-upload" @click="goUpload" :style="{ height: menuButtonHeight + 'px' }">
+          <text class="btn-upload-text">上传关卡</text>
+        </view>
+      </template>
+    </PunPageNavBar>
 
     <scroll-view
       class="list-wrap"
@@ -64,6 +65,7 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()

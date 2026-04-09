@@ -18,6 +18,7 @@
 ### 2. 谐音梗图游戏相关表
 - **pun_game_rank**: 游戏排行榜（user_id, max_level, max_level_mid, max_level_xhs；**last_pass_at_beginner / last_pass_at_mid / last_pass_at_xhs** 为各轨道最近一次通关时间，用于该榜**同分排序**；`updated_at` 仍为行级更新时间。同分排序规则：`ORDER BY 该轨最高关 DESC, COALESCE(该轨 last_pass_at_*, updated_at) DESC`）
 - **pun_game_level_progress**: 关卡进度表（`user_id`，`passed_levels` / `passed_levels_mid` / `passed_levels_xhs` 为 JSON 数组）
+- **pun_user_hint_quota**: 揭字提示剩余次数（`user_id` 唯一，`quota` 非负整数；与 `users` 表分离；新用户微信登录成功创建 `users` 行时由后端插入一行，默认 **`quota = 10`**（与模型 `PunUserHintQuota::DEFAULT_QUOTA` 一致）；每成功调用一次 `/pun/level/reveal-hint` 揭一步扣 1，单题揭字步数仍不超过该题答案字数）
 - **pun_game_cocreate**: 共创关卡表（user_id, answer, hint_image_prompt, word_array, status 等）
 - **pun_game_feedback**: 意见反馈表（user_id, type, content, contact）
 - **pun_game_battle_record**: 1V1对战房间与记录表（room_id, creator_id, challenger_id, levels_json, creator_progress, challenger_progress, total_time_ms, winner_id, status）
@@ -45,9 +46,10 @@
 ### 2. 谐音梗图游戏模块 (Pun Game)
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
-| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）|
+| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数） |
 | `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支） |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
+| `/pun/level/share-reward` | POST | 分享奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }` |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
 | `/pun/stats/home` | GET | 首页统计（无需 Token）：`players` 为 `pun_game_level_progress` 行数，`answers` 为全表 `JSON_LENGTH(passed_levels)+JSON_LENGTH(passed_levels_mid)` 之和 |
 | `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分；同分按**该模式** `last_pass_at_*`，无则回退行 `updated_at`） |
@@ -75,7 +77,13 @@
 | `roomId` | string | 对战必填 | 房间号 |
 | `questionIndex` | int | 对战必填 | 本题在本局中的索引 `0`～`4` |
 
-成功时 `data` 示例：`{ "hintText": "火 _ _", "step": 1, "maxSteps": 3, "isComplete": false }`。同一用户同一题多次点击步数递增；用尽后返回业务错误「本题提示已用尽」。
+成功时 `data` 示例：`{ "hintText": "火 _ _", "step": 1, "maxSteps": 3, "isComplete": false, "hintAnswerQuota": 4 }`（`hintAnswerQuota` 为本笔扣减后的剩余次数）。同一用户同一题步数递增；**每成功揭一步扣 `pun_user_hint_quota.quota` 1**；次数不足返回业务错误「提示次数不足…」；本题步数用尽返回「本题提示已用尽」。
+
+#### 分享奖励次数 `/pun/level/share-reward`（需登录）
+
+请求体：`{ "add": 1 }`（可省略，默认 `1`）。  
+成功返回示例：`{ "hintAnswerQuota": 12, "added": 1 }`。
+前端约定：仅在微信 `onShareAppMessage.success` 回调里调用本接口；用户取消/失败（`fail`）不调用，不增加次数。
 
 ### 2.1 谐音梗图 WebSocket 接口 (1V1 对战)
 | 事件/指令 (`action`) | 发送方 | 说明 |
@@ -115,7 +123,7 @@
 ### 2. 后端 (ThinkPHP 8) 注意事项
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
 - **中级/小红书防跳关**：在提交答案 `/pun/answer/submit` 且 `gameTier=mid|xhs` 时，后端分别通过 `issue2`/`issue3` 题库顺序校验，仅在“提交的是下一关”时推进 `max_level_mid` / `max_level_xhs`，防止恶意跳关。
-- **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
+- **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；**揭字剩余次数**存于 **`pun_user_hint_quota`**（按用户一行）。对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
 - **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发久坐提醒。
 - **统一响应封装**：所有接口均需返回 `{ "code": 200, "message": "...", "data": {...} }` 格式。
 

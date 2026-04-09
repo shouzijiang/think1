@@ -5,15 +5,14 @@
       <view class="bg-dots" />
       <view class="bg-glow" />
     </view>
-    <view :style="{ height: statusBarHeight + 'px', width: '100%' }"></view>
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="goBack" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="nav-icon">🏠</text>
-      </view>
-      <view class="nav-center">
-        <text class="nav-title">对战记录</text>
-      </view>
-    </view>
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      status-bar-full-width
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      title="对战记录"
+      @left-click="goBack"
+    />
 
     <scroll-view scroll-y class="history-list" :style="{ height: listHeight + 'px' }" @scrolltolower="loadMore">
       <view v-if="list.length === 0" class="empty-state">
@@ -69,6 +68,7 @@ import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { getUserInfo } from '../../utils/auth'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
 

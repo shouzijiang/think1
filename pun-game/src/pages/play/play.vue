@@ -6,18 +6,13 @@
       <view class="bg-glow" />
     </view>
 
-    <!-- 顶部状态栏占位 -->
-    <view :style="{ height: statusBarHeight + 'px' }"></view>
-
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="back" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="nav-icon">🏠</text>
-      </view>
-      <view class="nav-center">
-        <text class="nav-title">{{ cocreateId ? '共创关卡' : '第' + level + '关' }}</text>
-        <!-- <text class="nav-star">⭐</text> -->
-      </view>
-    </view>
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      :title="cocreateId ? '共创关卡' : ('第' + level + '关')"
+      @left-click="back"
+    />
 
     <view class="card">
       <view class="card-inner">
@@ -32,28 +27,31 @@
       </view>
     </view>
 
-    <view class="answer-row">
-      <view class="answer-left">
-        <view class="answer-slots">
-          <view
-            v-for="i in answerLen"
-            :key="i"
-            :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
-            @click="removeAt(i - 1)"
-          >
-            {{ answerChars[i - 1] || '' }}
+    <view class="answer-block">
+      <view class="answer-row answer-row--divider">
+        <view class="answer-left">
+          <view class="answer-slots">
+            <view
+              v-for="i in answerLen"
+              :key="i"
+              :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
+              @click="removeAt(i - 1)"
+            >
+              {{ answerChars[i - 1] || '' }}
+            </view>
           </view>
         </view>
       </view>
 
-      <view class="answer-right">
-        <button class="btn-help-inline" open-type="share" @click="help">
-          <text class="help-icon">💬</text>
-          <text class="help-text">求助</text>
-        </button>
-        <!-- 答案按钮预留位：后续你可以在这里加“提交/确认”按钮 -->
-        <!-- <view class="answer-btn-placeholder" /> -->
-      </view>
+      <PunPlayHintShareBar
+        :show-hint="!cocreateId"
+        :hint-loading="hintLoading"
+        :hint-answer-quota="hintAnswerQuota"
+        :hint-locked="loading"
+        @hint="onRevealHint"
+        @help="help"
+        @share-intent="markShareIntent"
+      />
     </view>
 
     <!-- <view class="stuck-tip">
@@ -71,16 +69,7 @@
       </view>
     </view>
 
-    <!-- 通关成功动画弹层 -->
-    <view v-if="showSuccess" class="success-overlay">
-      <view class="success-content">
-        <view class="success-icon-wrap">
-          <text class="success-icon">🎉</text>
-        </view>
-        <text class="success-title">回答正确~</text>
-        <!-- <text class="success-subtitle">太棒了，脑洞大开</text> -->
-      </view>
-    </view>
+    <PunPassSuccessOverlay :show="showSuccess" variant="rich" />
   </view>
 </template>
 
@@ -90,7 +79,17 @@ import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcl
 import { getLevelPuzzle } from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
-import { playBgmPlay, stopBgm, playCongratsOnce, playErrorOnce } from '../../utils/gameAudio'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
+import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
+import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
+import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
+import { usePunShareReward } from '../../composables/usePunShareReward'
+import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
+import {
+  punIsSlotError,
+  punScheduleWrongAnswerReset,
+  punRevealHintWithModal,
+} from '../../utils/punPlayShared'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
@@ -105,9 +104,14 @@ const puzzle = ref({
 })
 const loading = ref(true)
 const submitting = ref(false)
+
 const feedback = ref([])
 const slotShake = ref(false)
-const showSuccess = ref(false)
+const { showSuccess, runPassSuccess } = usePunPassSuccess()
+const hintLoading = ref(false)
+/** 揭字剩余次数（/pun/level/progress 与 reveal-hint 返回） */
+const hintAnswerQuota = ref(0)
+const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota)
 /** 当前已选入答案槽的字在 chars 中的下标，与 answerChars 一一对应 */
 const pickedIndices = ref([])
 
@@ -116,8 +120,7 @@ function isCharUsed(idx) {
 }
 
 function isSlotError(index) {
-  const fb = feedback.value[index]
-  return fb && fb.isCorrect === false
+  return punIsSlotError(feedback.value, index)
 }
 
 onShow(() => {
@@ -167,6 +170,11 @@ onLoad((opts) => {
     }).catch(() => {
       loading.value = false
     })
+    api.getLevelProgress({ gameTier: 'beginner' }).then((prog) => {
+      if (typeof prog.hintAnswerQuota === 'number') {
+        hintAnswerQuota.value = prog.hintAnswerQuota
+      }
+    }).catch(() => {})
   }
 })
 
@@ -201,43 +209,56 @@ async function checkAnswer() {
       ? await api.submitCocreateAnswer(cocreateId.value, userAnswer)
       : await api.submitAnswer(level.value, userAnswer)
     if (data.isCorrect) {
-      showSuccess.value = true
-      playCongratsOnce()
-      setTimeout(() => {
-        showSuccess.value = false
-        if (isCocreate) {
-          uni.navigateBack({ fail: () => { uni.reLaunch({ url: '/pages/cocreate/list' }) } })
-        } else {
-          const nextLevel = level.value + 1
-          if(nextLevel > 270) {
-            uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
-            setTimeout(() => {
-              uni.reLaunch({ url: '/pages/index/index' })
-            }, 1500)
-            return
+      runPassSuccess({
+        durationMs: 1500,
+        onAfter: () => {
+          if (isCocreate) {
+            uni.navigateBack({ fail: () => { uni.reLaunch({ url: '/pages/cocreate/list' }) } })
+          } else {
+            const nextLevel = level.value + 1
+            if(nextLevel > 270) {
+              uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
+              setTimeout(() => {
+                uni.reLaunch({ url: '/pages/index/index' })
+              }, 1500)
+              return
+            }
+            // 使用 redirectTo 替换当前页，避免连续 navigateTo 堆满页面栈（微信约 10 层上限）
+            uni.redirectTo({ url: `/pages/play/play?level=${nextLevel}` })
           }
-          // 使用 redirectTo 替换当前页，避免连续 navigateTo 堆满页面栈（微信约 10 层上限）
-          uni.redirectTo({ url: `/pages/play/play?level=${nextLevel}` })
-        }
-      }, 1500)
+        },
+      })
       return
     }
     feedback.value = data.feedback || []
-    playErrorOnce()
-    slotShake.value = true
-    uni.showToast({ title: '再想想～', icon: 'none' })
-    setTimeout(() => {
-      slotShake.value = false
-      setTimeout(() => {
-        answerChars.value = []
-        pickedIndices.value = []
-        feedback.value = []
-      }, 200)
-    }, 600)
+    punScheduleWrongAnswerReset(slotShake, () => {
+      answerChars.value = []
+      pickedIndices.value = []
+      feedback.value = []
+    })
   } catch (e) {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
+  }
+}
+
+async function onRevealHint() {
+  if (cocreateId.value || hintLoading.value || loading.value) return
+  if (hintAnswerQuota.value <= 0) {
+    uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
+    return
+  }
+  hintLoading.value = true
+  try {
+    const res = await punRevealHintWithModal({ level: level.value, gameTier: 'beginner' })
+    if (typeof res.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = res.hintAnswerQuota
+    }
+  } catch (e) {
+    uni.showToast({ title: e.message || '获取失败', icon: 'none' })
+  } finally {
+    hintLoading.value = false
   }
 }
 
@@ -255,15 +276,15 @@ function help() {
 // 微信小程序分享：好友打开后进入当前关卡或共创
 onShareAppMessage(() => {
   if (cocreateId.value) {
-    return {
+    return withShareReward({
       title: '这条谐音梗等你来猜！',
       path: `/pages/play/play?cocreateId=${cocreateId.value}`,
-    }
+    })
   }
-  return {
+  return withShareReward({
     title: `第${level.value}关求助，快来帮我猜谐音梗！`,
     path: `/pages/play/play?level=${level.value}`,
-  }
+  })
 })
 
 onShareTimeline(() => {
@@ -298,7 +319,6 @@ onShareTimeline(() => {
   @include pt-page-background;
 }
 
-.nav-star { font-size: 30rpx; }
 .btn-help {
   position: absolute; /* 绝对定位到右侧，因为微信胶囊存在，其实这块区域容易被挡住，看需求可以留着或隐藏 */
   right: 0;
@@ -320,9 +340,6 @@ onShareTimeline(() => {
 .btn-help::after {
   border: none;
 }
-.help-icon { font-size: 30rpx; }
-.help-text { font-size: 26rpx; font-weight: 500; }
-
 .card {
   position: relative;
   z-index: 2;
@@ -362,35 +379,29 @@ onShareTimeline(() => {
   text-align: center;
 }
 
-.answer-row {
+/* 答题区 + 底部操作条：与 playMid / playXhs 同一结构 */
+.answer-block {
   position: relative;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 22rpx;
-  padding: 28rpx 24rpx;
   margin-bottom: 32rpx;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 24rpx;
-  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.15);
-  border: 2rpx solid rgba(169, 201, 238, 0.45);
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 28rpx;
+  border: 2rpx solid rgba(180, 200, 230, 0.4);
+  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  overflow: hidden;
 }
-
+.answer-row {
+  position: relative;
+  padding: 28rpx 24rpx 24rpx;
+}
+.answer-row--divider {
+  border-bottom: 1rpx solid rgba(160, 190, 220, 0.35);
+}
 .answer-left {
-  flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.answer-right {
-  width: 150rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 22rpx;
 }
 .stuck-tip {
   position: relative;
@@ -407,24 +418,6 @@ onShareTimeline(() => {
   justify-content: center;
   align-items: center;
   gap: 18rpx;
-}
-
-.btn-help-inline {
-  position: relative;
-  margin: 0;
-  padding: 18rpx 18rpx;
-  border: none;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.95);
-  color: #5a6d7a;
-  font-size: inherit;
-  line-height: inherit;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.15);
-  border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 
 .answer-btn-placeholder {
@@ -462,73 +455,6 @@ onShareTimeline(() => {
   40% { transform: translateX(8rpx); }
   60% { transform: translateX(-6rpx); }
   80% { transform: translateX(6rpx); }
-}
-
-/* ---------------------------------
-   成功动画弹层样式
---------------------------------- */
-.success-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeIn 0.3s ease-out forwards;
-}
-.success-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: linear-gradient(145deg, #ffffff 0%, #fdfbfb 100%);
-  padding: 60rpx 80rpx;
-  border-radius: 40rpx;
-  box-shadow: 0 20rpx 60rpx rgba(0,0,0,0.2);
-  transform: scale(0.8);
-  opacity: 0;
-  animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  animation-delay: 0.1s;
-}
-.success-icon-wrap {
-  width: 160rpx;
-  height: 160rpx;
-  background: #f0fdf4;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32rpx;
-  box-shadow: inset 0 0 20rpx rgba(74, 222, 128, 0.2);
-}
-.success-icon {
-  font-size: 80rpx;
-  animation: bounce 1s infinite;
-}
-.success-title {
-  font-size: 48rpx;
-  font-weight: 900;
-  color: #166534;
-  margin-bottom: 16rpx;
-}
-.success-subtitle {
-  font-size: 28rpx;
-  color: #22c55e;
-  font-weight: 600;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes popIn {
-  from { opacity: 0; transform: scale(0.8) translateY(40rpx); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-@keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-16rpx); }
 }
 
 .chars-wrap {

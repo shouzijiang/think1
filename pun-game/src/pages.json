@@ -1,4 +1,10 @@
 {
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^Pun(.*)": "@/components/Pun$1.vue"
+    }
+  },
   "pages": [
     {
       "path": "pages/index/index",

@@ -6,16 +6,16 @@
       <view class="bg-glow" />
     </view>
 
-    <view :style="{ height: statusBarHeight + 'px' }"></view>
-
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="back" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="nav-icon">🏠</text>
-      </view>
-      <view class="nav-center">
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      @left-click="back"
+    >
+      <template #title>
         <text class="nav-title">小红书专辑 · 第{{ level }}关</text>
-      </view>
-    </view>
+      </template>
+    </PunPageNavBar>
 
     <view class="card card--xhs">
       <view class="keyword-tab keyword-tab--empty">
@@ -58,45 +58,38 @@
         </view>
       </view>
 
-      <view class="mid-action-bar">
-        <view class="mid-action-inner">
-          <button
-            class="mid-act-btn mid-act-btn--hint"
-            :class="{ 'mid-act-btn--cooldown': hintCooldownLeft > 0 }"
-            :loading="hintLoading"
-            :disabled="hintLoading || hintCooldownLeft > 0"
-            hover-class="mid-act-btn--hover"
-            @click="onRevealHint"
-          >
-            <text class="mid-act-ico">💡</text>
-            <text class="mid-act-txt">{{ hintCooldownLeft > 0 ? '答案 ' + hintCooldownLeft + 's' : '答案' }}</text>
-          </button>
-          <button class="mid-act-btn mid-act-btn--share" open-type="share" hover-class="mid-act-btn--hover">
-            <text class="mid-act-ico">💬</text>
-            <text class="mid-act-txt">求助</text>
-          </button>
-        </view>
-      </view>
+      <PunPlayHintShareBar
+        :hint-loading="hintLoading"
+        :hint-answer-quota="hintAnswerQuota"
+        :hint-locked="loading"
+        @hint="onRevealHint"
+        @help="help"
+        @share-intent="markShareIntent"
+      />
     </view>
 
-    <view v-if="showSuccess" class="success-overlay">
-      <view class="success-content">
-        <view class="success-icon-wrap">
-          <text class="success-icon">🎉</text>
-        </view>
-        <text class="success-title">回答正确~</text>
-      </view>
-    </view>
+    <PunPassSuccessOverlay :show="showSuccess" variant="plain" />
   </view>
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
-import { onLoad, onShow, onHide, onUnload, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { ref } from 'vue'
+import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getXhsLevelPuzzle, getXhsNextLevel, loadXhsLevelList, pickXhsLevelFromProgress, prefetchNextXhsLevelImage } from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
-import { playBgmPlay, stopBgm, playCongratsOnce, playErrorOnce } from '../../utils/gameAudio'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
+import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
+import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
+import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
+import { usePunShareReward } from '../../composables/usePunShareReward'
+import { usePunHanAnswerInput } from '../../composables/usePunHanAnswerInput'
+import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
+import {
+  punIsSlotError,
+  punScheduleWrongAnswerReset,
+  punRevealHintWithModal,
+} from '../../utils/punPlayShared'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
@@ -110,75 +103,30 @@ const puzzle = ref({
 })
 const loading = ref(true)
 const submitting = ref(false)
-const hintLoading = ref(false)
-const hintCooldownLeft = ref(0)
-let hintCooldownTimer = null
-const HINT_COOLDOWN_SEC = 20
-
-function clearHintCooldown() {
-  if (hintCooldownTimer) {
-    clearInterval(hintCooldownTimer)
-    hintCooldownTimer = null
-  }
-  hintCooldownLeft.value = 0
-}
-
-function startHintCooldown() {
-  clearHintCooldown()
-  hintCooldownLeft.value = HINT_COOLDOWN_SEC
-  hintCooldownTimer = setInterval(() => {
-    hintCooldownLeft.value--
-    if (hintCooldownLeft.value <= 0) {
-      clearHintCooldown()
-    }
-  }, 1000)
-}
 
 const feedback = ref([])
 const slotShake = ref(false)
-const showSuccess = ref(false)
+const { showSuccess, runPassSuccess } = usePunPassSuccess()
+const hintLoading = ref(false)
+const hintAnswerQuota = ref(0)
+const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota)
 const answerInputValue = ref('')
-const xhsInputRef = ref(null)
-const inputFocused = ref(false)
-
-const caretIndex = computed(() => {
-  if (!inputFocused.value) return -1
-  const n = answerChars.value.length
-  if (n >= answerLen.value) return -1
-  return n
+const {
+  inputRef: xhsInputRef,
+  caretIndex,
+  onInputFocus,
+  onInputBlur,
+  focusInput,
+  onAnswerInput,
+} = usePunHanAnswerInput({
+  answerLen,
+  answerChars,
+  answerInputValue,
+  onFilled: () => checkAnswer(),
 })
 
 function isSlotError(index) {
-  const fb = feedback.value[index]
-  return fb && fb.isCorrect === false
-}
-
-function onInputFocus() {
-  inputFocused.value = true
-}
-
-function onInputBlur() {
-  inputFocused.value = false
-}
-
-function focusInput() {
-  nextTick(() => {
-    const el = xhsInputRef.value
-    if (el && typeof el.focus === 'function') el.focus()
-  })
-}
-
-function onAnswerInput(e) {
-  const raw = (e.detail && e.detail.value) || ''
-  answerInputValue.value = raw
-  const hasHan = /[\u4e00-\u9fff]/.test(raw)
-  if (!hasHan) {
-    answerChars.value = []
-    return
-  }
-  const parts = Array.from(raw).slice(0, answerLen.value)
-  answerChars.value = parts
-  if (parts.length === answerLen.value) checkAnswer()
+  return punIsSlotError(feedback.value, index)
 }
 
 async function checkAnswer() {
@@ -191,34 +139,28 @@ async function checkAnswer() {
   try {
     const data = await api.submitAnswer(level.value, userAnswer, { gameTier: 'xhs' })
     if (data.isCorrect) {
-      showSuccess.value = true
-      playCongratsOnce()
-      const nextLevel = await getXhsNextLevel(level.value)
-      setTimeout(() => {
-        showSuccess.value = false
-        if (nextLevel == null) {
-          uni.showToast({ title: '专辑持续更新中，敬请期待~', icon: 'none' })
-          setTimeout(() => {
-            uni.reLaunch({ url: '/pages/index/index' })
-          }, 1200)
-          return
-        }
-        uni.redirectTo({ url: `/pages/playXhs/playXhs?level=${nextLevel}` })
-      }, 1200)
+      runPassSuccess({
+        durationMs: 1200,
+        afterPrepare: () => getXhsNextLevel(level.value),
+        onAfter: (nextLevel) => {
+          if (nextLevel == null) {
+            uni.showToast({ title: '专辑持续更新中，敬请期待~', icon: 'none' })
+            setTimeout(() => {
+              uni.reLaunch({ url: '/pages/index/index' })
+            }, 1200)
+            return
+          }
+          uni.redirectTo({ url: `/pages/playXhs/playXhs?level=${nextLevel}` })
+        },
+      })
       return
     }
     feedback.value = data.feedback || []
-    playErrorOnce()
-    slotShake.value = true
-    uni.showToast({ title: '再想想～', icon: 'none' })
-    setTimeout(() => {
-      slotShake.value = false
-      setTimeout(() => {
-        answerChars.value = []
-        answerInputValue.value = ''
-        feedback.value = []
-      }, 200)
-    }, 600)
+    punScheduleWrongAnswerReset(slotShake, () => {
+      answerChars.value = []
+      answerInputValue.value = ''
+      feedback.value = []
+    })
   } catch (e) {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
@@ -227,20 +169,28 @@ async function checkAnswer() {
 }
 
 async function onRevealHint() {
-  if (hintLoading.value || hintCooldownLeft.value > 0 || loading.value) return
+  if (hintLoading.value || loading.value) return
+  if (hintAnswerQuota.value <= 0) {
+    uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
+    return
+  }
   hintLoading.value = true
   try {
-    const data = await api.revealHint({ level: level.value, gameTier: 'xhs' })
-    uni.showModal({
-      title: data.isComplete ? '已全部提示' : `提示 (${data.step}/${data.maxSteps})`,
-      content: data.hintText,
-      showCancel: false,
-    })
+    const res = await punRevealHintWithModal({ level: level.value, gameTier: 'xhs' })
+    if (typeof res.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = res.hintAnswerQuota
+    }
   } catch (e) {
     uni.showToast({ title: e.message || '获取失败', icon: 'none' })
   } finally {
     hintLoading.value = false
   }
+}
+
+function help() {
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
+  // #endif
 }
 
 function back() {
@@ -262,12 +212,21 @@ onLoad(async (opts) => {
     loading.value = true
     try {
       const data = await api.getLevelProgress({ gameTier: 'xhs' })
+      if (typeof data.hintAnswerQuota === 'number') {
+        hintAnswerQuota.value = data.hintAnswerQuota
+      }
       await loadXhsLevelList()
       const resolved = pickXhsLevelFromProgress(data)
       lv = resolved != null ? resolved : 1
     } catch {
       lv = 1
     }
+  } else {
+    api.getLevelProgress({ gameTier: 'xhs' }).then((data) => {
+      if (typeof data.hintAnswerQuota === 'number') {
+        hintAnswerQuota.value = data.hintAnswerQuota
+      }
+    }).catch(() => {})
   }
 
   level.value = lv
@@ -284,7 +243,6 @@ onLoad(async (opts) => {
       feedback.value = []
       answerInputValue.value = ''
       loading.value = false
-      startHintCooldown()
       prefetchNextXhsLevelImage(lv)
     })
     .catch(() => {
@@ -292,15 +250,11 @@ onLoad(async (opts) => {
     })
 })
 
-onUnload(() => {
-  clearHintCooldown()
-})
-
 onShareAppMessage(() => {
-  return {
+  return withShareReward({
     title: `小红书专辑·第${level.value}关，快来帮我猜！`,
     path: `/pages/playXhs/playXhs?level=${level.value}`,
-  }
+  })
 })
 
 onShareTimeline(() => {
@@ -469,59 +423,6 @@ onShareTimeline(() => {
   animation: slot-shake 0.4s ease-in-out;
 }
 
-.mid-action-bar {
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  padding: 16rpx 28rpx 20rpx;
-  background: rgba(250, 252, 255, 0.92);
-}
-.mid-action-inner {
-  display: flex;
-  flex-direction: row;
-  align-items: stretch;
-  gap: 18rpx;
-  width: 100%;
-  max-width: 520rpx;
-}
-.mid-act-btn {
-  flex: 1;
-  min-width: 0;
-  margin: 0;
-  min-height: 76rpx;
-  padding: 0 18rpx;
-  border: none;
-  border-radius: 38rpx;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-}
-.mid-act-btn::after {
-  border: none;
-}
-.mid-act-btn--hint,
-.mid-act-btn--share {
-  color: #5a6d7a;
-  background: linear-gradient(180deg, #ffffff 0%, #f0faf9 100%);
-  border: 1rpx solid rgba(169, 201, 238, 0.55);
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.12);
-}
-.mid-act-btn--hover {
-  opacity: 0.9;
-}
-.mid-act-btn--cooldown {
-  opacity: 0.65;
-}
-.mid-act-ico {
-  font-size: 26rpx;
-}
-.mid-act-txt {
-  font-size: 28rpx;
-  font-weight: 600;
-}
-
 .slot-caret {
   width: 10rpx;
   height: 46rpx;
@@ -542,40 +443,4 @@ onShareTimeline(() => {
   80% { transform: translateX(6rpx); }
 }
 
-.success-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 999;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.success-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: linear-gradient(145deg, #ffffff 0%, #fdfbfb 100%);
-  padding: 60rpx 80rpx;
-  border-radius: 40rpx;
-}
-.success-icon-wrap {
-  width: 160rpx;
-  height: 160rpx;
-  background: #f0fdf4;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 32rpx;
-}
-.success-icon {
-  font-size: 80rpx;
-}
-.success-title {
-  font-size: 48rpx;
-  font-weight: 900;
-  color: #166534;
-}
 </style>

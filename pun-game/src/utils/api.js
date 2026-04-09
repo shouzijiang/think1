@@ -175,6 +175,18 @@ export const api = {
   },
 
   /**
+   * 分享奖励：揭字次数 +add（默认 1）
+   * @param {number} [add=1]
+   */
+  claimHintShareReward(add = 1) {
+    return request({
+      url: '/pun/level/share-reward',
+      method: 'POST',
+      data: { add },
+    })
+  },
+
+  /**
    * 当前用户关卡进度（历史答题情况）
    */
   getLevelProgress(params = {}) {

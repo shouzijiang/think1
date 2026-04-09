@@ -6,20 +6,13 @@
       <view class="bg-glow" />
     </view>
 
-    <!-- 顶部状态栏占位 -->
-    <view :style="{ height: statusBarHeight + 'px' }"></view>
-
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="back" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="nav-icon">🏠</text>
-      </view>
-      <view class="nav-center">
-        <text class="nav-title">排行榜</text>
-      </view>
-      <!-- <view class="nav-btn nav-btn-refresh" @click="refresh">
-        <text class="nav-icon">↻</text>
-      </view> -->
-    </view>
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      title="排行榜"
+      @left-click="back"
+    />
 
     <view class="tabs-wrap">
       <view class="tabs">
@@ -82,6 +75,7 @@ import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()

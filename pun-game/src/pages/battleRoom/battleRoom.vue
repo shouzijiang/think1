@@ -5,15 +5,14 @@
       <view class="bg-dots" />
       <view class="bg-glow" />
     </view>
-    <view :style="{ height: statusBarHeight + 'px', width: '100%' }"></view>
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="nav-btn" @click="goBack" :style="{ width: menuButtonHeight + 'px', height: menuButtonHeight + 'px' }">
-        <text class="nav-icon">🏠</text>
-      </view>
-      <view class="nav-center">
-        <text class="nav-title">对战大厅</text>
-      </view>
-    </view>
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      status-bar-full-width
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      title="对战大厅"
+      @left-click="goBack"
+    />
 
     <view class="content">
       <view class="room-card" v-if="roomId">
@@ -137,6 +136,7 @@ import { onLoad, onUnload, onShow, onShareAppMessage, onShareTimeline } from '@d
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { getUserInfo, wechatLogin } from '../../utils/auth'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()

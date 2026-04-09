@@ -63,6 +63,19 @@
       </view>
       <!-- #endif -->
       </view>
+
+      <view class="quota-corner">
+        <view class="quota-corner-main">
+          <text class="quota-corner-label">答案查看：</text>
+          <view class="quota-corner-num-wrap">
+            <text class="quota-corner-num">{{ hintAnswerQuota }}</text>
+            <text class="quota-corner-unit">次</text>
+          </view>
+          <view class="quota-corner-tip" @click="showHintQuotaTip">
+            <text class="quota-corner-tip-text">i</text>
+          </view>
+        </view>
+      </view>
     </view>
 
     <!-- 删除了原有的文字标题，改用统一的副标题 -->
@@ -80,7 +93,11 @@
 
     <view class="start-wrap">
       <view class="btn-start btn-start-main" @click="startGameMid">
-        <text class="btn-start-icon">🔥</text>
+        <image
+          class="btn-start-icon"
+          src="/static/start.png"
+          mode="aspectFit"
+        />
         <text class="btn-start-text">开始游戏</text>
       </view>
       <view class="start-sub-row">
@@ -89,7 +106,11 @@
           <text class="btn-text">梗图填词</text>
         </view>
         <view class="btn-start btn-start-xhs" @click="startGameXhs">
-          <text class="btn-icon">📕</text>
+          <image
+            class="btn-icon btn-icon-img"
+            src="/static/xhs.png"
+            mode="aspectFit"
+          />
           <text class="btn-text">小红书专辑</text>
         </view>
       </view>
@@ -97,11 +118,19 @@
 
     <view class="top-actions">
       <view class="btn-entry" @click="goBattle">
-        <text class="btn-icon">⚔️</text>
+        <image
+          class="btn-icon btn-icon-img"
+          src="/static/battle.png"
+          mode="aspectFit"
+        />
         <text class="btn-text">1V1对战</text>
       </view>
       <view class="btn-entry btn-levels" @click="goLevels">
-        <text class="btn-icon">📖</text>
+        <image
+          class="btn-icon btn-icon-img"
+          src="/static/levels.png"
+          mode="aspectFit"
+        />
         <text class="btn-text">我的关卡</text>
       </view>
     </view>
@@ -145,11 +174,11 @@
         <text class="toolbar-icon">📝</text>
         <text class="toolbar-text">反馈</text>
       </view>
-      <view class="toolbar-divider"></view>
+      <!-- <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goCocreate">
         <text class="toolbar-icon">💡</text>
         <text class="toolbar-text">共创</text>
-      </view>
+      </view> -->
     </view>
   </view>
 </template>
@@ -184,6 +213,7 @@ const CHANGELOG_SEEN_KEY = 'pun_changelog_seen_version'
 
 const stats = ref({ players: 0, answers: 0 })
 const userInfo = ref(null)
+const hintAnswerQuota = ref(0)
 const bgmOn = ref(isGameAudioEnabled())
 
 const changelogVisible = ref(false)
@@ -246,6 +276,25 @@ function toggleBgm() {
 function loadUserInfo() {
   const info = getUserInfo()
   userInfo.value = info || { nickname: '', avatar: '', user_id: null, openid: '' }
+}
+
+function showHintQuotaTip() {
+  uni.showModal({
+    title: '答案次数说明',
+    content: '每点一次「答案」消耗 1 次。分享至朋友圈/微信可增加次数。',
+    showCancel: false,
+  })
+}
+
+async function refreshHintAnswerQuota() {
+  try {
+    const data = await api.getLevelProgress({ gameTier: 'mid' })
+    if (data && typeof data.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = data.hintAnswerQuota
+    }
+  } catch {
+    // 无 token / 未登录时忽略
+  }
 }
 
 // 将图片转为 base64（微信小程序选头像后上传用）
@@ -331,6 +380,7 @@ onShow(async () => {
   }
   // #endif
   loadUserInfo()
+  refreshHintAnswerQuota()
   bgmOn.value = isGameAudioEnabled()
   if (bgmOn.value) {
     playBgmHome()
@@ -499,6 +549,69 @@ function startGame() {
   margin-bottom: 24rpx;
 }
 
+.quota-corner {
+  box-sizing: border-box;
+  position: absolute;
+  left: -20rpx;
+  top: 120%;
+  height: 100%;
+  min-width: 220rpx;
+  padding: 40rpx 20rpx;
+  border-radius: 50rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 2rpx solid rgba(180, 200, 230, 0.45);
+  box-shadow: 0 6rpx 18rpx rgba(100, 140, 180, 0.12);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  border-top: none;
+}
+.quota-corner-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.quota-corner-label {
+  font-size: 24rpx;
+  color: #6d8192;
+  font-weight: 700;
+}
+.quota-corner-num-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 4rpx;
+}
+.quota-corner-num {
+  font-size: 34rpx;
+  line-height: 1;
+  font-weight: 900;
+  color: #16a34a;
+  font-variant-numeric: tabular-nums;
+}
+.quota-corner-unit {
+  font-size: 20rpx;
+  color: #16a34a;
+  font-weight: 800;
+  margin-right: 10rpx;
+}
+.quota-corner-tip {
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background: rgba(47, 122, 217, 0.14);
+  border: 1rpx solid rgba(47, 122, 217, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.quota-corner-tip-text {
+  font-size: 20rpx;
+  line-height: 1;
+  color: #2f7ad9;
+  font-weight: 800;
+}
+
 .user-header {
   position: absolute;
   left: -20rpx;
@@ -523,7 +636,7 @@ function startGame() {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 100rpx;
-  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.22);
+  // box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.22);
   border: 2rpx solid rgba(169, 201, 238, 0.55);
   box-sizing: border-box;
 }
@@ -801,6 +914,11 @@ function startGame() {
       0 12rpx 0 rgba(189, 90, 126, 0.26),
       inset 0 2rpx 0 rgba(255, 255, 255, 0.35),
       inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.14);
+
+    .btn-icon-img {
+      width: 40rpx;
+      height: 40rpx;
+    }
   }
 }
 .btn-start-main {
@@ -828,9 +946,10 @@ function startGame() {
     inset 0 -8rpx 12rpx rgba(0, 0, 0, 0.2);
 }
 .btn-start-icon {
-  font-size: 38rpx;
-  line-height: 1;
-  filter: saturate(1) brightness(1.06) drop-shadow(0 3rpx 6rpx rgba(0, 0, 0, 0.16));
+  width: 44rpx;
+  height: 44rpx;
+  flex-shrink: 0;
+  filter: drop-shadow(0 3rpx 6rpx rgba(0, 0, 0, 0.16));
 }
 .btn-start-text {
   text-shadow: 0 3rpx 8rpx rgba(0, 0, 0, 0.2);
@@ -926,6 +1045,12 @@ function startGame() {
   font-size: 36rpx;
   line-height: 1.2;
   filter: saturate(0.95) brightness(1.03) drop-shadow(0 3rpx 6rpx rgba(54, 84, 120, 0.2));
+}
+.btn-icon-img {
+  width: 40rpx;
+  height: 40rpx;
+  flex-shrink: 0;
+  filter: drop-shadow(0 3rpx 6rpx rgba(54, 84, 120, 0.2));
 }
 .btn-text {
   font-size: 26rpx;
