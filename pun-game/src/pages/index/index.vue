@@ -955,7 +955,7 @@ function startGame() {
 .side-toolbar {
   position: fixed;
   right: 0rpx;
-  top: 220rpx;
+  bottom: 220rpx;
   z-index: 50;
   display: flex;
   flex-direction: column;

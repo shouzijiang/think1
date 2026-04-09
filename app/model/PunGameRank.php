@@ -20,6 +20,7 @@ class PunGameRank extends Model
         'user_id'       => 'int',
         'max_level'     => 'int',
         'max_level_mid' => 'int',
+        'max_level_xhs' => 'int',
         'updated_at'    => 'datetime',
     ];
 

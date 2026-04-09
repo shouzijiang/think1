@@ -69,10 +69,21 @@ class Pun extends BaseController
         $mode = $request->post('gameTier', 'beginner');
         $modeNorm = is_string($mode) ? strtolower(trim($mode)) : '';
         $isIntermediate = in_array($modeNorm, ['issue2', 'intermediate', 'mid', 'middle', '2', '中级', '中級'], true);
+        $isXhs = in_array($modeNorm, ['xhs', 'issue3', 'xiaohongshu', '小红书'], true);
         $isBattle = ($modeNorm === 'battle');
         
-        if ($isIntermediate || $isBattle) {
+        if ($isBattle) {
             $levels = \think\facade\Config::get('pun_levels_issue2', []);
+            if (!isset($levels[$level])) {
+                return ResponseHelper::badRequest('关卡不存在');
+            }
+        } elseif ($isIntermediate) {
+            $levels = \think\facade\Config::get('pun_levels_issue2', []);
+            if (!isset($levels[$level])) {
+                return ResponseHelper::badRequest('关卡不存在');
+            }
+        } elseif ($isXhs) {
+            $levels = \think\facade\Config::get('pun_levels_issue3', []);
             if (!isset($levels[$level])) {
                 return ResponseHelper::badRequest('关卡不存在');
             }

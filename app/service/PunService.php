@@ -18,7 +18,7 @@ class PunService
 {
     /**
      * 玩法模式归一化
-     * @return string beginner|intermediate
+     * @return string beginner|intermediate|xhs|battle
      */
     private function normalizeMode($mode): string
     {
@@ -28,6 +28,9 @@ class PunService
         $m = strtolower(trim($mode));
         if (in_array($m, ['issue2', 'intermediate', 'mid', 'middle', '2', '中级', '中級'], true)) {
             return 'intermediate';
+        }
+        if (in_array($m, ['xhs', 'issue3', 'xiaohongshu', '小红书'], true)) {
+            return 'xhs';
         }
         if ($m === 'battle') {
             return 'battle';
@@ -51,6 +54,9 @@ class PunService
         if ($mode === 'intermediate' || $mode === 'battle') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
+        } elseif ($mode === 'xhs') {
+            $answersRaw = Config::get('pun_levels_issue3', []);
+            $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
             $answers = Config::get('pun_levels', []);
             $correct = isset($answers[$level]) && is_array($answers[$level]) ? $answers[$level] : [];
@@ -67,6 +73,8 @@ class PunService
             $cacheKey = $this->hintCacheKeyBattle($userId, $roomId, $questionIndex, $level);
         } elseif ($mode === 'intermediate') {
             $cacheKey = $this->hintCacheKeySolo($userId, 'mid', $level);
+        } elseif ($mode === 'xhs') {
+            $cacheKey = $this->hintCacheKeySolo($userId, 'xhs', $level);
         } else {
             $cacheKey = $this->hintCacheKeySolo($userId, 'beg', $level);
         }
@@ -155,7 +163,9 @@ class PunService
     {
         $mode = $this->normalizeMode($mode);
         $pageSize = min(max(1, $pageSize), 100);
-        $orderField = $mode === 'intermediate' ? 'max_level_mid' : 'max_level';
+        $orderField = $mode === 'intermediate'
+            ? 'max_level_mid'
+            : ($mode === 'xhs' ? 'max_level_xhs' : 'max_level');
 
         $query = PunGameRank::with('user')
             ->where($orderField, '>=', 0)
@@ -192,6 +202,9 @@ class PunService
         if ($mode === 'intermediate' || $mode === 'battle') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
+        } elseif ($mode === 'xhs') {
+            $answersRaw = Config::get('pun_levels_issue3', []);
+            $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
             $answers = Config::get('pun_levels', []);
             $correct = isset($answers[$level]) && is_array($answers[$level]) ? $answers[$level] : [];
@@ -220,6 +233,8 @@ class PunService
         if ($allCorrect) {
             if ($mode === 'intermediate') {
                 $this->updateMidProgress($userId, $level, $answersRaw);
+            } else if ($mode === 'xhs') {
+                $this->updateXhsProgress($userId, $level, $answersRaw);
             } else if ($mode === 'beginner') {
                 $this->updateRankAndProgress($userId, $level, $mode);
             }
@@ -278,6 +293,67 @@ class PunService
                         'user_id'           => $userId,
                         'passed_levels'     => json_encode([], JSON_UNESCAPED_UNICODE),
                         'passed_levels_mid' => $jsonValue,
+                        'created_at'        => date('Y-m-d H:i:s'),
+                        'updated_at'        => date('Y-m-d H:i:s'),
+                    ]);
+                }
+            }
+            Db::commit();
+        } catch (\Throwable $e) {
+            Db::rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * 小红书专辑：独立排行与进度，按有序前缀递增
+     */
+    protected function updateXhsProgress(int $userId, int $level, array $answersRaw): void
+    {
+        $xhsLevelIds = array_keys($answersRaw);
+
+        Db::startTrans();
+        try {
+            $rank = PunGameRank::where('user_id', $userId)->find();
+            $storedMaxLevelId = $rank ? (int) ($rank->max_level_xhs ?? -1) : -1;
+
+            $storedIdx = array_search($storedMaxLevelId, $xhsLevelIds, true);
+            if ($storedIdx === false) {
+                $storedIdx = -1;
+            }
+
+            $submitIdx = array_search($level, $xhsLevelIds, true);
+
+            if ($submitIdx !== false && $submitIdx === $storedIdx + 1) {
+                if ($rank) {
+                    $rank->max_level_xhs = $level;
+                    $rank->save();
+                } else {
+                    PunGameRank::create([
+                        'user_id'       => $userId,
+                        'max_level'     => 0,
+                        'max_level_mid' => -1,
+                        'max_level_xhs' => $level,
+                    ]);
+                }
+
+                $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
+                $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels_xhs'] : null);
+                if (!in_array($level, $passedLevels, true)) {
+                    $passedLevels[] = $level;
+                }
+                $jsonValue = json_encode(array_values($passedLevels), JSON_UNESCAPED_UNICODE);
+
+                if ($progress) {
+                    Db::name('pun_game_level_progress')
+                        ->where('id', $progress['id'])
+                        ->update(['passed_levels_xhs' => $jsonValue, 'updated_at' => date('Y-m-d H:i:s')]);
+                } else {
+                    Db::name('pun_game_level_progress')->insert([
+                        'user_id'           => $userId,
+                        'passed_levels'     => json_encode([], JSON_UNESCAPED_UNICODE),
+                        'passed_levels_mid' => json_encode([], JSON_UNESCAPED_UNICODE),
+                        'passed_levels_xhs' => $jsonValue,
                         'created_at'        => date('Y-m-d H:i:s'),
                         'updated_at'        => date('Y-m-d H:i:s'),
                     ]);
@@ -404,6 +480,48 @@ class PunService
             if (empty($passedLevels)) {
                 $rank = PunGameRank::where('user_id', $userId)->find();
                 $storedMaxLevelId = $rank ? (int) $rank->max_level_mid : -1;
+                $storedIdx = array_search($storedMaxLevelId, $allKeys, true);
+                if ($storedIdx !== false) {
+                    $passedLevels = array_slice($allKeys, 0, $storedIdx + 1);
+                }
+            }
+
+            $passedSet = array_fill_keys($passedLevels, true);
+            $currentLevel = null;
+            foreach ($allKeys as $k) {
+                if (!isset($passedSet[$k])) {
+                    $currentLevel = (int) $k;
+                    break;
+                }
+            }
+
+            return [
+                'currentLevel' => $currentLevel,
+                'passedLevels' => array_map('intval', $passedLevels),
+                'totalLevels'  => $totalLevels,
+            ];
+        } elseif ($mode === 'xhs') {
+            $answersRaw = Config::get('pun_levels_issue3', []);
+            $allKeys = array_keys($answersRaw);
+            $totalLevels = count($allKeys);
+
+            $rawPassed = $this->normalizePassedLevels($progress ? $progress['passed_levels_xhs'] : null);
+            $mapped = [];
+            foreach ($rawPassed as $n) {
+                $id = (int) $n;
+                if (isset($answersRaw[$id])) {
+                    $mapped[] = $id;
+                    continue;
+                }
+                if ($id >= 0 && $id < $totalLevels && isset($allKeys[$id])) {
+                    $mapped[] = (int) $allKeys[$id];
+                }
+            }
+            $passedLevels = array_values(array_unique($mapped));
+
+            if (empty($passedLevels)) {
+                $rank = PunGameRank::where('user_id', $userId)->find();
+                $storedMaxLevelId = $rank ? (int) ($rank->max_level_xhs ?? -1) : -1;
                 $storedIdx = array_search($storedMaxLevelId, $allKeys, true);
                 if ($storedIdx !== false) {
                     $passedLevels = array_slice($allKeys, 0, $storedIdx + 1);
@@ -685,7 +803,7 @@ class PunService
     /**
      * 首页统计：基于 pun_game_level_progress
      * - players：表行数（有进度记录的用户数）
-     * - answers：全表 passed_levels、passed_levels_mid 两个 JSON 数组元素个数之和
+     * - answers：全表 passed_levels、passed_levels_mid、passed_levels_xhs 三个 JSON 数组元素个数之和
      *
      * @return array{players:int, answers:int}
      */
@@ -694,7 +812,7 @@ class PunService
         $players = (int) Db::name('pun_game_level_progress')->count();
         $aggRows = Db::name('pun_game_level_progress')
             ->fieldRaw(
-                'COALESCE(SUM(IFNULL(JSON_LENGTH(`passed_levels`), 0) + IFNULL(JSON_LENGTH(`passed_levels_mid`), 0)), 0) AS agg_total'
+                'COALESCE(SUM(IFNULL(JSON_LENGTH(`passed_levels`), 0) + IFNULL(JSON_LENGTH(`passed_levels_mid`), 0) + IFNULL(JSON_LENGTH(`passed_levels_xhs`), 0)), 0) AS agg_total'
             )
             ->select();
         $answers = 0;
