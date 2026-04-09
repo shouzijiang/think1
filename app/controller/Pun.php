@@ -138,6 +138,31 @@ class Pun extends BaseController
     }
 
     /**
+     * 分享奖励次数 POST /pun/level/share-reward
+     * Body: { "add"?: 1 }
+     */
+    public function shareReward(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+
+        $add = (int) $request->post('add', 1);
+        if ($add <= 0) {
+            $add = 1;
+        }
+
+        try {
+            $result = $this->punService->addHintAnswerQuotaByShare((int) $userId, $add);
+            return ResponseHelper::success($result);
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('pun/level/share-reward 异常: ' . $e->getMessage());
+            return ResponseHelper::error('奖励发放失败', 500);
+        }
+    }
+
+    /**
      * 当前用户关卡进度 GET /pun/level/progress
      */
     public function levelProgress(Request $request)
