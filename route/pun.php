@@ -19,6 +19,7 @@ Route::group('pun', function () {
     Route::group(function () {
         Route::post('answer/submit', 'Pun/submitAnswer');
         Route::post('level/reveal-hint', 'Pun/revealHint');
+        Route::post('level/share-reward', 'Pun/shareReward');
         Route::get('level/progress', 'Pun/levelProgress');
         Route::post('feedback/submit', 'Pun/feedbackSubmit');
         
