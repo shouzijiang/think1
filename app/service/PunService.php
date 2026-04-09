@@ -153,7 +153,23 @@ class PunService
     }
 
     /**
-     * 排行榜列表（按 max_level 降序、updated_at 降序）
+     * 排行榜同分时的第二排序列（该模式最近一次通关时间；空则回退行级 updated_at）
+     */
+    private function rankTiebreakTimeColumn(string $mode): string
+    {
+        $mode = $this->normalizeMode($mode);
+        if ($mode === 'intermediate') {
+            return 'last_pass_at_mid';
+        }
+        if ($mode === 'xhs') {
+            return 'last_pass_at_xhs';
+        }
+
+        return 'last_pass_at_beginner';
+    }
+
+    /**
+     * 排行榜列表（按该模式 max_level 降序、该模式最近通关时间降序）
      * nickname/avatar 来自 users 表，单一数据源
      * @param int $page
      * @param int $pageSize
@@ -166,22 +182,26 @@ class PunService
         $orderField = $mode === 'intermediate'
             ? 'max_level_mid'
             : ($mode === 'xhs' ? 'max_level_xhs' : 'max_level');
+        $tieCol = $this->rankTiebreakTimeColumn($mode);
 
         $query = PunGameRank::with('user')
             ->where($orderField, '>=', 0)
             ->order($orderField, 'desc')
-            ->order('updated_at', 'desc');
+            ->orderRaw('COALESCE(`' . $tieCol . '`, `updated_at`) DESC');
         $total = $query->count();
         $list = (clone $query)->page($page, $pageSize)
             ->select()
-            ->map(function ($row) use ($orderField) {
+            ->map(function ($row) use ($orderField, $tieCol) {
                 $user = $row->user;
+                $tieRaw = $row->{$tieCol} ?? null;
+                $showAt = $tieRaw ?: ($row->updated_at ?? null);
+
                 return [
                     'user_id'   => (int) $row->user_id,
                     'nickname'  => $user ? ($user->nickname ?? '') : '',
                     'avatar'    => $user ? ($user->avatar ?? '') : '',
-                'max_level' => (int) $row->{$orderField},
-                    'updated_at' => $row->updated_at ? date('m-d H:i', strtotime($row->updated_at)) : '',
+                    'max_level' => (int) $row->{$orderField},
+                    'updated_at' => $showAt ? date('m-d H:i', strtotime((string) $showAt)) : '',
                 ];
             })
             ->toArray();
@@ -264,14 +284,17 @@ class PunService
             
             // 仅当满足“前缀下一关”时才推进：
             if ($submitIdx !== false && $submitIdx === $storedIdx + 1) {
+                $now = date('Y-m-d H:i:s');
                 if ($rank) {
                     $rank->max_level_mid = $level;
+                    $rank->last_pass_at_mid = $now;
                     $rank->save();
                 } else {
                     PunGameRank::create([
-                        'user_id'       => $userId,
-                        'max_level'     => 0,
-                        'max_level_mid' => $level,
+                        'user_id'          => $userId,
+                        'max_level'        => 0,
+                        'max_level_mid'    => $level,
+                        'last_pass_at_mid' => $now,
                     ]);
                 }
                 
@@ -325,15 +348,18 @@ class PunService
             $submitIdx = array_search($level, $xhsLevelIds, true);
 
             if ($submitIdx !== false && $submitIdx === $storedIdx + 1) {
+                $now = date('Y-m-d H:i:s');
                 if ($rank) {
                     $rank->max_level_xhs = $level;
+                    $rank->last_pass_at_xhs = $now;
                     $rank->save();
                 } else {
                     PunGameRank::create([
-                        'user_id'       => $userId,
-                        'max_level'     => 0,
-                        'max_level_mid' => -1,
-                        'max_level_xhs' => $level,
+                        'user_id'           => $userId,
+                        'max_level'         => 0,
+                        'max_level_mid'     => -1,
+                        'max_level_xhs'     => $level,
+                        'last_pass_at_xhs'  => $now,
                     ]);
                 }
 
@@ -375,19 +401,28 @@ class PunService
         Db::startTrans();
         try {
             $rank = PunGameRank::where('user_id', $userId)->find();
+            $now  = date('Y-m-d H:i:s');
             if ($rank) {
                 if ($mode === 'intermediate') {
                     $rank->max_level_mid = max($rank->max_level_mid ?? -1, $level);
+                    $rank->last_pass_at_mid = $now;
                 } else {
                     $rank->max_level = max($rank->max_level, $level);
+                    $rank->last_pass_at_beginner = $now;
                 }
                 $rank->save();
             } else {
-                PunGameRank::create([
+                $create = [
                     'user_id'       => $userId,
                     'max_level'     => $mode === 'beginner' ? $level : 0,
                     'max_level_mid' => $mode === 'intermediate' ? $level : -1,
-                ]);
+                ];
+                if ($mode === 'intermediate') {
+                    $create['last_pass_at_mid'] = $now;
+                } else {
+                    $create['last_pass_at_beginner'] = $now;
+                }
+                PunGameRank::create($create);
             }
             $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
 

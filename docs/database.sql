@@ -85,7 +85,10 @@ CREATE TABLE `pun_game_rank` (
   `max_level` int(11) unsigned NOT NULL DEFAULT '0' COMMENT '闯到的最高关卡号 1~253',
   `max_level_mid` int(11) NOT NULL DEFAULT '-1' COMMENT '中级闯到的最高关卡号，未参与为-1',
   `max_level_xhs` int(11) NOT NULL DEFAULT '-1' COMMENT '小红书专辑闯到的最高关卡号，未参与为-1',
-  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最近一次通过关卡的时间',
+  `last_pass_at_beginner` datetime DEFAULT NULL COMMENT '初级最近一次通关时间（该榜同分排序，空则回退 updated_at）',
+  `last_pass_at_mid` datetime DEFAULT NULL COMMENT '中级最近一次通关时间（该榜同分排序）',
+  `last_pass_at_xhs` datetime DEFAULT NULL COMMENT '小红书专辑最近一次通关时间（该榜同分排序）',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '行级最近更新时间（任一看榜字段变更）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_id` (`user_id`),
   KEY `idx_max_level` (`max_level`)
@@ -113,7 +116,18 @@ ALTER TABLE `pun_game_rank`
 ALTER TABLE `pun_game_level_progress`
   ADD COLUMN `passed_levels_xhs` json DEFAULT NULL COMMENT '小红书专辑已通过关卡号数组 [1,...]' AFTER `passed_levels_mid`;
 
--- 3) 校验字段存在性
+-- 3) 排行榜：分模式「最近通关时间」用于同分排序（与行级 updated_at 解耦）
+ALTER TABLE `pun_game_rank`
+  ADD COLUMN `last_pass_at_beginner` datetime DEFAULT NULL COMMENT '初级最近一次通关时间（该榜同分排序）' AFTER `max_level_xhs`,
+  ADD COLUMN `last_pass_at_mid` datetime DEFAULT NULL COMMENT '中级最近一次通关时间（该榜同分排序）' AFTER `last_pass_at_beginner`,
+  ADD COLUMN `last_pass_at_xhs` datetime DEFAULT NULL COMMENT '小红书专辑最近一次通关时间（该榜同分排序）' AFTER `last_pass_at_mid`;
+
+-- 可选：老数据按行级 updated_at 回填各轨时间（有进度才填，减轻同分排序突变）
+-- UPDATE `pun_game_rank` SET `last_pass_at_beginner` = `updated_at` WHERE `last_pass_at_beginner` IS NULL AND `max_level` > 0;
+-- UPDATE `pun_game_rank` SET `last_pass_at_mid` = `updated_at` WHERE `last_pass_at_mid` IS NULL AND `max_level_mid` >= 0;
+-- UPDATE `pun_game_rank` SET `last_pass_at_xhs` = `updated_at` WHERE `last_pass_at_xhs` IS NULL AND `max_level_xhs` >= 0;
+
+-- 4) 校验字段存在性
 -- DESC `pun_game_rank`;
 -- DESC `pun_game_level_progress`;
 

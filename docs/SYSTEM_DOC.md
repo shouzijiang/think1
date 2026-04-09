@@ -16,7 +16,7 @@
 - **users (或 pun_game_user)**: 用户基础信息表（openid, nickname, avatar）
 
 ### 2. 谐音梗图游戏相关表
-- **pun_game_rank**: 游戏排行榜（user_id, max_level, max_level_mid, max_level_xhs, updated_at）
+- **pun_game_rank**: 游戏排行榜（user_id, max_level, max_level_mid, max_level_xhs；**last_pass_at_beginner / last_pass_at_mid / last_pass_at_xhs** 为各轨道最近一次通关时间，用于该榜**同分排序**；`updated_at` 仍为行级更新时间。同分排序规则：`ORDER BY 该轨最高关 DESC, COALESCE(该轨 last_pass_at_*, updated_at) DESC`）
 - **pun_game_level_progress**: 关卡进度表（`user_id`，`passed_levels` / `passed_levels_mid` / `passed_levels_xhs` 为 JSON 数组）
 - **pun_game_cocreate**: 共创关卡表（user_id, answer, hint_image_prompt, word_array, status 等）
 - **pun_game_feedback**: 意见反馈表（user_id, type, content, contact）
@@ -50,7 +50,7 @@
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
 | `/pun/stats/home` | GET | 首页统计（无需 Token）：`players` 为 `pun_game_level_progress` 行数，`answers` 为全表 `JSON_LENGTH(passed_levels)+JSON_LENGTH(passed_levels_mid)` 之和 |
-| `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分） |
+| `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分；同分按**该模式** `last_pass_at_*`，无则回退行 `updated_at`） |
 | `/pun/cocreate/words/generate`| POST | 根据答案生成 20 个共创候选字/词 |
 | `/pun/cocreate/image/generate`| POST | AI 生成提示图/答案图 (`type: hint/answer`) |
 | `/pun/cocreate/submit` | POST | 提交玩家自创关卡 |
