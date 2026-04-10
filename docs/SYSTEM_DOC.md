@@ -116,7 +116,7 @@
 
 ### 2. 后端 (ThinkPHP 8) 注意事项
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
-- **中级/小红书防跳关**：在提交答案 `/pun/answer/submit` 且 `gameTier=mid|xhs` 时，后端用与 `/pun/level/progress` **相同的规则**算出当前应玩关卡 `currentLevel`（综合 `passed_levels_*` 与排行榜兜底）；仅当提交的 `level` 等于该 `currentLevel` 且答案全对时，才写入 `max_level_mid` / `max_level_xhs` 与 `passed_levels_*`，避免仅看排行榜导致与进度接口不一致、答对却不推进的问题，同时仍可防跳关。
+- **中级/小红书防跳关**：在提交答案 `/pun/answer/submit` 且 `gameTier=mid|xhs` 时，后端分别通过 `issue2`/`issue3` 题库顺序校验，仅在“提交的是下一关”时推进 `max_level_mid` / `max_level_xhs`，防止恶意跳关。
 - **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；**揭字剩余次数**存于 **`pun_user_hint_quota`**（按用户一行）。对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
 - **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发久坐提醒。
 - **统一响应封装**：所有接口均需返回 `{ "code": 200, "message": "...", "data": {...} }` 格式。

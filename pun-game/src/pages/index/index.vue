@@ -100,9 +100,9 @@
         <text class="toolbar-text">交流</text>
       </view> -->
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click="goFeedback">
-        <text class="toolbar-icon">📝</text>
-        <text class="toolbar-text">反馈</text>
+      <view class="toolbar-item" @click="goLevels">
+        <text class="toolbar-icon">🧩</text>
+        <text class="toolbar-text">关卡</text>
       </view>
     </view>
   </view>
@@ -234,8 +234,8 @@ function goMine() {
 function goForum() {
   uni.navigateTo({ url: '/pages/forum/forum' })
 }
-function goFeedback() {
-  uni.navigateTo({ url: '/pages/feedback/feedback' })
+function goLevels() {
+  uni.navigateTo({ url: '/pages/levels/levels' })
 }
 
 function goBattle() {
