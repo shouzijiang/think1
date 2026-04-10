@@ -40,7 +40,7 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  /** 是否显示「答案」按钮（如共创无揭字接口时可关闭） */
+  /** 是否显示「答案」揭字按钮 */
   showHint: { type: Boolean, default: true },
   /** 是否显示「求助」分享按钮（对战页可关闭） */
   showShare: { type: Boolean, default: true },
@@ -67,7 +67,7 @@ const hintLabel = computed(() => {
 
 function onShareClick() {
   emit('help')
-  // 仅标记「用户发起了分享动作」；真正奖励在页面 onShareAppMessage.success 里发放
+  // 与页面 onShareAppMessage 合并去重后请求 share-reward（含右上角菜单转发）
   emit('share-intent')
 }
 </script>

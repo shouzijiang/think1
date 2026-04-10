@@ -57,11 +57,6 @@
         <text class="cell-text">意见反馈</text>
         <text class="cell-arrow">›</text>
       </view>
-      <!-- <view class="cell" @click="onCocreate">
-        <text class="cell-icon">💡</text>
-        <text class="cell-text">共创关卡</text>
-        <text class="cell-arrow">›</text>
-      </view> -->
     </view>
 
     <!-- <text class="hint">头像与昵称与首页顶部一致，修改后会同步保存。</text> -->
@@ -103,7 +98,7 @@ const hintAnswerTotalUsed = ref(0)
 const hintQuotaTipVisible = ref(false)
 
 // #ifdef MP-WEIXIN
-useWechatPageShare('我的 · 谐音梗图')
+useWechatPageShare('我的 · 谐音梗图', hintAnswerQuota)
 // #endif
 
 onShow(async () => {
@@ -150,10 +145,6 @@ async function refreshHintAnswerQuota() {
   } catch {
     // 忽略未登录场景
   }
-}
-
-function onCocreate() {
-  uni.showToast({ title: '敬请期待~', icon: 'none' })
 }
 </script>
 

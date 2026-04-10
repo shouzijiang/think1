@@ -227,6 +227,6 @@ CREATE TABLE `pun_game_changelog` (
 
 INSERT INTO `pun_game_changelog` (`version_code`, `title`, `body`, `is_published`, `published_at`) VALUES
 ('2026.04.02', '本期更新',
-'好友 1V1 对战：创建房间与好友实时对战。\n经典：经典：支持答案查看。\n新增通用分享能力，各页转发/朋友圈。\n初级闯关、排行榜、我的关卡、共创与意见反馈等页面体验与文案优化。',
+'好友 1V1 对战：创建房间与好友实时对战。\n经典：经典：支持答案查看。\n新增通用分享能力，各页转发/朋友圈。\n初级闯关、排行榜、我的关卡与意见反馈等页面体验与文案优化。',
 1, NOW());
 

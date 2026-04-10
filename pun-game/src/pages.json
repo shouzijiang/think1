@@ -64,20 +64,6 @@
       }
     },
     {
-      "path": "pages/cocreate/list",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "共创列表"
-      }
-    },
-    {
-      "path": "pages/cocreate/upload",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "上传关卡"
-      }
-    },
-    {
       "path": "pages/battleRoom/battleRoom",
       "style": {
         "navigationStyle": "custom",
@@ -103,7 +89,6 @@
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "谐音梗图",
     "navigationBarBackgroundColor": "#fff",
-    "backgroundColor": "#f5f0e8",
-    "enableShareTimeline": true
+    "backgroundColor": "#f5f0e8"
   }
 }

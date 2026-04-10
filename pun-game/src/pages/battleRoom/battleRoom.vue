@@ -138,8 +138,12 @@ import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { getUserInfo, wechatLogin } from '../../utils/auth'
+import { usePunShareReward } from '../../composables/usePunShareReward'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+const shareRewardQuotaRef = ref(0)
+const { withShareReward } = usePunShareReward(shareRewardQuotaRef)
 
 const roomId = ref('')
 const creating = ref(false)
@@ -236,12 +240,10 @@ onUnload(() => {
   }
 })
 
-onShareAppMessage(() => {
-  return {
-    title: '来和我1V1对战谐音梗图吧！',
-    path: `/pages/battleRoom/battleRoom?roomId=${roomId.value}`
-  }
-})
+onShareAppMessage(() => withShareReward({
+  title: '来和我1V1对战谐音梗图吧！',
+  path: `/pages/battleRoom/battleRoom?roomId=${roomId.value}`,
+}))
 
 onShareTimeline(() => {
   const rid = roomId.value

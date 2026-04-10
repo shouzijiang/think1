@@ -1,8 +1,11 @@
 /**
  * 微信小程序：未单独写分享的页面，使用当前路径 + query 作为转发/朋友圈落地页。
+ * 传入 hintAnswerQuotaRef 时，右上角「转发」也会走分享领奖（与 usePunShareReward 一致）。
  */
 // #ifdef MP-WEIXIN
+import { ref } from 'vue'
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { usePunShareReward } from './usePunShareReward'
 
 function currentSharePath() {
   const stack = getCurrentPages()
@@ -27,13 +30,34 @@ function currentTimelineQuery() {
   return q >= 0 ? full.slice(q + 1) : ''
 }
 
+/** 与 App.onShow 互补：进入使用本 composable 的页面时再开一次菜单（自定义导航页易丢转发入口） */
+function ensureMpShareMenu() {
+  if (typeof uni.showShareMenu !== 'function') return
+  uni.showShareMenu({
+    withShareTicket: true,
+    menus: ['shareAppMessage', 'shareTimeline'],
+    fail(err) {
+      console.warn('[showShareMenu]', err)
+    },
+  })
+}
+
 /**
  * @param {string | (() => string)} titleOrFn
+ * @param {import('vue').Ref<number> | null} [hintAnswerQuotaRef] 传入则转发时尝试领取分享奖励并回写剩余次数
  */
-export function useWechatPageShare(titleOrFn) {
+export function useWechatPageShare(titleOrFn, hintAnswerQuotaRef = null) {
+  ensureMpShareMenu()
+
   const getTitle = typeof titleOrFn === 'function' ? titleOrFn : () => titleOrFn || '谐音梗图'
 
-  onShareAppMessage(() => ({
+  const noopQuotaRef = ref(0)
+  const quotaRef = hintAnswerQuotaRef ?? noopQuotaRef
+  const { withShareReward } = usePunShareReward(quotaRef, {
+    enabled: hintAnswerQuotaRef != null,
+  })
+
+  onShareAppMessage(() => withShareReward({
     title: getTitle(),
     path: currentSharePath(),
   }))

@@ -27,7 +27,6 @@ alwaysApply: true
 
 ## 5. 核心业务约定
 - **中级模式关卡逻辑**：中级关卡的 `level` 往往不连续，**不能**用 ID 大小判断进度。必须依赖接口 `/pun/level/progress` 返回的 `midCurrentIndex`、`midTotalLevels` 等索引字段渲染关卡锁定/解锁状态。
-- **共创分享直达**：共创关卡页的分享路径需携带 `?cocreateId=xxx`，在 `onLoad` 中拦截并直接拉取该共创详情。
 
 ## 注意
 - 小程序环境下没有 `window`、`document`、`fetch`，使用 uni 封装可保证三端一致行为。

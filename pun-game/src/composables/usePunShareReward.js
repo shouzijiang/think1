@@ -2,34 +2,20 @@ import { onBeforeUnmount } from 'vue'
 import { api } from '../utils/api'
 
 /**
- * 微信分享奖励：仅当用户先点击分享按钮，再在 onShareAppMessage success 回调里发放奖励。
- * 规则：分享成功后延迟 rewardDelayMs 发放；取消/失败不发放。
+ * 微信分享奖励：在「即将弹出分享面板」时由 onShareAppMessage 触发请求（含右上角菜单转发、open-type="share" 按钮）。
+ * 游戏内「分享+1次」点击会先 markShareIntent，随后同一轮也会进 onShareAppMessage，用 dedupeWindowMs 合并为一次请求。
+ * 后端仍有最小间隔风控。
  *
  * @param {{ value: number }} hintAnswerQuotaRef
- * @param {{ rewardDelayMs?: number, intentKeepAliveMs?: number }} [options]
+ * @param {{ rewardDelayMs?: number, dedupeWindowMs?: number, enabled?: boolean }} [options]
  */
 export function usePunShareReward(hintAnswerQuotaRef, options = {}) {
-  const rewardDelayMs = options.rewardDelayMs ?? 2000
-  const intentKeepAliveMs = options.intentKeepAliveMs ?? 30000
-  let shareIntent = false
-  let intentTimer = null
+  const enabled = options.enabled !== false
+  const rewardDelayMs = options.rewardDelayMs ?? 0
+  /** 同一次分享动作内可能先后触发 click + onShareAppMessage，合并为单次领奖 */
+  const dedupeWindowMs = options.dedupeWindowMs ?? 900
   let rewardTimer = null
-
-  function clearIntent() {
-    shareIntent = false
-    if (intentTimer) {
-      clearTimeout(intentTimer)
-      intentTimer = null
-    }
-  }
-
-  function markShareIntent() {
-    shareIntent = true
-    if (intentTimer) clearTimeout(intentTimer)
-    intentTimer = setTimeout(() => {
-      clearIntent()
-    }, intentKeepAliveMs)
-  }
+  let dedupeUntil = 0
 
   async function claimShareReward(add = 1) {
     try {
@@ -45,27 +31,35 @@ export function usePunShareReward(hintAnswerQuotaRef, options = {}) {
     }
   }
 
-  function withShareReward(payloadFactory) {
-    const payload = typeof payloadFactory === 'function' ? payloadFactory() : (payloadFactory || {})
-    return {
-      ...payload,
-      success: () => {
-        if (!shareIntent) return
-        clearIntent()
-        if (rewardTimer) clearTimeout(rewardTimer)
-        rewardTimer = setTimeout(() => {
-          rewardTimer = null
-          claimShareReward(1)
-        }, rewardDelayMs)
-      },
-      fail: () => {
-        clearIntent()
-      },
+  function scheduleShareRewardClaim() {
+    if (!enabled) return
+    const now = Date.now()
+    if (now < dedupeUntil) return
+    dedupeUntil = now + dedupeWindowMs
+
+    if (rewardTimer) {
+      clearTimeout(rewardTimer)
+      rewardTimer = null
     }
+    rewardTimer = setTimeout(() => {
+      rewardTimer = null
+      claimShareReward(1)
+    }, rewardDelayMs)
+  }
+
+  /** 游戏内分享按钮 @share-intent，与随后 onShareAppMessage 去重 */
+  function markShareIntent() {
+    scheduleShareRewardClaim()
+  }
+
+  /** 在 onShareAppMessage 里包一层 return，会先调度领奖再返回分享参数 */
+  function withShareReward(payloadFactory) {
+    scheduleShareRewardClaim()
+    const payload = typeof payloadFactory === 'function' ? payloadFactory() : (payloadFactory || {})
+    return payload
   }
 
   onBeforeUnmount(() => {
-    clearIntent()
     if (rewardTimer) {
       clearTimeout(rewardTimer)
       rewardTimer = null

@@ -48,9 +48,7 @@ const props = defineProps({
   /** leftIconSrc 为空时展示的文字（如返回 ‹） */
   leftIcon: { type: String, default: '' },
   showLeft: { type: Boolean, default: true },
-  /**
-   * 与 cocreate/upload 一致：左右留白、左侧按钮 inset、返回符加大加粗
-   */
+  /** 左右留白、左侧按钮 inset、返回符加大加粗（上传/表单类页可用） */
   inset: { type: Boolean, default: false },
 })
 
@@ -81,7 +79,7 @@ function onLeft() {
   display: block;
 }
 
-/* upload 页顶栏：与历史 cocreate/upload 一致 */
+/* inset 顶栏：左右留白 */
 .nav-bar.pun-page-nav-bar--inset {
   padding: 0 40rpx;
   margin-bottom: 24rpx;

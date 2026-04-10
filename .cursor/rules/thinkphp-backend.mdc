@@ -44,8 +44,8 @@ alwaysApply: false
 - 当接收外部参数传入 Service 层时，必须进行显式的类型转换（如 `(int) $request->param('page')`）。
 - 所有可能抛出异常的 Service 调用，Controller 层必须使用 `try...catch` 包裹，并统一通过 `ResponseHelper::error()` 返回前端。
 
-## 4. 谐音梗图游戏 - 中级模式特殊逻辑
-- **防跳关机制**: 中级关卡的 `level` 往往是不连续的。在提交答案 `/pun/answer/submit` 且 `gameTier=mid` 时，**必须通过 `issue2.json` 的索引顺序校验**。仅在“提交的是下一关”时才推进 `max_mid_level`，防止恶意跳关。
+## 4. 谐音梗图游戏 - 中级 / 小红书专辑特殊逻辑
+- **防跳关与进度一致**: `mid` / `xhs` 的 `level` 往往不连续。提交 `/pun/answer/submit` 时，服务端用与 `/pun/level/progress` 相同的规则计算当前应玩 `currentLevel`（`pun_levels_issue2` / `pun_levels_issue3` 有序前缀 + `passed_levels_*` + 排行榜兜底）；仅当提交的 `level` 等于该 `currentLevel` 且答案全对时，才更新 `max_level_mid` / `max_level_xhs` 与进度表，既防跳关，又避免进度表与排行榜不同步导致“答对却不推进”。
 
 ## 5. 定时任务
 - 项目依赖宿主机或 Docker 的 crontab 执行内部接口（如 `curl http://localhost/cron/send-remind`）以派发久坐提醒。

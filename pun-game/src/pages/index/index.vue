@@ -104,11 +104,6 @@
         <text class="toolbar-icon">📝</text>
         <text class="toolbar-text">反馈</text>
       </view>
-      <!-- <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click="goCocreate">
-        <text class="toolbar-icon">💡</text>
-        <text class="toolbar-text">共创</text>
-      </view> -->
     </view>
   </view>
 </template>
@@ -127,8 +122,12 @@ import {
   playBgmHome,
   stopBgm,
 } from '../../utils/gameAudio'
+import { usePunShareReward } from '../../composables/usePunShareReward'
 
 const { statusBarHeight, navBarHeight } = useNavBar()
+
+const hintShareQuotaRef = ref(0)
+const { withShareReward } = usePunShareReward(hintShareQuotaRef)
 
 const CHANGELOG_SEEN_KEY = 'pun_changelog_seen_version'
 
@@ -216,7 +215,7 @@ onHide(() => {
 })
 
 // #ifdef MP-WEIXIN
-onShareAppMessage(() => ({
+onShareAppMessage(() => withShareReward({
   title: '谐音梗猜一猜，看图填词挑战脑洞！',
   path: '/pages/index/index',
 }))
@@ -237,10 +236,6 @@ function goForum() {
 }
 function goFeedback() {
   uni.navigateTo({ url: '/pages/feedback/feedback' })
-}
-function goCocreate() {
-  // uni.navigateTo({ url: '/pages/cocreate/list' })
-  uni.showToast({ title: '敬请期待~', icon: 'none' })
 }
 
 function goBattle() {
@@ -562,20 +557,6 @@ function startGame() {
 }
 .btn-start-text {
   text-shadow: 0 3rpx 8rpx rgba(0, 0, 0, 0.2);
-}
-
-.btn-cocreate-text-sub {
-  font-size: 26rpx;
-  font-weight: 600;
-  color: #64748b;
-  padding: 12rpx 32rpx;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 100rpx;
-  transition: all 0.1s;
-}
-.btn-cocreate-text-sub:active {
-  background: rgba(255, 255, 255, 0.9);
-  transform: scale(0.95);
 }
 
 .top-actions {

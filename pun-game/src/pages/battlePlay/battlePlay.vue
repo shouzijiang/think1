@@ -142,8 +142,9 @@ import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
+const shareRewardQuotaRef = ref(0)
 // #ifdef MP-WEIXIN
-useWechatPageShare('1V1 对战中 · 谐音梗图')
+useWechatPageShare('1V1 对战中 · 谐音梗图', shareRewardQuotaRef)
 // #endif
 
 const roomId = ref('')
