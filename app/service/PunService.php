@@ -7,6 +7,7 @@ use app\model\PunGameRank;
 use app\model\PunGameLevelProgress;
 use app\model\PunGameFeedback;
 use app\model\PunGameChangelog;
+use app\model\PunUserHintQuota;
 use think\facade\Cache;
 use think\facade\Config;
 use think\facade\Db;
@@ -16,6 +17,9 @@ use think\facade\Db;
  */
 class PunService
 {
+    /** 分享领奖最小间隔（秒） */
+    private const SHARE_REWARD_MIN_INTERVAL_SEC = 60;
+
     /**
      * 玩法模式归一化
      * @return string beginner|intermediate|xhs|battle
@@ -39,10 +43,71 @@ class PunService
     }
 
     /**
+     * 揭字剩余次数：无记录则按 {@see PunUserHintQuota::DEFAULT_QUOTA} 插入并返回
+     */
+    private function getOrCreateHintAnswerQuota(int $userId): int
+    {
+        $row = Db::name('pun_user_hint_quota')->where('user_id', $userId)->find();
+        if ($row) {
+            return (int) $row['quota'];
+        }
+        $default = PunUserHintQuota::DEFAULT_QUOTA;
+        PunUserHintQuota::create([
+            'user_id'    => $userId,
+            'quota'      => $default,
+            'total_used' => 0,
+        ]);
+
+        return $default;
+    }
+
+    /**
+     * 分享奖励：给当前用户揭字次数 +1（或指定增量）
+     * @return array{hintAnswerQuota:int,added:int}
+     */
+    public function addHintAnswerQuotaByShare(int $userId, int $delta = 1): array
+    {
+        $delta = max(1, (int) $delta);
+        $cooldownKey = $this->shareRewardCooldownCacheKey($userId);
+        $lastRewardAt = (int) Cache::get($cooldownKey, 0);
+        $now = time();
+        $nextAllowedAt = $lastRewardAt + self::SHARE_REWARD_MIN_INTERVAL_SEC;
+        if ($lastRewardAt > 0 && $now < $nextAllowedAt) {
+            $leftSec = max(1, $nextAllowedAt - $now);
+            throw new \InvalidArgumentException("领取过于频繁，请{$leftSec}秒后再试");
+        }
+
+        $this->getOrCreateHintAnswerQuota($userId);
+
+        $newQuota = 0;
+        Db::transaction(function () use ($userId, $delta, &$newQuota) {
+            $row = Db::name('pun_user_hint_quota')->where('user_id', $userId)->lock(true)->find();
+            if (!$row) {
+                throw new \RuntimeException('揭字配额数据异常');
+            }
+            $quota = (int) $row['quota'];
+            $newQuota = $quota + $delta;
+            Db::name('pun_user_hint_quota')->where('user_id', $userId)->update(['quota' => $newQuota]);
+        });
+        Cache::set($cooldownKey, $now, self::SHARE_REWARD_MIN_INTERVAL_SEC + 5);
+
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => $delta,
+        ];
+    }
+
+    private function shareRewardCooldownCacheKey(int $userId): string
+    {
+        return 'pun:share_reward:cooldown:' . $userId;
+    }
+
+    /**
      * 分步揭字提示：第 k 次请求显示前 k 个字，其余为 X；由服务端递增步数
+     * 每成功揭一步扣揭字配额 1（见 pun_user_hint_quota），单题步数仍不超过答案字数 n
      *
      * @param int|null $questionIndex 对战模式 0-4
-     * @return array{hintText:string,step:int,maxSteps:int,isComplete:bool}
+     * @return array{hintText:string,step:int,maxSteps:int,isComplete:bool,hintAnswerQuota:int}
      */
     public function revealHint(int $userId, int $level, string $mode, ?string $roomId, ?int $questionIndex): array
     {
@@ -80,22 +145,44 @@ class PunService
         }
 
         $n = count($correct);
-        $hintsUsed = (int) Cache::get($cacheKey, 0);
-        if ($hintsUsed >= $n) {
-            throw new \InvalidArgumentException('本题提示已用尽');
-        }
 
-        $hintsUsed++;
-        Cache::set($cacheKey, $hintsUsed, 7 * 86400);
+        $this->getOrCreateHintAnswerQuota($userId);
 
-        $hintText = $this->buildHintMask($correct, $hintsUsed);
-        $isComplete = $hintsUsed >= $n;
+        $newStep = 0;
+        $remainingQuota = 0;
+        Db::transaction(function () use ($userId, $cacheKey, $n, &$newStep, &$remainingQuota) {
+            $row = Db::name('pun_user_hint_quota')->where('user_id', $userId)->lock(true)->find();
+            if (!$row) {
+                throw new \RuntimeException('揭字配额数据异常');
+            }
+            $quota = (int) $row['quota'];
+            if ($quota < 1) {
+                throw new \InvalidArgumentException('提示次数不足，请前往首页获取更多次数');
+            }
+            $hintsUsedBefore = (int) Cache::get($cacheKey, 0);
+            if ($hintsUsedBefore >= $n) {
+                throw new \InvalidArgumentException('本题提示已用尽');
+            }
+            $newStep = $hintsUsedBefore + 1;
+            $totalUsed = (int) ($row['total_used'] ?? 0);
+            Db::name('pun_user_hint_quota')->where('user_id', $userId)->update([
+                'quota'     => $quota - 1,
+                'total_used' => $totalUsed + 1,
+            ]);
+            $remainingQuota = $quota - 1;
+        });
+
+        Cache::set($cacheKey, $newStep, 7 * 86400);
+
+        $hintText = $this->buildHintMask($correct, $newStep);
+        $isComplete = $newStep >= $n;
 
         return [
-            'hintText'   => $hintText,
-            'step'       => $hintsUsed,
-            'maxSteps'   => $n,
-            'isComplete' => $isComplete,
+            'hintText'          => $hintText,
+            'step'              => $newStep,
+            'maxSteps'          => $n,
+            'isComplete'        => $isComplete,
+            'hintAnswerQuota'   => $remainingQuota,
         ];
     }
 
@@ -482,10 +569,14 @@ class PunService
      * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数 
      * @param int $userId
      * @param string $mode beginner=初级 | intermediate=中级
-     * @return array ['currentLevel' => int, 'passedLevels' => int[], 'totalLevels' => int]
+     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed}
      */
     public function getLevelProgress(int $userId, string $mode = 'beginner'): array
     {
+        $this->getOrCreateHintAnswerQuota($userId);
+        $hintRow = Db::name('pun_user_hint_quota')->where('user_id', $userId)->find();
+        $hintAnswerQuota = $hintRow ? (int) $hintRow['quota'] : PunUserHintQuota::DEFAULT_QUOTA;
+        $hintAnswerTotalUsed = $hintRow ? (int) ($hintRow['total_used'] ?? 0) : 0;
         $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
         $mode = $this->normalizeMode($mode);
 
@@ -531,9 +622,11 @@ class PunService
             }
 
             return [
-                'currentLevel' => $currentLevel,
-                'passedLevels' => array_map('intval', $passedLevels),
-                'totalLevels'  => $totalLevels,
+                'currentLevel'     => $currentLevel,
+                'passedLevels'     => array_map('intval', $passedLevels),
+                'totalLevels'      => $totalLevels,
+                'hintAnswerQuota'  => $hintAnswerQuota,
+                'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
             ];
         } elseif ($mode === 'xhs') {
             $answersRaw = Config::get('pun_levels_issue3', []);
@@ -573,9 +666,11 @@ class PunService
             }
 
             return [
-                'currentLevel' => $currentLevel,
-                'passedLevels' => array_map('intval', $passedLevels),
-                'totalLevels'  => $totalLevels,
+                'currentLevel'     => $currentLevel,
+                'passedLevels'     => array_map('intval', $passedLevels),
+                'totalLevels'      => $totalLevels,
+                'hintAnswerQuota'  => $hintAnswerQuota,
+                'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
             ];
         } else {
             $answersRaw = Config::get('pun_levels', []);
@@ -601,9 +696,11 @@ class PunService
             }
 
             return [
-                'currentLevel'  => $currentLevel,
-                'passedLevels'  => $passedLevels,
-                'totalLevels'   => $totalLevels,
+                'currentLevel'     => $currentLevel,
+                'passedLevels'     => $passedLevels,
+                'totalLevels'      => $totalLevels,
+                'hintAnswerQuota'  => $hintAnswerQuota,
+                'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
             ];
         }
     }
