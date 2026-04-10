@@ -156,6 +156,8 @@ class Pun extends BaseController
         try {
             $result = $this->punService->addHintAnswerQuotaByShare((int) $userId, $add);
             return ResponseHelper::success($result);
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::badRequest($e->getMessage());
         } catch (\Throwable $e) {
             \think\facade\Log::error('pun/level/share-reward 异常: ' . $e->getMessage());
             return ResponseHelper::error('奖励发放失败', 500);

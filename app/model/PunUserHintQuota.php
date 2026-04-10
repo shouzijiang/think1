@@ -10,7 +10,7 @@ use think\Model;
 class PunUserHintQuota extends Model
 {
     /** 新用户 / 首次懒创建时的默认揭字次数 */
-    public const DEFAULT_QUOTA = 10;
+    public const DEFAULT_QUOTA = 5;
 
     protected $name = 'pun_user_hint_quota';
 
@@ -22,6 +22,7 @@ class PunUserHintQuota extends Model
         'id'         => 'int',
         'user_id'    => 'int',
         'quota'      => 'int',
+        'total_used' => 'int',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

@@ -6,10 +6,10 @@
 -- ALTER TABLE `pun_user_hint_quota`
 --   MODIFY `quota` int(10) unsigned NOT NULL DEFAULT 10 COMMENT '揭字剩余次数';
 
-UPDATE `pun_user_hint_quota` SET `quota` = `quota` + 10;
+UPDATE `pun_user_hint_quota` SET `quota` = `quota` + 5;
 
 INSERT INTO `pun_user_hint_quota` (`user_id`, `quota`)
-SELECT u.`id`, 10
+SELECT u.`id`, 5
 FROM `users` u
 LEFT JOIN `pun_user_hint_quota` h ON h.`user_id` = u.`id`
 WHERE h.`id` IS NULL;
