@@ -106,33 +106,4 @@
     "backgroundColor": "#f5f0e8",
     "enableShareTimeline": true
   }
-  // ,"tabBar": {
-  //   "custom": true,
-  //   "list": [
-  //     {
-  //       "pagePath": "pages/index/index",
-  //       "text": "游戏",
-  //       "iconPath": "static/tabbar/tab-game.png",
-  //       "selectedIconPath": "static/tabbar/tab-game-active.png"
-  //     },
-  //     {
-  //       "pagePath": "pages/rank/rank",
-  //       "text": "排行",
-  //       "iconPath": "static/tabbar/tab-rank.png",
-  //       "selectedIconPath": "static/tabbar/tab-rank-active.png"
-  //     },
-  //     {
-  //       "pagePath": "pages/levels/levels",
-  //       "text": "关卡",
-  //       "iconPath": "static/tabbar/tab-levels.png",
-  //       "selectedIconPath": "static/tabbar/tab-levels-active.png"
-  //     },
-  //     {
-  //       "pagePath": "pages/mine/mine",
-  //       "text": "我的",
-  //       "iconPath": "static/tabbar/tab-mine.png",
-  //       "selectedIconPath": "static/tabbar/tab-mine-active.png"
-  //     }
-  //   ]
-  // }
 }

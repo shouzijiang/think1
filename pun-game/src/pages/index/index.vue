@@ -9,74 +9,7 @@
     <!-- 顶部状态栏占位 -->
     <view :style="{ height: statusBarHeight + 'px', width: '100%' }"></view>
 
-    <!-- 与 forum.vue 一致：nav-bar 高度 = 胶囊区；头像区尺寸 = nav-btn（menuButtonHeight） -->
-    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <!-- 用户头像与昵称（微信内可点击授权/修改，保存到本地与后端） -->
-      <view class="user-header">
-      <!-- #ifdef MP-WEIXIN -->
-      <view class="user-info">
-        <view class="avatar-wrapper">
-          <button
-            class="avatar-btn avatar-btn--nav"
-            open-type="chooseAvatar"
-            :style="navBtnSizeStyle"
-            @chooseavatar="onChooseAvatar"
-          >
-            <image
-              v-if="userInfo?.avatar"
-              class="user-avatar"
-              :src="userInfo.avatar"
-              mode="aspectFill"
-            />
-            <view v-else class="user-avatar user-avatar-placeholder">👤</view>
-          </button>
-        </view>
-        <view class="nickname-wrapper">
-          <input
-            type="nickname"
-            class="nickname-input"
-            placeholder="点击设置昵称"
-            :value="userInfo?.nickname || ''"
-            @blur="handleNicknameBlur"
-            @confirm="handleNicknameConfirm"
-          />
-          <text class="edit-hint">点击昵称/头像即可修改</text>
-        </view>
-      </view>
-      <!-- #endif -->
-      <!-- #ifndef MP-WEIXIN -->
-      <view class="user-info user-info-readonly">
-        <view class="avatar-wrapper">
-          <view class="avatar-fallback" :style="navBtnSizeStyle">
-            <image
-              v-if="userInfo?.avatar"
-              class="user-avatar"
-              :src="userInfo.avatar"
-              mode="aspectFill"
-            />
-            <view v-else class="user-avatar user-avatar-placeholder">👤</view>
-          </view>
-        </view>
-        <view class="nickname-wrapper">
-          <text class="user-nickname">{{ userInfo?.nickname || '用户' }}</text>
-        </view>
-      </view>
-      <!-- #endif -->
-      </view>
-
-      <view class="quota-corner">
-        <view class="quota-corner-main">
-          <text class="quota-corner-label">答案查看：</text>
-          <view class="quota-corner-num-wrap">
-            <text class="quota-corner-num">{{ hintAnswerQuota }}</text>
-            <text class="quota-corner-unit">次</text>
-          </view>
-          <view class="quota-corner-tip" @click="showHintQuotaTip">
-            <text class="quota-corner-tip-text">i</text>
-          </view>
-        </view>
-      </view>
-    </view>
+    <view :style="{ height: navBarHeight + 'px', width: '100%' }"></view>
 
     <!-- 删除了原有的文字标题，改用统一的副标题 -->
     <view class="hero">
@@ -125,13 +58,9 @@
         />
         <text class="btn-text">1V1对战</text>
       </view>
-      <view class="btn-entry btn-levels" @click="goLevels">
-        <image
-          class="btn-icon btn-icon-img"
-          src="/static/levels.png"
-          mode="aspectFit"
-        />
-        <text class="btn-text">我的关卡</text>
+      <view class="btn-entry btn-levels" @click="goRank">
+        <text class="btn-icon">🏆</text>
+        <text class="btn-text">榜单</text>
       </view>
     </view>
 
@@ -160,9 +89,10 @@
         <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
         <text class="toolbar-text">{{ bgmOn ? '音乐' : '静音' }}</text>
       </view>
-      <view class="toolbar-item" @click.stop="goRank">
-        <text class="toolbar-icon">🏆</text>
-        <text class="toolbar-text">榜单</text>
+      <view class="toolbar-divider"></view>
+      <view class="toolbar-item" @click.stop="goMine">
+        <text class="toolbar-icon">💴</text>
+        <text class="toolbar-text">资产</text>
       </view>
       <!-- <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goForum">
@@ -184,10 +114,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getCurrentLevel, loadMidLevelList, loadXhsLevelList, pickMidLevelFromProgress, pickXhsLevelFromProgress } from '../../data/levels'
-import { getUserInfo, wechatLogin } from '../../utils/auth'
+import { wechatLogin } from '../../utils/auth'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import {
@@ -198,22 +128,11 @@ import {
   stopBgm,
 } from '../../utils/gameAudio'
 
-const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
-
-/** 与 forum 页 nav-btn 一致：宽高等于微信胶囊按钮高度 */
-const navBtnSizeStyle = computed(() => {
-  const h = menuButtonHeight.value
-  return {
-    width: `${h}px`,
-    height: `${h}px`,
-  }
-})
+const { statusBarHeight, navBarHeight } = useNavBar()
 
 const CHANGELOG_SEEN_KEY = 'pun_changelog_seen_version'
 
 const stats = ref({ players: 0, answers: 0 })
-const userInfo = ref(null)
-const hintAnswerQuota = ref(0)
 const bgmOn = ref(isGameAudioEnabled())
 
 const changelogVisible = ref(false)
@@ -273,101 +192,6 @@ function toggleBgm() {
   }
 }
 
-function loadUserInfo() {
-  const info = getUserInfo()
-  userInfo.value = info || { nickname: '', avatar: '', user_id: null, openid: '' }
-}
-
-function showHintQuotaTip() {
-  uni.showModal({
-    title: '答案次数说明',
-    content: '每点一次「答案」消耗 1 次。分享至朋友圈/微信可增加次数。',
-    showCancel: false,
-  })
-}
-
-async function refreshHintAnswerQuota() {
-  try {
-    const data = await api.getLevelProgress({ gameTier: 'mid' })
-    if (data && typeof data.hintAnswerQuota === 'number') {
-      hintAnswerQuota.value = data.hintAnswerQuota
-    }
-  } catch {
-    // 无 token / 未登录时忽略
-  }
-}
-
-// 将图片转为 base64（微信小程序选头像后上传用）
-function imageToBase64(filePath) {
-  return new Promise((resolve, reject) => {
-    // #ifdef MP-WEIXIN
-    const fs = uni.getFileSystemManager()
-    fs.readFile({
-      filePath,
-      encoding: 'base64',
-      success: (res) => {
-        const ext = (filePath.split('.').pop() || 'jpg').toLowerCase()
-        const mime = ext === 'png' ? 'png' : 'jpeg'
-        resolve(`data:image/${mime};base64,${res.data}`)
-      },
-      fail: (err) => {
-        console.error('读取头像失败', err)
-        reject(new Error('读取头像失败'))
-      },
-    })
-    // #endif
-    // #ifndef MP-WEIXIN
-    reject(new Error('仅微信小程序支持'))
-    // #endif
-  })
-}
-
-// 微信：选择头像后保存到后端并更新本地
-async function onChooseAvatar(e) {
-  // #ifdef MP-WEIXIN
-  const avatarUrl = e.detail.avatarUrl
-  if (!avatarUrl) return
-  const currentNickname = userInfo.value?.nickname || '微信用户'
-  try {
-    uni.showLoading({ title: '上传中…', mask: true })
-    const avatarBase64 = await imageToBase64(avatarUrl)
-    await api.updateUserInfo({ nickname: currentNickname, avatar: avatarBase64 })
-    const updated = { ...userInfo.value, avatar: avatarUrl }
-    uni.setStorageSync('userInfo', updated)
-    userInfo.value = updated
-    uni.hideLoading()
-    uni.showToast({ title: '头像已更新', icon: 'success' })
-  } catch (err) {
-    uni.hideLoading()
-    uni.showToast({ title: err.message || '更新失败', icon: 'none' })
-  }
-  // #endif
-}
-
-function handleNicknameBlur(e) {
-  saveNickname(e.detail.value)
-}
-function handleNicknameConfirm(e) {
-  saveNickname(e.detail.value)
-}
-
-async function saveNickname(nickname) {
-  if (!userInfo.value) return
-  const trimmed = (nickname || '').trim() || '微信用户'
-  if (trimmed === userInfo.value.nickname) return
-  const currentAvatar = userInfo.value.avatar || ''
-  try {
-    await api.updateUserInfo({ nickname: trimmed, avatar: currentAvatar })
-    const updated = { ...userInfo.value, nickname: trimmed }
-    uni.setStorageSync('userInfo', updated)
-    userInfo.value = updated
-    uni.showToast({ title: '昵称已保存', icon: 'success' })
-  } catch (err) {
-    uni.showToast({ title: err.message || '保存失败', icon: 'none' })
-    loadUserInfo()
-  }
-}
-
 onShow(async () => {
   preloadGameAudio()
   // #ifdef MP-WEIXIN
@@ -379,8 +203,6 @@ onShow(async () => {
     console.warn('wechatLogin 失败', e)
   }
   // #endif
-  loadUserInfo()
-  refreshHintAnswerQuota()
   bgmOn.value = isGameAudioEnabled()
   if (bgmOn.value) {
     playBgmHome()
@@ -407,8 +229,8 @@ onShareTimeline(() => ({
 function goRank() {
   uni.navigateTo({ url: '/pages/rank/rank' })
 }
-function goLevels() {
-  uni.navigateTo({ url: '/pages/levels/levels' })
+function goMine() {
+  uni.navigateTo({ url: '/pages/mine/mine' })
 }
 function goForum() {
   uni.navigateTo({ url: '/pages/forum/forum' })
@@ -541,219 +363,6 @@ function startGame() {
 }
 
 /* 与 forum.vue .nav-bar 同构：条内左侧区域对齐「返回/首页」nav-btn 位置 */
-.nav-bar {
-  position: relative;
-  z-index: 2;
-  width: 100%;
-  box-sizing: border-box;
-  margin-bottom: 24rpx;
-}
-
-.quota-corner {
-  box-sizing: border-box;
-  position: absolute;
-  left: -20rpx;
-  top: 120%;
-  height: 100%;
-  min-width: 220rpx;
-  padding: 40rpx 20rpx;
-  border-radius: 50rpx;
-  background: rgba(255, 255, 255, 0.78);
-  border: 2rpx solid rgba(180, 200, 230, 0.45);
-  box-shadow: 0 6rpx 18rpx rgba(100, 140, 180, 0.12);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-sizing: border-box;
-  border-top: none;
-}
-.quota-corner-main {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-}
-.quota-corner-label {
-  font-size: 24rpx;
-  color: #6d8192;
-  font-weight: 700;
-}
-.quota-corner-num-wrap {
-  display: flex;
-  align-items: baseline;
-  gap: 4rpx;
-}
-.quota-corner-num {
-  font-size: 34rpx;
-  line-height: 1;
-  font-weight: 900;
-  color: #16a34a;
-  font-variant-numeric: tabular-nums;
-}
-.quota-corner-unit {
-  font-size: 20rpx;
-  color: #16a34a;
-  font-weight: 800;
-  margin-right: 10rpx;
-}
-.quota-corner-tip {
-  width: 28rpx;
-  height: 28rpx;
-  border-radius: 50%;
-  background: rgba(47, 122, 217, 0.14);
-  border: 1rpx solid rgba(47, 122, 217, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.quota-corner-tip-text {
-  font-size: 20rpx;
-  line-height: 1;
-  color: #2f7ad9;
-  font-weight: 800;
-}
-
-.user-header {
-  position: absolute;
-  left: -20rpx;
-  top: 60%;
-  transform: translateY(-50%);
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 20rpx;
-  max-width: 100%;
-  padding: 8rpx 20rpx 8rpx 12rpx;
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-radius: 100rpx;
-  // box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.22);
-  border: 2rpx solid rgba(169, 201, 238, 0.55);
-  box-sizing: border-box;
-}
-.user-info-readonly {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 20rpx;
-  max-width: 100%;
-  padding: 8rpx 20rpx 8rpx 12rpx;
-  border-radius: 100rpx;
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 2rpx solid rgba(169, 201, 238, 0.55);
-  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.22);
-  box-sizing: border-box;
-}
-.avatar-wrapper {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-.avatar-btn {
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border: none;
-  line-height: 1;
-  position: relative;
-}
-.avatar-btn::after {
-  border: none;
-}
-/* 对齐 forum .nav-btn：固定为 menuButtonHeight 正方形 */
-.avatar-btn--nav {
-  flex-shrink: 0;
-  box-sizing: border-box;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid rgba(169, 201, 238, 0.65);
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
-}
-.avatar-fallback {
-  flex-shrink: 0;
-  box-sizing: border-box;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid rgba(169, 201, 238, 0.65);
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
-}
-.avatar-btn--nav .user-avatar,
-.avatar-fallback .user-avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: none;
-  display: block;
-}
-.user-avatar-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 48rpx;
-  background: rgba(234, 246, 249, 0.95);
-  filter: saturate(0.88);
-}
-.nickname-wrapper {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4rpx;
-}
-.nickname-input {
-  width: 100%;
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #5a6d7a;
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  height: auto;
-  line-height: 1.2;
-}
-.nickname-input::placeholder {
-  color: #8eadcf;
-  font-weight: 600;
-}
-.edit-hint {
-  font-size: 20rpx;
-  color: #8eadcf;
-  font-weight: 400;
-  border-radius: 12rpx;
-  display: inline-block;
-  align-self: flex-start;
-}
-.user-nickname {
-  flex: 1;
-  font-size: 28rpx;
-  font-weight: 700;
-  color: #5a6d7a;
-}
 
 .hero {
   position: relative;
@@ -1125,9 +734,10 @@ function startGame() {
 }
 
 .toolbar-text {
-  font-size: 20rpx;
+  font-size: 18rpx;
   color: #8eadcf;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .changelog-mask {

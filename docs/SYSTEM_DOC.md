@@ -18,7 +18,7 @@
 ### 2. 谐音梗图游戏相关表
 - **pun_game_rank**: 游戏排行榜（user_id, max_level, max_level_mid, max_level_xhs；**last_pass_at_beginner / last_pass_at_mid / last_pass_at_xhs** 为各轨道最近一次通关时间，用于该榜**同分排序**；`updated_at` 仍为行级更新时间。同分排序规则：`ORDER BY 该轨最高关 DESC, COALESCE(该轨 last_pass_at_*, updated_at) DESC`）
 - **pun_game_level_progress**: 关卡进度表（`user_id`，`passed_levels` / `passed_levels_mid` / `passed_levels_xhs` 为 JSON 数组）
-- **pun_user_hint_quota**: 揭字提示剩余次数（`user_id` 唯一，`quota` 非负整数；与 `users` 表分离；新用户微信登录成功创建 `users` 行时由后端插入一行，默认 **`quota = 10`**（与模型 `PunUserHintQuota::DEFAULT_QUOTA` 一致）；每成功调用一次 `/pun/level/reveal-hint` 揭一步扣 1，单题揭字步数仍不超过该题答案字数）
+- **pun_user_hint_quota**: 揭字提示剩余次数（`user_id` 唯一，`quota` 非负整数；`total_used` 累计消耗次数，每成功揭一步 +1；与 `users` 表分离；新用户微信登录成功创建 `users` 行时由后端插入一行，默认 **`quota = 10`**、`total_used = 0`（与模型 `PunUserHintQuota::DEFAULT_QUOTA` 一致）；每成功调用一次 `/pun/level/reveal-hint` 揭一步扣 `quota` 1 且 `total_used` +1，单题揭字步数仍不超过该题答案字数）
 - **pun_game_cocreate**: 共创关卡表（user_id, answer, hint_image_prompt, word_array, status 等）
 - **pun_game_feedback**: 意见反馈表（user_id, type, content, contact）
 - **pun_game_battle_record**: 1V1对战房间与记录表（room_id, creator_id, challenger_id, levels_json, creator_progress, challenger_progress, total_time_ms, winner_id, status）
@@ -46,7 +46,7 @@
 ### 2. 谐音梗图游戏模块 (Pun Game)
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
-| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数） |
+| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数）、`hintAnswerTotalUsed`（累计消耗答案次数，上线后统计） |
 | `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支） |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
 | `/pun/level/share-reward` | POST | 分享奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }` |
@@ -84,6 +84,7 @@
 请求体：`{ "add": 1 }`（可省略，默认 `1`）。  
 成功返回示例：`{ "hintAnswerQuota": 12, "added": 1 }`。
 前端约定：仅在微信 `onShareAppMessage.success` 回调里调用本接口；用户取消/失败（`fail`）不调用，不增加次数。
+风控：同一用户两次领奖最小间隔 **60 秒**；过于频繁时返回业务错误（含剩余等待秒数）。
 
 ### 2.1 谐音梗图 WebSocket 接口 (1V1 对战)
 | 事件/指令 (`action`) | 发送方 | 说明 |

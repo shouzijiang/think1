@@ -188,6 +188,7 @@ export const api = {
 
   /**
    * 当前用户关卡进度（历史答题情况）
+   * 响应 data 含 hintAnswerQuota（剩余）、hintAnswerTotalUsed（累计消耗，需库表 total_used）
    */
   getLevelProgress(params = {}) {
     return request({ url: `/pun/level/progress${buildQueryString(params)}`, method: 'GET' })
