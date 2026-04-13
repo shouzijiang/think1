@@ -319,7 +319,7 @@ onShareTimeline(() => {
 }
 .puzzle-img {
   width: 110%;
-  height: 650rpx;
+  height: 750rpx;
   border-radius: 16rpx;
 }
 .puzzle-loading {

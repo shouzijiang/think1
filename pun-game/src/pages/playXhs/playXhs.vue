@@ -332,7 +332,7 @@ onShareTimeline(() => {
 
 .main-img {
   width: 100%;
-  height: 820rpx;
+  height: 846rpx;
   border-radius: 20rpx;
   background: #f0f4f8;
 }

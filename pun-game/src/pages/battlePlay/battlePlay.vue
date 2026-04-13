@@ -661,7 +661,6 @@ async function syncBattleStateForWake() {
 }
 .stack-img {
   width: 100%;
-  height: 400rpx;
   border-radius: 20rpx;
   background: #f0f4f8;
 }
