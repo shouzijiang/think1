@@ -20,6 +20,9 @@ class PunService
     /** 分享领奖最小间隔（秒） */
     private const SHARE_REWARD_MIN_INTERVAL_SEC = 60;
 
+    /** 分享领奖单日上限（自然日，Asia/Shanghai） */
+    private const SHARE_REWARD_DAILY_MAX = 20;
+
     /**
      * 玩法模式归一化
      * @return string beginner|intermediate|xhs|battle
@@ -68,6 +71,14 @@ class PunService
     public function addHintAnswerQuotaByShare(int $userId, int $delta = 1): array
     {
         $delta = max(1, (int) $delta);
+        $dailyKey = $this->shareRewardDailyCountCacheKey($userId);
+        $dailyCount = (int) Cache::get($dailyKey, 0);
+        if ($dailyCount + $delta > self::SHARE_REWARD_DAILY_MAX) {
+            throw new \InvalidArgumentException(
+                '今日分享领取次数已达上限（' . self::SHARE_REWARD_DAILY_MAX . '次），请明日再试'
+            );
+        }
+
         $cooldownKey = $this->shareRewardCooldownCacheKey($userId);
         $lastRewardAt = (int) Cache::get($cooldownKey, 0);
         $now = time();
@@ -90,6 +101,7 @@ class PunService
             Db::name('pun_user_hint_quota')->where('user_id', $userId)->update(['quota' => $newQuota]);
         });
         Cache::set($cooldownKey, $now, self::SHARE_REWARD_MIN_INTERVAL_SEC + 5);
+        Cache::set($dailyKey, $dailyCount + $delta, $this->shareRewardDailyCacheTtlSeconds());
 
         return [
             'hintAnswerQuota' => $newQuota,
@@ -100,6 +112,25 @@ class PunService
     private function shareRewardCooldownCacheKey(int $userId): string
     {
         return 'pun:share_reward:cooldown:' . $userId;
+    }
+
+    private function shareRewardDailyCountCacheKey(int $userId): string
+    {
+        $tz = new \DateTimeZone('Asia/Shanghai');
+        $date = (new \DateTime('now', $tz))->format('Y-m-d');
+
+        return 'pun:share_reward:daily_count:' . $userId . ':' . $date;
+    }
+
+    /** 缓存保留到当前自然日（上海时区）结束，略有余量 */
+    private function shareRewardDailyCacheTtlSeconds(): int
+    {
+        $tz = new \DateTimeZone('Asia/Shanghai');
+        $now = new \DateTime('now', $tz);
+        $end = new \DateTime('tomorrow', $tz);
+        $sec = (int) ($end->getTimestamp() - $now->getTimestamp());
+
+        return max(300, $sec + 60);
     }
 
     /**
