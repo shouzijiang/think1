@@ -39,6 +39,9 @@
           <text class="btn-text">梗图填词</text>
         </view>
         <view class="btn-start btn-start-xhs" @click="startGameXhs">
+          <view class="xhs-new-badge">
+            <text class="xhs-new-text">上新</text>
+          </view>
           <image
             class="btn-icon btn-icon-img"
             src="/static/xhs.png"
@@ -441,7 +444,7 @@ function startGame() {
   font-weight: 700;
   letter-spacing: 0.04em;
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
-  overflow: hidden;
+  // overflow: hidden;
   box-sizing: border-box;
 
   /* 主按钮：薄荷绿实底 + 白字 */
@@ -523,6 +526,61 @@ function startGame() {
       width: 40rpx;
       height: 40rpx;
     }
+
+    .btn-text {
+      text-shadow: 0 2rpx 8rpx rgba(120, 48, 78, 0.28);
+    }
+  }
+}
+
+/* 右上角「上新」：深玫红底 + 白字，与浅粉按钮拉开对比（父级 .btn-start 已 position:relative） */
+.xhs-new-badge {
+  position: absolute;
+  top: -4rpx;
+  right: -16rpx;
+  z-index: 4;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: rgb(255 36 66);
+  border: 1rpx solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    0 4rpx 14rpx rgba(247, 46, 119, 0.38),
+    inset 0 1rpx 0 rgba(87, 54, 54, 0.28);
+  transform-origin: 50% 50%;
+  animation: xhsBadgeFloat 2.4s ease-in-out infinite;
+}
+
+.xhs-new-text {
+  font-size: 18rpx;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow: 0 1rpx 2rpx rgba(40, 0, 20, 0.45);
+  animation: xhsBadgeTextGlow 2.4s ease-in-out infinite;
+}
+
+@keyframes xhsBadgeFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-5rpx) scale(1.04);
+  }
+}
+
+@keyframes xhsBadgeTextGlow {
+  0%,
+  100% {
+    opacity: 0.92;
+  }
+  50% {
+    opacity: 1;
   }
 }
 .btn-start-main {
