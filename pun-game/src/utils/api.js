@@ -3,7 +3,6 @@ import { API_BASE_URL } from '../config'
 import { forceLogin, handleLoginExpired } from './auth'
 
 const BASE_URL = API_BASE_URL
-const REQUEST_TIMEOUT_MS = 15000
 
 // 构建查询字符串（兼容微信小程序，不使用 URLSearchParams）
 function buildQueryString(params) {
@@ -37,15 +36,11 @@ function requestWithHttp(options) {
     const requestUrl = BASE_URL + options.url
     console.log('发起 HTTP 请求:', requestUrl, options.method || 'GET', options.data)
 
-    const method = (options.method || 'GET').toUpperCase()
-    const timeout = Number.isFinite(Number(options.timeout)) ? Number(options.timeout) : REQUEST_TIMEOUT_MS
-
     uni.request({
       url: requestUrl,
-      method,
+      method: options.method || 'GET',
       data: options.data || {},
       header,
-      timeout,
       success: (res) => {
         if (res.statusCode === 200) {
           console.log('请求响应:', res.statusCode, res.data)
@@ -80,24 +75,14 @@ function requestWithHttp(options) {
       },
       fail: (err) => {
         console.error('请求失败:', err)
-        const errMsgRaw = (err && err.errMsg) ? String(err.errMsg) : ''
-        const isTimeout = errMsgRaw.includes('timeout') || errMsgRaw.includes('超时')
-
-        // 超时兜底：仅对 GET 自动重试 1 次，避免 POST 幂等风险
-        if (isTimeout && method === 'GET' && !options._timeoutRetried) {
-          const retryOptions = { ...(options || {}), _timeoutRetried: true, method, timeout }
-          requestWithHttp(retryOptions).then(resolve).catch(reject)
-          return
-        }
-
         let errorMsg = '网络请求失败'
-        if (errMsgRaw) {
-          if (isTimeout) {
-            errorMsg = `请求超时（>${timeout}ms），请检查：\n1. 后端服务是否正常运行 (${BASE_URL})\n2. 网络连接是否正常\n3. 微信开发者工具 -> 设置 -> 项目设置 -> 是否勾选"不校验合法域名"\n\n错误详情: ${errMsgRaw}`
-          } else if (errMsgRaw.includes('fail')) {
+        if (err.errMsg) {
+          if (err.errMsg.includes('timeout') || err.errMsg.includes('超时')) {
+            errorMsg = `请求超时，请检查：\n1. 后端服务是否正常运行 (${BASE_URL})\n2. 网络连接是否正常\n3. 微信开发者工具 -> 设置 -> 项目设置 -> 是否勾选"不校验合法域名"\n\n错误详情: ${err.errMsg}`
+          } else if (err.errMsg.includes('fail')) {
             errorMsg = `网络请求失败，可能的原因：\n1. 后端服务未启动或无法访问 (${BASE_URL})\n2. 请求地址错误: ${requestUrl}\n3. 微信开发者工具 -> 设置 -> 项目设置 -> 是否勾选"不校验合法域名"\n4. 网络连接问题\n\n错误详情: ${err.errMsg}`
           } else {
-            errorMsg = `网络请求失败: ${errMsgRaw}`
+            errorMsg = `网络请求失败: ${err.errMsg}`
           }
         } else if (err instanceof Error) {
           errorMsg = err.message
