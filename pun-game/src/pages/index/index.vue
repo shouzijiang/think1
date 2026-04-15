@@ -16,7 +16,7 @@
       <view class="hero-badge">
         <image
           class="hero-badge-img"
-          src="/static/index-badge.jpg"
+          src="https://sofun.online/static/mini/index-badge.jpg"
           mode="aspectFit"
         />
       </view>
@@ -28,7 +28,7 @@
       <view class="btn-start btn-start-main" @click="startGameMid">
         <image
           class="btn-start-icon"
-          src="/static/start.png"
+          src="https://sofun.online/static/mini/start.png"
           mode="aspectFit"
         />
         <text class="btn-start-text">开始游戏</text>
@@ -44,7 +44,7 @@
           </view>
           <image
             class="btn-icon btn-icon-img"
-            src="/static/xhs.png"
+            src="https://sofun.online/static/mini/xhs.png"
             mode="aspectFit"
           />
           <text class="btn-text">小红书专辑</text>
@@ -56,7 +56,7 @@
       <view class="btn-entry" @click="goBattle">
         <image
           class="btn-icon btn-icon-img"
-          src="/static/battle.png"
+          src="https://sofun.online/static/mini/battle.png"
           mode="aspectFit"
         />
         <text class="btn-text">1V1对战</text>

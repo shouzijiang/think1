@@ -12,11 +12,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
  */
 function mpWeixinPunNavCompat() {
   const source = `"use strict";
-exports.PUN_NAV_HOME_SRC = "/static/home.png";
+exports.PUN_NAV_HOME_SRC = "https://sofun.online/static/mini/home.png";
 exports.PUN_NAV_ICON_HOME = "";
 exports.PUN_NAV_ICON_BACK = "‹";
-exports.PUN_PLAY_HINT_ICON_SRC = "/static/hintLabel.png";
-exports.PUN_PLAY_SHARE_ICON_SRC = "/static/share.png";
+exports.PUN_PLAY_HINT_ICON_SRC = "https://sofun.online/static/mini/hintLabel.png";
+exports.PUN_PLAY_SHARE_ICON_SRC = "https://sofun.online/static/mini/share.png";
 `
   return {
     name: 'mp-weixin-pun-nav-compat',

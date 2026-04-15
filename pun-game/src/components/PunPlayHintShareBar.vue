@@ -13,7 +13,7 @@
         <image
           v-if="!hintLoading"
           class="mid-act-ico-img"
-          src="/static/hintLabel.png"
+          src="https://sofun.online/static/mini/hintLabel.png"
           mode="aspectFit"
         />
         <text class="mid-act-txt">{{ hintLabel }}</text>
@@ -27,7 +27,7 @@
       >
         <image
           class="mid-act-ico-img"
-          src="/static/share.png"
+          src="https://sofun.online/static/mini/share.png"
           mode="aspectFit"
         />
         <text class="mid-act-txt">分享+1次</text>

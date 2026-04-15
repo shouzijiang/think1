@@ -44,7 +44,7 @@ const props = defineProps({
   menuButtonHeight: { type: Number, required: true },
   title: { type: String, default: '' },
   /** 左侧为图片时的地址（默认首页图）；设为空字符串则改用 leftIcon 纯文字 */
-  leftIconSrc: { type: String, default: '/static/home.png' },
+  leftIconSrc: { type: String, default: 'https://sofun.online/static/mini/home.png' },
   /** leftIconSrc 为空时展示的文字（如返回 ‹） */
   leftIcon: { type: String, default: '' },
   showLeft: { type: Boolean, default: true },
