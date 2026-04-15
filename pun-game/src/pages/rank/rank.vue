@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" @touchstart="onTouchStart" @touchend="onTouchEnd">
     <view class="bg-wrap">
       <view class="bg-gradient" />
       <view class="bg-dots" />
@@ -88,6 +88,8 @@ useWechatPageShare('排行榜 · 谐音梗图', shareRewardQuotaRef)
 const list = ref([])
 const loading = ref(false)
 const currentTab = ref('mid')
+const touchStartX = ref(0)
+const touchStartY = ref(0)
 
 function toInt(val) {
   const n = Number(val)
@@ -151,6 +153,45 @@ function switchTab(tab) {
   currentTab.value = tab
   list.value = []
   loadRank()
+}
+
+function getTabOrder() {
+  return ['mid', 'xhs', 'beginner', 'battle']
+}
+
+function switchTabByOffset(offset) {
+  const order = getTabOrder()
+  const idx = order.indexOf(currentTab.value)
+  if (idx < 0) return
+  const nextIdx = idx + offset
+  if (nextIdx < 0 || nextIdx >= order.length) return
+  switchTab(order[nextIdx])
+}
+
+function onTouchStart(e) {
+  const touch = e && e.touches && e.touches[0]
+  if (!touch) return
+  touchStartX.value = touch.clientX
+  touchStartY.value = touch.clientY
+}
+
+function onTouchEnd(e) {
+  const touch = e && e.changedTouches && e.changedTouches[0]
+  if (!touch) return
+  const deltaX = touch.clientX - touchStartX.value
+  const deltaY = touch.clientY - touchStartY.value
+  const absX = Math.abs(deltaX)
+  const absY = Math.abs(deltaY)
+
+  // 仅处理明显水平滑动，避免与列表纵向滚动冲突
+  if (absX < 60 || absX <= absY) return
+
+  // 左滑下一个 tab，右滑上一个 tab
+  if (deltaX < 0) {
+    switchTabByOffset(1)
+  } else {
+    switchTabByOffset(-1)
+  }
 }
 </script>
 

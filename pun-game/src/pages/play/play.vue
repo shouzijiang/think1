@@ -27,6 +27,7 @@
         />
         <view v-else-if="loading" class="puzzle-loading">加载中...</view>
         <text class="puzzle-hint">{{ puzzle.hintText }}</text>
+        <view class="report-entry" @click="goFeedback">报错</view>
       </view>
     </view>
 
@@ -188,9 +189,18 @@ async function checkAnswer() {
     if (data.isCorrect) {
       runPassSuccess({
         durationMs: 1500,
-        onAfter: () => {
-          const nextLevel = level.value + 1
-          if(nextLevel > 270) {
+        afterPrepare: () => resolveNextBeginnerLevel(),
+        onAfter: (nextLevel) => {
+          const targetLevel = Number(nextLevel)
+          if (!Number.isFinite(targetLevel)) {
+            uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
+            setTimeout(() => {
+              uni.reLaunch({ url: '/pages/index/index' })
+            }, 1500)
+            return
+          }
+          const maxLevel = 270
+          if(targetLevel > maxLevel) {
             uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
             setTimeout(() => {
               uni.reLaunch({ url: '/pages/index/index' })
@@ -198,7 +208,7 @@ async function checkAnswer() {
             return
           }
           // 使用 redirectTo 替换当前页，避免连续 navigateTo 堆满页面栈（微信约 10 层上限）
-          uni.redirectTo({ url: `/pages/play/play?level=${nextLevel}` })
+          uni.redirectTo({ url: `/pages/play/play?level=${targetLevel}` })
         },
       })
       return
@@ -213,6 +223,24 @@ async function checkAnswer() {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
+  }
+}
+
+async function resolveNextBeginnerLevel() {
+  try {
+    const prog = await api.getLevelProgress({ gameTier: 'beginner' })
+    const candidate = prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
+    if (Number.isFinite(candidate) && candidate > 0 && candidate !== level.value) {
+      return candidate
+    }
+    const fallback = level.value + 1
+    const totalLevels = prog && prog.totalLevels != null ? Number(prog.totalLevels) : NaN
+    if (Number.isFinite(totalLevels) && totalLevels > 0 && fallback > totalLevels) {
+      return null
+    }
+    return fallback
+  } catch (_) {
+    return level.value + 1
   }
 }
 
@@ -237,6 +265,12 @@ async function onRevealHint() {
 
 function back() {
   uni.reLaunch({ url: '/pages/index/index' })
+}
+
+function goFeedback() {
+  const title = `梗图填词 · 第${level.value}关`
+  const query = `type=bug&passedLevels=${encodeURIComponent(String(level.value))}&content=${encodeURIComponent(title)}&contentFocus=1`
+  uni.navigateTo({ url: `/pages/feedback/feedback?${query}` })
 }
 
 // 非微信端点击「求助」时提示（微信端由 open-type="share" 唤起分享）
@@ -311,11 +345,24 @@ onShareTimeline(() => {
   border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .card-inner {
+  position: relative;
   min-height: 400rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   border-radius: 24rpx;
+}
+.report-entry {
+  position: absolute;
+  right: 20rpx;
+  bottom: 16rpx;
+  z-index: 3;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #7d8fa0;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
 }
 .puzzle-img {
   width: 110%;

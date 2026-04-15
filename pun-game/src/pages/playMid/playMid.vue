@@ -38,6 +38,7 @@
           <!-- 你给的数据里 bottomcaption 没有单独字段，这里预留留白 -->
           <text v-if="puzzle.bottomCaption" class="stack-caption">{{ puzzle.bottomCaption }}</text>
         </view>
+        <view class="report-entry" @click="goFeedback">报错</view>
       </view>
     </view>
 
@@ -166,7 +167,7 @@ async function checkAnswer() {
     if (data.isCorrect) {
       runPassSuccess({
         durationMs: 1500,
-        afterPrepare: () => getMidNextLevel(level.value),
+        afterPrepare: () => resolveNextMidLevel(),
         onAfter: (nextLevel) => {
           if (nextLevel == null) {
             uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
@@ -195,8 +196,25 @@ async function checkAnswer() {
   }
 }
 
+async function resolveNextMidLevel() {
+  try {
+    const prog = await api.getLevelProgress({ gameTier: 'mid' })
+    const candidate = prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
+    if (Number.isFinite(candidate) && candidate >= 0 && candidate !== level.value) {
+      return candidate
+    }
+  } catch (_) {}
+  return getMidNextLevel(level.value)
+}
+
 function back() {
   uni.reLaunch({ url: '/pages/index/index' })
+}
+
+function goFeedback() {
+  const title = level.value === 0 ? '经典 · 新手引导' : `经典 · 第${level.value}关`
+  const query = `type=bug&passedLevels=${encodeURIComponent(String(level.value))}&content=${encodeURIComponent(title)}&contentFocus=1`
+  uni.navigateTo({ url: `/pages/feedback/feedback?${query}` })
 }
 
 async function onRevealHint() {
@@ -380,6 +398,7 @@ onShareTimeline(() => {
 }
 
 .card-inner {
+  position: relative;
   min-height: 400rpx;
   display: flex;
   flex-direction: column;
@@ -390,6 +409,18 @@ onShareTimeline(() => {
   min-height: auto;
   padding: 36rpx 28rpx 72rpx;
   gap: 28rpx;
+}
+.report-entry {
+  position: absolute;
+  right: 20rpx;
+  bottom: 16rpx;
+  z-index: 3;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #7d8fa0;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
 }
 .stack-block {
   width: 100%;

@@ -28,6 +28,7 @@
         <image v-if="puzzle.imageUrlTop" class="main-img" :src="puzzle.imageUrlTop" mode="aspectFill" />
         <view v-else-if="loading" class="img-placeholder">加载中...</view>
         <view v-else class="img-placeholder">暂无配图</view>
+        <view class="report-entry" @click="goFeedback">报错</view>
       </view>
     </view>
 
@@ -141,7 +142,7 @@ async function checkAnswer() {
     if (data.isCorrect) {
       runPassSuccess({
         durationMs: 1200,
-        afterPrepare: () => getXhsNextLevel(level.value),
+        afterPrepare: () => resolveNextXhsLevel(),
         onAfter: (nextLevel) => {
           if (nextLevel == null) {
             uni.showToast({ title: '专辑持续更新中，敬请期待~', icon: 'none' })
@@ -166,6 +167,17 @@ async function checkAnswer() {
   } finally {
     submitting.value = false
   }
+}
+
+async function resolveNextXhsLevel() {
+  try {
+    const prog = await api.getLevelProgress({ gameTier: 'xhs' })
+    const candidate = prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
+    if (Number.isFinite(candidate) && candidate > 0 && candidate !== level.value) {
+      return candidate
+    }
+  } catch (_) {}
+  return getXhsNextLevel(level.value)
 }
 
 async function onRevealHint() {
@@ -195,6 +207,12 @@ function help() {
 
 function back() {
   uni.reLaunch({ url: '/pages/index/index' })
+}
+
+function goFeedback() {
+  const title = `小红书专辑 · 第${level.value}关`
+  const query = `type=bug&passedLevels=${encodeURIComponent(String(level.value))}&content=${encodeURIComponent(title)}&contentFocus=1`
+  uni.navigateTo({ url: `/pages/feedback/feedback?${query}` })
 }
 
 onShow(() => {
@@ -326,8 +344,21 @@ onShareTimeline(() => {
 }
 
 .card-inner {
+  position: relative;
   min-height: 420rpx;
   padding: 36rpx 28rpx 32rpx;
+}
+.report-entry {
+  position: absolute;
+  right: 20rpx;
+  bottom: 16rpx;
+  z-index: 3;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #7d8fa0;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
 }
 
 .main-img {

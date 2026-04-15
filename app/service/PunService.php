@@ -413,6 +413,7 @@ class PunService
             if (!in_array($level, $passedLevels, true)) {
                 $passedLevels[] = $level;
             }
+            $passedLevels = $this->orderPassedLevelsByCatalog($passedLevels, $before['allKeys']);
             $jsonValue = json_encode(array_values($passedLevels), JSON_UNESCAPED_UNICODE);
 
             if ($progress) {
@@ -441,7 +442,9 @@ class PunService
     protected function updateXhsProgress(int $userId, int $level, array $answersRaw): void
     {
         $before = $this->buildXhsProgressState($userId, $answersRaw);
-        if ($before['currentLevel'] === null || $before['currentLevel'] !== $level) {
+        // 小红书专辑允许回跳/跨关练习：只要题目存在且答对，就记录为已通过
+        // （此前仅允许 currentLevel 记通过，导致非当前关如 1234 不写入 passed_levels_xhs）
+        if (!isset($answersRaw[$level])) {
             return;
         }
 
@@ -468,6 +471,7 @@ class PunService
             if (!in_array($level, $passedLevels, true)) {
                 $passedLevels[] = $level;
             }
+            $passedLevels = $this->orderPassedLevelsByCatalog($passedLevels, $before['allKeys']);
             $jsonValue = json_encode(array_values($passedLevels), JSON_UNESCAPED_UNICODE);
 
             if ($progress) {
@@ -594,6 +598,35 @@ class PunService
     }
 
     /**
+     * 按题库顺序重排 passedLevels，保证返回/存储顺序与关卡定义顺序一致
+     *
+     * @param int[] $passedLevels
+     * @param array<int|string, mixed> $orderedKeys
+     * @return int[]
+     */
+    private function orderPassedLevelsByCatalog(array $passedLevels, array $orderedKeys): array
+    {
+        if ($passedLevels === [] || $orderedKeys === []) {
+            return [];
+        }
+
+        $set = [];
+        foreach ($passedLevels as $lv) {
+            $set[(int) $lv] = true;
+        }
+
+        $orderedPassed = [];
+        foreach ($orderedKeys as $kid) {
+            $levelId = (int) $kid;
+            if (isset($set[$levelId])) {
+                $orderedPassed[] = $levelId;
+            }
+        }
+
+        return $orderedPassed;
+    }
+
+    /**
      * 中级：与 {@see getLevelProgress} 一致的已通过列表与当前关（有序前缀上的下一关）
      *
      * @param array<int|string, array> $answersRaw pun_levels_issue2
@@ -658,6 +691,7 @@ class PunService
     private function buildXhsProgressState(int $userId, array $answersRaw, ?array $progressRow = null): array
     {
         $allKeys = array_keys($answersRaw);
+        sort($allKeys, SORT_NUMERIC);
         $totalLevels = count($allKeys);
         if ($progressRow === null) {
             $progressRow = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();

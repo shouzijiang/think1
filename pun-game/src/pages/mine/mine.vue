@@ -25,7 +25,7 @@
           <text class="cell-icon">🎯</text>
           <view class="cell-main">
             <text class="cell-text">答案次数</text>
-            <text class="cell-sub">点「答案」每次扣 1，分享可补充</text>
+            <text class="cell-sub">点「答案」每次扣 1，分享可增加，单日上限 10 次</text>
           </view>
         </view>
         <view class="quota-strip">
@@ -164,7 +164,6 @@ async function refreshHintAnswerQuota() {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 560rpx;
   margin: 0 auto;
 }
 

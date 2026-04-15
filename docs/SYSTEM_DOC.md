@@ -118,7 +118,9 @@
 
 ### 2. 后端 (ThinkPHP 8) 注意事项
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
-- **中级/小红书防跳关**：在提交答案 `/pun/answer/submit` 且 `gameTier=mid|xhs` 时，后端分别通过 `issue2`/`issue3` 题库顺序校验，仅在“提交的是下一关”时推进 `max_level_mid` / `max_level_xhs`，防止恶意跳关。
+- **中级/小红书进度策略**：提交答案 `/pun/answer/submit` 时，`mid` 轨仍按题库顺序推进（仅当前可玩关通过才写进度）；`xhs` 轨支持回跳/跨关练习，只要题目存在且答对即可写入 `passed_levels_xhs` 并更新 `max_level_xhs`。
+- **passedLevels 顺序约定**：`/pun/level/progress` 返回的 `passedLevels` 按题库关卡定义顺序返回（而非答题时间顺序），避免出现如 `222` 后才出现 `7` 的展示问题。
+- **xhs 当前关选择规则**：`/pun/level/progress?gameTier=xhs` 的 `currentLevel` 按关卡号升序计算，返回“最小的未通过且存在的关卡号”；例如已通过 7/8/9 时优先返回 10，若 10 不存在则返回 11（依此类推）。
 - **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；**揭字剩余次数**存于 **`pun_user_hint_quota`**（按用户一行）。对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
 - **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发久坐提醒。
 - **统一响应封装**：所有接口均需返回 `{ "code": 200, "message": "...", "data": {...} }` 格式。

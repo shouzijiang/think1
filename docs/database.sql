@@ -226,7 +226,7 @@ CREATE TABLE `pun_game_changelog` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏版本更新说明';
 
 INSERT INTO `pun_game_changelog` (`version_code`, `title`, `body`, `is_published`, `published_at`) VALUES
-('2026.04.02', '本期更新',
-'好友 1V1 对战：创建房间与好友实时对战。\n经典：经典：支持答案查看。\n新增通用分享能力，各页转发/朋友圈。\n初级闯关、排行榜、我的关卡与意见反馈等页面体验与文案优化。',
+('2026.04.15', '2026.04.15更新',
+'小红书题目新增至1288关;\n优化修复系列已知反馈问题;\n新增关卡内支持上报错误。',
 1, NOW());
 

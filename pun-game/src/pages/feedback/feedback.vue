@@ -37,6 +37,7 @@
           placeholder="请描述您的问题或建议（必填）"
           maxlength="500"
           :show-confirm-bar="false"
+          :focus="contentFocus"
         />
         <text class="counter">{{ content.length }}/500</text>
       </view>
@@ -65,6 +66,7 @@
 
 <script setup>
 import { ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
@@ -87,6 +89,37 @@ const typeIndex = ref(0)
 const content = ref('')
 const contact = ref('')
 const submitting = ref(false)
+const contentFocus = ref(false)
+
+function safeDecode(value) {
+  if (typeof value !== 'string') return ''
+  try {
+    return decodeURIComponent(value)
+  } catch (_) {
+    return value
+  }
+}
+
+function findTypeIndexByValue(val) {
+  const idx = typeOptions.findIndex((item) => item.value === val)
+  return idx >= 0 ? idx : 0
+}
+
+onLoad((opts = {}) => {
+  const type = safeDecode(opts.type).trim()
+  if (type) {
+    typeIndex.value = findTypeIndexByValue(type)
+  }
+
+  const presetContent = safeDecode(opts.content)
+  if (presetContent) {
+    content.value = presetContent
+  }
+
+  if (String(opts.contentFocus || '') === '1') {
+    contentFocus.value = true
+  }
+})
 
 function onTypeChange(e) {
   const i = Number(e.detail.value)

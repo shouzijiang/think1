@@ -90,12 +90,14 @@
     <view class="side-toolbar">
       <view class="toolbar-item" @click.stop="toggleBgm">
         <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
-        <text class="toolbar-text">{{ bgmOn ? '音乐' : '静音' }}</text>
+        <text class="toolbar-text">{{ bgmOn ? '关闭' : '开启' }}</text>
+        <text class="toolbar-text">音乐</text>
       </view>
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click.stop="goMine">
-        <text class="toolbar-icon">💴</text>
-        <text class="toolbar-text">资产</text>
+      <view class="toolbar-item" @click="goLevels">
+        <text class="toolbar-icon">🧩</text>
+        <text class="toolbar-text">我的</text>
+        <text class="toolbar-text">关卡</text>
       </view>
       <!-- <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goForum">
@@ -103,9 +105,10 @@
         <text class="toolbar-text">交流</text>
       </view> -->
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click="goLevels">
-        <text class="toolbar-icon">🧩</text>
-        <text class="toolbar-text">关卡</text>
+      <view class="toolbar-item toolbar-item--asset-highlight" @click.stop="goMine">
+        <text class="toolbar-icon">💴</text>
+        <text class="toolbar-text">我的</text>
+        <text class="toolbar-text">资产</text>
       </view>
     </view>
   </view>
@@ -444,7 +447,7 @@ function startGame() {
   font-weight: 700;
   letter-spacing: 0.04em;
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
-  // overflow: hidden;
+  overflow: hidden;
   box-sizing: border-box;
 
   /* 主按钮：薄荷绿实底 + 白字 */
@@ -536,9 +539,9 @@ function startGame() {
 /* 右上角「上新」：深玫红底 + 白字，与浅粉按钮拉开对比（父级 .btn-start 已 position:relative） */
 .xhs-new-badge {
   position: absolute;
-  top: -4rpx;
-  right: -16rpx;
-  z-index: 4;
+  top: -0;
+  right: -0;
+  z-index: 44;
   padding: 6rpx 14rpx;
   border-radius: 999rpx;
   display: flex;
@@ -552,6 +555,7 @@ function startGame() {
     inset 0 1rpx 0 rgba(87, 54, 54, 0.28);
   transform-origin: 50% 50%;
   animation: xhsBadgeFloat 2.4s ease-in-out infinite;
+
 }
 
 .xhs-new-text {
@@ -570,7 +574,7 @@ function startGame() {
     transform: translateY(0) scale(1);
   }
   50% {
-    transform: translateY(-5rpx) scale(1.04);
+    transform: translateY(5rpx) scale(1.04);
   }
 }
 
@@ -736,7 +740,7 @@ function startGame() {
   background: rgba(255, 255, 255, 0.82);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-radius: 60rpx;
+  border-radius: 25rpx;
   border: 3rpx solid rgba(169, 201, 238, 0.45);
   box-shadow: 0 8rpx 24rpx rgba(169, 201, 238, 0.2);
   padding: 20rpx 0;
@@ -758,6 +762,38 @@ function startGame() {
   opacity: 0.8;
 }
 
+.toolbar-item--asset-highlight {
+  position: relative;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 0 0 rgba(245, 196, 73, 0.35);
+  animation: assetPulse 2.1s ease-in-out infinite;
+}
+
+.toolbar-item--asset-highlight .toolbar-icon {
+  animation: assetIconBob 1.8s ease-in-out infinite;
+}
+
+@keyframes assetPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 196, 73, 0.35);
+    transform: translateY(0);
+  }
+  50% {
+    box-shadow: 0 0 24rpx 6rpx rgba(245, 196, 73, 0.28);
+    transform: translateY(-1rpx);
+  }
+}
+
+@keyframes assetIconBob {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3rpx);
+  }
+}
+
 .toolbar-divider {
   width: 50rpx;
   height: 2rpx;
@@ -770,12 +806,14 @@ function startGame() {
   line-height: 1;
   filter: saturate(0.88);
   opacity: 0.92;
+  margin-bottom: 4rpx;
 }
 
 .toolbar-text {
   font-size: 18rpx;
   color: #8eadcf;
   font-weight: 600;
+  line-height: 1;
   white-space: nowrap;
 }
 

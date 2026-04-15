@@ -1,5 +1,5 @@
 <template>
-  <view class="page">
+  <view class="page" @touchstart="onTouchStart" @touchend="onTouchEnd">
     <view class="bg-wrap">
       <view class="bg-gradient" />
       <view class="bg-dots" />
@@ -90,6 +90,8 @@ const midLevelList = ref([])
 // 小红书完整列表（issue3.json 顺序）
 const xhsLevelList = ref([])
 const loading = ref(false)
+const touchStartX = ref(0)
+const touchStartY = ref(0)
 
 const totalPages = computed(() => Math.ceil(totalLevels.value / perPage) || 1)
 const currentStart = computed(() => (currentPage.value - 1) * perPage) // 0-based
@@ -116,12 +118,45 @@ function isCompleted(levelId) {
 function isCurrent(levelId) {
   return currentLevel.value != null && levelId === currentLevel.value
 }
+
+function getOrderedLevelsByTier() {
+  if (tier.value === 'xhs') {
+    return Array.isArray(xhsLevelList.value) ? xhsLevelList.value : []
+  }
+  if (tier.value === 'mid') {
+    return Array.isArray(midLevelList.value) ? midLevelList.value : []
+  }
+  // beginner：按 1..totalLevels 顺序
+  const arr = []
+  for (let id = 1; id <= totalLevels.value; id++) arr.push(id)
+  return arr
+}
+
+function isUnlocked(levelId) {
+  if (isCompleted(levelId) || isCurrent(levelId)) return true
+
+  // 仍保留锁关；但根据 passedLevels 推导“进度前沿”：
+  // 前沿之前（含下一关）均视为已解锁未完成，避免新增关卡被错误锁死
+  const ordered = getOrderedLevelsByTier()
+  if (!ordered.length) return false
+
+  const levelIndex = ordered.indexOf(levelId)
+  if (levelIndex < 0) return false
+
+  let frontierIndex = -1
+  for (let i = 0; i < ordered.length; i++) {
+    if (passedSet.value.has(ordered[i])) frontierIndex = i
+  }
+
+  return levelIndex <= frontierIndex + 1
+}
 function isLocked(levelId) {
-  return !isCompleted(levelId) && !isCurrent(levelId)
+  return !isUnlocked(levelId)
 }
 function statusClass(levelId) {
   if (isCompleted(levelId)) return 'done'
   if (isCurrent(levelId)) return 'current'
+  if (isUnlocked(levelId)) return 'unlocked'
   return 'locked'
 }
 
@@ -246,6 +281,45 @@ function switchTier(next) {
   loadProgress()
 }
 
+function getTierOrder() {
+  return ['mid', 'beginner', 'xhs']
+}
+
+function switchTierByOffset(offset) {
+  const order = getTierOrder()
+  const currentIdx = order.indexOf(tier.value)
+  if (currentIdx < 0) return
+  const nextIdx = currentIdx + offset
+  if (nextIdx < 0 || nextIdx >= order.length) return
+  switchTier(order[nextIdx])
+}
+
+function onTouchStart(e) {
+  const touch = e && e.touches && e.touches[0]
+  if (!touch) return
+  touchStartX.value = touch.clientX
+  touchStartY.value = touch.clientY
+}
+
+function onTouchEnd(e) {
+  const touch = e && e.changedTouches && e.changedTouches[0]
+  if (!touch) return
+  const deltaX = touch.clientX - touchStartX.value
+  const deltaY = touch.clientY - touchStartY.value
+  const absX = Math.abs(deltaX)
+  const absY = Math.abs(deltaY)
+
+  // 仅处理明确的水平滑动，避免与上下滚动冲突
+  if (absX < 60 || absX <= absY) return
+
+  // 左滑到下一个榜单，右滑到上一个榜单
+  if (deltaX < 0) {
+    switchTierByOffset(1)
+  } else {
+    switchTierByOffset(-1)
+  }
+}
+
 function back() {
   uni.reLaunch({ url: '/pages/index/index' })
 }
@@ -362,6 +436,12 @@ function back() {
   color: #fff;
   border-color: transparent;
   box-shadow: 0 8rpx 24rpx rgba(111, 184, 104, 0.38), inset 0 2rpx 0 rgba(255,255,255,0.28);
+}
+.cell.unlocked {
+  background: rgba(255, 255, 255, 0.92);
+  color: #5a6d7a;
+  border-color: rgba(169, 201, 238, 0.55);
+  box-shadow: 0 4rpx 16rpx rgba(169, 201, 238, 0.12);
 }
 .cell.locked {
   background: rgba(255, 255, 255, 0.72);
