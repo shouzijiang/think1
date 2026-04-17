@@ -133,6 +133,70 @@ class PunService
         return max(300, $sec + 60);
     }
 
+    /** 激励视频领奖：与分享奖励独立计数，避免互相挤占上限 */
+    private const VIDEO_REWARD_MIN_INTERVAL_SEC = 45;
+
+    private const VIDEO_REWARD_DAILY_MAX = 25;
+
+    /**
+     * 激励视频奖励：揭字次数 +delta（默认 1），风控独立于分享接口
+     *
+     * @return array{hintAnswerQuota:int,added:int}
+     */
+    public function addHintAnswerQuotaByRewardedVideo(int $userId, int $delta = 1): array
+    {
+        $delta = max(1, (int) $delta);
+        $dailyKey = $this->videoRewardDailyCountCacheKey($userId);
+        $dailyCount = (int) Cache::get($dailyKey, 0);
+        if ($dailyCount + $delta > self::VIDEO_REWARD_DAILY_MAX) {
+            throw new \InvalidArgumentException(
+                '今日观看激励视频领取次数已达上限（' . self::VIDEO_REWARD_DAILY_MAX . '次），请明日再试'
+            );
+        }
+
+        $cooldownKey = $this->videoRewardCooldownCacheKey($userId);
+        $lastRewardAt = (int) Cache::get($cooldownKey, 0);
+        $now = time();
+        $nextAllowedAt = $lastRewardAt + self::VIDEO_REWARD_MIN_INTERVAL_SEC;
+        if ($lastRewardAt > 0 && $now < $nextAllowedAt) {
+            $leftSec = max(1, $nextAllowedAt - $now);
+            throw new \InvalidArgumentException("领取过于频繁，请{$leftSec}秒后再试");
+        }
+
+        $this->getOrCreateHintAnswerQuota($userId);
+
+        $newQuota = 0;
+        Db::transaction(function () use ($userId, $delta, &$newQuota) {
+            $row = Db::name('pun_user_hint_quota')->where('user_id', $userId)->lock(true)->find();
+            if (!$row) {
+                throw new \RuntimeException('揭字配额数据异常');
+            }
+            $quota = (int) $row['quota'];
+            $newQuota = $quota + $delta;
+            Db::name('pun_user_hint_quota')->where('user_id', $userId)->update(['quota' => $newQuota]);
+        });
+        Cache::set($cooldownKey, $now, self::VIDEO_REWARD_MIN_INTERVAL_SEC + 5);
+        Cache::set($dailyKey, $dailyCount + $delta, $this->shareRewardDailyCacheTtlSeconds());
+
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => $delta,
+        ];
+    }
+
+    private function videoRewardCooldownCacheKey(int $userId): string
+    {
+        return 'pun:reward_video:cooldown:' . $userId;
+    }
+
+    private function videoRewardDailyCountCacheKey(int $userId): string
+    {
+        $tz = new \DateTimeZone('Asia/Shanghai');
+        $date = (new \DateTime('now', $tz))->format('Y-m-d');
+
+        return 'pun:reward_video:daily_count:' . $userId . ':' . $date;
+    }
+
     /**
      * 分步揭字提示：第 k 次请求显示前 k 个字，其余为 X；由服务端递增步数
      * 每成功揭一步扣揭字配额 1（见 pun_user_hint_quota），单题步数仍不超过答案字数 n

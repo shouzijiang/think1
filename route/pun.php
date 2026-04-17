@@ -20,8 +20,13 @@ Route::group('pun', function () {
         Route::post('answer/submit', 'Pun/submitAnswer');
         Route::post('level/reveal-hint', 'Pun/revealHint');
         Route::post('level/share-reward', 'Pun/shareReward');
+        Route::post('level/reward-video', 'Pun/rewardVideo');
         Route::get('level/progress', 'Pun/levelProgress');
         Route::post('feedback/submit', 'Pun/feedbackSubmit');
+        
+        // 信箱（站内信；新增邮件由库内 INSERT pun_game_mail，无 HTTP 发送接口）
+        Route::get('mail/list', 'PunMail/mailList');
+        Route::get('mail/detail', 'PunMail/mailDetail');
         
         // 论坛发布和回复
         Route::post('forum/topic/create', 'Pun/forumTopicCreate');

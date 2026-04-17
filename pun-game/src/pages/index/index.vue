@@ -107,8 +107,12 @@
       <view class="toolbar-divider"></view>
       <view class="toolbar-item toolbar-item--asset-highlight" @click.stop="goMine">
         <text class="toolbar-icon">💴</text>
-        <text class="toolbar-text">我的</text>
         <text class="toolbar-text">资产</text>
+      </view>
+      <view class="toolbar-divider"></view>
+      <view class="toolbar-item" @click.stop="goMail">
+        <text class="toolbar-icon">✉️</text>
+        <text class="toolbar-text">邮件</text>
       </view>
     </view>
   </view>
@@ -236,6 +240,9 @@ function goRank() {
 }
 function goMine() {
   uni.navigateTo({ url: '/pages/mine/mine' })
+}
+function goMail() {
+  uni.navigateTo({ url: '/pages/mail/mail' })
 }
 function goForum() {
   uni.navigateTo({ url: '/pages/forum/forum' })

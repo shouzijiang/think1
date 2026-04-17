@@ -22,6 +22,8 @@
 - **pun_game_feedback**: 意见反馈表（user_id, type, content, contact）
 - **pun_game_battle_record**: 1V1对战房间与记录表（room_id, creator_id, challenger_id, levels_json, creator_progress, challenger_progress, total_time_ms, winner_id, status）
 - **pun_game_changelog**: 版本更新说明（首页弹窗，`version_code` 唯一，`body` 为每行一条或 JSON 数组）
+- **pun_game_mail**: 游戏站内信邮件主体表（支持全服 all 与单玩家 user）
+- **pun_game_mail_reads**: 游戏站内信已读记录表（按 user_id/mail_id 记录 read_at，用于列表角标）
 - *(论坛相关表)*: 帖子表 (topic)、回复表 (reply)
 
 ### 3. 久坐提醒相关表
@@ -49,10 +51,13 @@
 | `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支） |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
 | `/pun/level/share-reward` | POST | 分享奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }` |
+| `/pun/level/reward-video` | POST | 激励视频奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }`。风控（间隔/单日上限）**独立于** `share-reward`，客户端应在用户完整观看激励视频后调用 |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
 | `/pun/stats/home` | GET | 首页统计（无需 Token）：`players` 为 `pun_game_level_progress` 行数，`answers` 为全表 `JSON_LENGTH(passed_levels)+JSON_LENGTH(passed_levels_mid)` 之和 |
 | `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分；同分按**该模式** `last_pass_at_*`，无则回退行 `updated_at`） |
 | `/pun/feedback/submit` | POST | 提交意见反馈 (`bug/suggest/other`) |
+| `/pun/mail/list` | GET | 信箱列表（当前用户可见：全服+单发），返回每封邮件 `isRead/readAt` |
+| `/pun/mail/detail` | GET | 邮件详情，并自动写入已读记录 |
 | `/pun/forum/list` | GET | 获取游戏论坛帖子列表 |
 | `/pun/forum/detail` | GET | 获取帖子详情及评论列表 |
 | `/pun/forum/topic/create` | POST | 发布新帖子 |
@@ -80,6 +85,23 @@
 风控：
 - 同一用户两次领奖最小间隔 **60 秒**；过于频繁时返回业务错误（含剩余等待秒数）。
 - **同一自然日**（按服务端 `Asia/Shanghai` 计）通过本接口成功领取的累计次数（含每次 `add` 增量）不超过 **20 次**；超出时返回业务错误（提示已达今日上限、请明日再试）。计数存于缓存，与文件/缓存驱动一致；跨日自动按日期键重置。
+
+#### 激励视频奖励 `/pun/level/reward-video`（需登录）
+
+请求体：`{ "add": 1 }`（可省略，默认 `1`）。成功返回格式与 `share-reward` 相同。  
+前端约定：**仅在微信小程序**、且用户**完整观看**激励视频广告（`RewardedVideoAd` 的 `onClose` 中 `isEnded === true`）之后调用；揭字次数为 0 时点击「答案」可先拉广告再领奖。开发者工具若无法预览广告，请切换基础库版本或真机调试。  
+风控（与分享接口**独立**缓存键）：
+- 同一用户两次领奖最小间隔 **45 秒**。
+- **同一自然日**（`Asia/Shanghai`）累计成功领取不超过 **25 次**（含每次 `add` 增量）。
+
+#### 站内信 `/pun/mail/*`（需登录）
+
+| 接口 | 说明 |
+| --- | --- |
+| `GET /pun/mail/list` | 查询参数：`page`、`page_size`（默认 20，最大 50）。`data`：`{ list, total }`，列表项含 `id/title/contentPreview/isRead/readAt/createdAt/scope` 等。 |
+| `GET /pun/mail/detail` | 查询参数：`id`。打开详情后服务端写入 `pun_game_mail_reads`（幂等）。 |
+
+**新增邮件（无 HTTP 接口）**：由运维在数据库向 `pun_game_mail` 插入记录。`scope=all` 表示全服可见，`target_user_id` 置 `NULL`；`scope=user` 表示仅指定用户可见，需填写 `target_user_id`（`users.id`）。通常设 `is_published=1`；`sender_user_id` 可填 `NULL` 或运营账号 `user_id`。示例见 `docs/migrations/add_pun_game_mail.sql` 文件末尾注释。
 
 ### 2.1 谐音梗图 WebSocket 接口 (1V1 对战)
 | 事件/指令 (`action`) | 发送方 | 说明 |
@@ -112,6 +134,7 @@
 
 ### 1. 前端 (UniApp) 注意事项
 - **API 规范**：遵循 `uniapp-apis.mdc` 规范，禁止使用原生的 `fetch` 或 `window`，必须统一使用 `uni.request` 和 `uni.setStorageSync`。
+- **揭字次数与激励视频（仅微信小程序）**：玩法页揭字次数为 0 时点击「答案」会尝试拉起微信激励视频；用户完整观看后由前端调用 `POST /pun/level/reward-video` 发放 +1 次（与分享领奖接口分离）。广告位 `adUnitId` 配置在 `pun-game/src/constants/rewardedVideoAd.js`；开发者工具若无法预览广告，请切换基础库版本或真机调试。
 - **中级与小红书关卡逻辑**：`mid` 与 `xhs` 关卡 `level` 均可能不连续，不能用 ID 大小判断进度，必须依赖接口 `/pun/level/progress` 返回的 `currentLevel`、`passedLevels`、`totalLevels` 渲染锁定/解锁状态。
 - **首页更新弹窗**：进入首页请求 `/pun/changelog/latest`，与本地 `pun_changelog_seen_version`（`version_code`）比对，未读则弹窗；点「知道了」写入本地已读。
 - **微信小程序转发/朋友圈**：官方 `app.json` / 页面 `*.json` **不包含** `enableShareAppMessage`、`enableShareTimeline`（写入会被开发者工具标为无效字段）；需在页面实现 `onShareAppMessage` / `onShareTimeline`，并在 `App.vue` 的 `onLaunch`/`onShow`（及 `useWechatPageShare` 等）中调用 `uni.showShareMenu({ menus: ['shareAppMessage','shareTimeline'] })` 打开右上角菜单能力。
@@ -127,6 +150,7 @@
 
 ### 3. 运维扩展（可选）
 - **飞书机器人（对战开房/开局通知）**：在根目录 `.env` 配置 `FEISHU_WEBHOOK_URL`、`FEISHU_WEBHOOK_SECRET`（勿提交仓库）。逻辑见 `app/common/FeishuBotHelper.php`，由 `BattleService::createRoom` 与 `WebSocket` 对局开始时触发。
+- **站内信入信**：不向客户端开放发送接口；在 MySQL 中 `INSERT` `pun_game_mail`（见上节「站内信」与迁移脚本注释示例）。
 
 ---
 

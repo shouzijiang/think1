@@ -84,6 +84,7 @@ import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
 import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
 import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
 import { usePunShareReward } from '../../composables/usePunShareReward'
+import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHint'
 import { usePunHanAnswerInput } from '../../composables/usePunHanAnswerInput'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
 import {
@@ -111,6 +112,7 @@ const { showSuccess, runPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
 const hintAnswerQuota = ref(0)
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota)
+const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
 const answerInputValue = ref('')
 const {
   inputRef: xhsInputRef,
@@ -183,8 +185,23 @@ async function resolveNextXhsLevel() {
 async function onRevealHint() {
   if (hintLoading.value || loading.value) return
   if (hintAnswerQuota.value <= 0) {
+    // #ifdef MP-WEIXIN
+    hintLoading.value = true
+    try {
+      const ok = await tryWatchAdForHintQuota()
+      if (!ok) return
+    } finally {
+      hintLoading.value = false
+    }
+    if (hintAnswerQuota.value <= 0) {
+      uni.showToast({ title: '提示次数不足', icon: 'none' })
+      return
+    }
+    // #endif
+    // #ifndef MP-WEIXIN
     uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
     return
+    // #endif
   }
   hintLoading.value = true
   try {

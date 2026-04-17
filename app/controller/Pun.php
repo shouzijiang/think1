@@ -165,6 +165,33 @@ class Pun extends BaseController
     }
 
     /**
+     * 激励视频奖励：揭字次数 +add（默认 1），风控独立于分享
+     * POST /pun/level/reward-video
+     */
+    public function rewardVideo(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+
+        $add = (int) $request->post('add', 1);
+        if ($add <= 0) {
+            $add = 1;
+        }
+
+        try {
+            $result = $this->punService->addHintAnswerQuotaByRewardedVideo((int) $userId, $add);
+            return ResponseHelper::success($result);
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::badRequest($e->getMessage());
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('pun/level/reward-video 异常: ' . $e->getMessage());
+            return ResponseHelper::error('奖励发放失败', 500);
+        }
+    }
+
+    /**
      * 当前用户关卡进度 GET /pun/level/progress
      */
     public function levelProgress(Request $request)

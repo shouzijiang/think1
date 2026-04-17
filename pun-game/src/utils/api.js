@@ -188,6 +188,18 @@ export const api = {
   },
 
   /**
+   * 激励视频奖励：揭字次数 +add（默认 1），风控独立于分享
+   * @param {number} [add=1]
+   */
+  claimHintRewardVideoAd(add = 1) {
+    return request({
+      url: '/pun/level/reward-video',
+      method: 'POST',
+      data: { add },
+    })
+  },
+
+  /**
    * 当前用户关卡进度（历史答题情况）
    * 响应 data 含 hintAnswerQuota（剩余）、hintAnswerTotalUsed（累计消耗，需库表 total_used）
    */
@@ -282,6 +294,30 @@ export const api = {
   getBattleHistory(params = {}) {
     return request({
       url: `/pun/battle/history${buildQueryString(params)}`,
+      method: 'GET'
+    })
+  },
+  /**
+   * 信箱列表
+   * @param {Object} params
+   * @param {number} [params.page]
+   * @param {number} [params.page_size]
+   */
+  getMailList(params = {}) {
+    return request({
+      url: `/pun/mail/list${buildQueryString(params)}`,
+      method: 'GET'
+    })
+  },
+
+  /**
+   * 信箱详情（会在详情页读取并自动标记已读）
+   * @param {Object} params
+   * @param {number} params.id
+   */
+  getMailDetail(params = {}) {
+    return request({
+      url: `/pun/mail/detail${buildQueryString(params)}`,
       method: 'GET'
     })
   }

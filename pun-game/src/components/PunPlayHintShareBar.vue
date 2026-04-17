@@ -4,7 +4,10 @@
       <button
         v-if="showHint"
         class="mid-act-btn mid-act-btn--hint"
-        :class="{ 'mid-act-btn--cooldown': hintNoQuota }"
+        :class="{
+          'mid-act-btn--cooldown': hintNoQuota,
+          'mid-act-btn--hint-badged': showHintVideoBadge,
+        }"
         :loading="hintLoading"
         :disabled="hintBtnDisabled"
         hover-class="mid-act-btn--hover"
@@ -17,6 +20,11 @@
           mode="aspectFit"
         />
         <text class="mid-act-txt">{{ hintLabel }}</text>
+        <!-- #ifdef MP-WEIXIN -->
+        <view v-if="hintNoQuota" class="hint-video-tag" aria-hidden="true">
+          <text class="hint-video-tag__play">▶</text>
+        </view>
+        <!-- #endif -->
       </button>
       <button
         v-if="showShare"
@@ -55,9 +63,24 @@ const emit = defineEmits(['hint', 'help', 'share-intent'])
 
 const hintNoQuota = computed(() => props.hintAnswerQuota <= 0)
 
-const hintBtnDisabled = computed(
-  () => props.hintLoading || hintNoQuota.value || props.hintLocked,
-)
+/** 微信小程序且无次数：角标在按钮内，整钮可点走激励视频；其它端无次数仍禁用 */
+const isMpWeixin = computed(() => {
+  try {
+    return uni.getSystemInfoSync().uniPlatform === 'mp-weixin'
+  } catch {
+    return false
+  }
+})
+
+const showHintVideoBadge = computed(() => isMpWeixin.value && hintNoQuota.value)
+
+const hintBtnDisabled = computed(() => {
+  const busy = props.hintLoading || props.hintLocked
+  if (isMpWeixin.value && hintNoQuota.value) {
+    return busy
+  }
+  return busy || hintNoQuota.value
+})
 
 const hintLabel = computed(() => {
   if (hintNoQuota.value) return '答案（剩0）'
@@ -124,10 +147,42 @@ function onShareClick() {
 }
 
 .mid-act-btn--hint {
+  position: relative;
   color: #5a6d7a;
   background: linear-gradient(180deg, #ffffff 0%, #f0faf9 100%);
   border: 1rpx solid rgba(169, 201, 238, 0.55);
   box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.12);
+}
+
+/** 为按钮内右上角小视频标留出空间，避免压住主文案 */
+.mid-act-btn--hint-badged {
+  padding-right: 72rpx;
+}
+
+/* 微信小程序：嵌在「答案」按钮内右上角，点击整钮走激励视频 */
+.hint-video-tag {
+  position: absolute;
+  right: 10rpx;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44rpx;
+  height: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10rpx;
+  background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1rpx solid rgba(251, 146, 60, 0.45);
+  box-shadow: 0 2rpx 8rpx rgba(251, 146, 60, 0.18);
+  pointer-events: none;
+}
+
+.hint-video-tag__play {
+  font-size: 20rpx;
+  line-height: 1;
+  color: #ea580c;
+  font-weight: 900;
+  margin-left: 2rpx;
 }
 
 .mid-act-btn--share {

@@ -64,6 +64,20 @@
       }
     },
     {
+      "path": "pages/mail/mail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "信箱"
+      }
+    },
+    {
+      "path": "pages/mail/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "邮件详情"
+      }
+    },
+    {
       "path": "pages/battleRoom/battleRoom",
       "style": {
         "navigationStyle": "custom",

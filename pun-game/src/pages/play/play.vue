@@ -88,6 +88,7 @@ import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
 import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
 import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
 import { usePunShareReward } from '../../composables/usePunShareReward'
+import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHint'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
 import {
   punIsSlotError,
@@ -115,6 +116,7 @@ const hintLoading = ref(false)
 /** 揭字剩余次数（/pun/level/progress 与 reveal-hint 返回） */
 const hintAnswerQuota = ref(0)
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota)
+const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
 /** 当前已选入答案槽的字在 chars 中的下标，与 answerChars 一一对应 */
 const pickedIndices = ref([])
 
@@ -247,8 +249,23 @@ async function resolveNextBeginnerLevel() {
 async function onRevealHint() {
   if (hintLoading.value || loading.value) return
   if (hintAnswerQuota.value <= 0) {
+    // #ifdef MP-WEIXIN
+    hintLoading.value = true
+    try {
+      const ok = await tryWatchAdForHintQuota()
+      if (!ok) return
+    } finally {
+      hintLoading.value = false
+    }
+    if (hintAnswerQuota.value <= 0) {
+      uni.showToast({ title: '提示次数不足', icon: 'none' })
+      return
+    }
+    // #endif
+    // #ifndef MP-WEIXIN
     uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
     return
+    // #endif
   }
   hintLoading.value = true
   try {
