@@ -21,7 +21,7 @@ class PunService
     private const SHARE_REWARD_MIN_INTERVAL_SEC = 60;
 
     /** 分享领奖单日上限（自然日，Asia/Shanghai） */
-    private const SHARE_REWARD_DAILY_MAX = 20;
+    private const SHARE_REWARD_DAILY_MAX = 5;
 
     /**
      * 玩法模式归一化
@@ -807,7 +807,7 @@ class PunService
      * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数 
      * @param int $userId
      * @param string $mode beginner=初级 | intermediate=中级
-     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed}
+     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed, hintAnswerShareDailyMax}
      */
     public function getLevelProgress(int $userId, string $mode = 'beginner'): array
     {
@@ -828,6 +828,7 @@ class PunService
                 'totalLevels'      => $state['totalLevels'],
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
+                'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
             ];
         }
         if ($mode === 'xhs') {
@@ -840,6 +841,7 @@ class PunService
                 'totalLevels'      => $state['totalLevels'],
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
+                'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
             ];
         }
         else {
@@ -871,6 +873,7 @@ class PunService
                 'totalLevels'      => $totalLevels,
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
+                'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
             ];
         }
     }

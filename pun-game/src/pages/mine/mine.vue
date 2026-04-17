@@ -25,7 +25,7 @@
           <text class="cell-icon">🎯</text>
           <view class="cell-main">
             <text class="cell-text">答案次数</text>
-            <text class="cell-sub">点「答案」每次扣 1，分享可增加，单日上限 10 次</text>
+            <text class="cell-sub">点「答案」每次扣 1，分享可增加，单日上限 {{ hintAnswerShareDailyMax }} 次</text>
           </view>
         </view>
         <view class="quota-strip">
@@ -95,6 +95,7 @@ const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 const userProfileRef = ref(null)
 const hintAnswerQuota = ref(0)
 const hintAnswerTotalUsed = ref(0)
+const hintAnswerShareDailyMax = ref(5)
 const hintQuotaTipVisible = ref(false)
 
 // #ifdef MP-WEIXIN
@@ -141,6 +142,9 @@ async function refreshHintAnswerQuota() {
     }
     if (data && typeof data.hintAnswerTotalUsed === 'number') {
       hintAnswerTotalUsed.value = data.hintAnswerTotalUsed
+    }
+    if (data && typeof data.hintAnswerShareDailyMax === 'number' && data.hintAnswerShareDailyMax > 0) {
+      hintAnswerShareDailyMax.value = Math.floor(data.hintAnswerShareDailyMax)
     }
   } catch {
     // 忽略未登录场景
