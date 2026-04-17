@@ -207,7 +207,9 @@ class PunService
     public function revealHint(int $userId, int $level, string $mode, ?string $roomId, ?int $questionIndex): array
     {
         $mode = $this->normalizeMode($mode);
-        if ($level <= 0) {
+        // 中级/对战题库存在 level=0（新手引导）；其余模式最小关卡为 1。
+        $allowZeroLevel = ($mode === 'intermediate' || $mode === 'battle');
+        if (($allowZeroLevel && $level < 0) || (!$allowZeroLevel && $level <= 0)) {
             throw new \InvalidArgumentException('关卡参数无效');
         }
 
