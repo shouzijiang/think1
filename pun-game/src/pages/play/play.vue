@@ -94,6 +94,7 @@ import {
   punIsSlotError,
   punScheduleWrongAnswerReset,
   punRevealHintWithModal,
+  punToastRevealHintAfterError,
 } from '../../utils/punPlayShared'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -248,8 +249,10 @@ async function resolveNextBeginnerLevel() {
 
 async function onRevealHint() {
   if (hintLoading.value || loading.value) return
+  let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
     // #ifdef MP-WEIXIN
+    afterRewardVideo = true
     hintLoading.value = true
     try {
       const ok = await tryWatchAdForHintQuota()
@@ -274,7 +277,7 @@ async function onRevealHint() {
       hintAnswerQuota.value = res.hintAnswerQuota
     }
   } catch (e) {
-    uni.showToast({ title: e.message || '获取失败', icon: 'none' })
+    punToastRevealHintAfterError(e, afterRewardVideo)
   } finally {
     hintLoading.value = false
   }

@@ -51,7 +51,7 @@
 | `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支） |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
 | `/pun/level/share-reward` | POST | 分享奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }` |
-| `/pun/level/reward-video` | POST | 激励视频奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }`。风控（间隔/单日上限）**独立于** `share-reward`，客户端应在用户完整观看激励视频后调用 |
+| `/pun/level/reward-video` | POST | 激励视频奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }`。风控**独立于** `share-reward`；默认无单日上限（服务端常量可调），客户端应在用户完整观看激励视频后调用 |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
 | `/pun/stats/home` | GET | 首页统计（无需 Token）：`players` 为 `pun_game_level_progress` 行数，`answers` 为全表 `JSON_LENGTH(passed_levels)+JSON_LENGTH(passed_levels_mid)` 之和 |
 | `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分；同分按**该模式** `last_pass_at_*`，无则回退行 `updated_at`） |
@@ -90,9 +90,8 @@
 
 请求体：`{ "add": 1 }`（可省略，默认 `1`）。成功返回格式与 `share-reward` 相同。  
 前端约定：**仅在微信小程序**、且用户**完整观看**激励视频广告（`RewardedVideoAd` 的 `onClose` 中 `isEnded === true`）之后调用；揭字次数为 0 时点击「答案」可先拉广告再领奖。开发者工具若无法预览广告，请切换基础库版本或真机调试。  
-风控（与分享接口**独立**缓存键）：
-- 同一用户两次领奖最小间隔 **45 秒**。
-- **同一自然日**（`Asia/Shanghai`）累计成功领取不超过 **25 次**（含每次 `add` 增量）。
+风控（与分享接口**独立**；**不设**领取间隔，与分享 60 秒冷却区分）：
+- **默认无单日领取上限**（便于激励变现）；服务端 `PunService::VIDEO_REWARD_DAILY_MAX` 改为正整数后可启用「自然日内最多 N 次」并与独立日计数缓存键配合。
 
 #### 站内信 `/pun/mail/*`（需登录）
 

@@ -133,10 +133,11 @@ class PunService
         return max(300, $sec + 60);
     }
 
-    /** 激励视频领奖：与分享奖励独立计数，避免互相挤占上限 */
-    private const VIDEO_REWARD_MIN_INTERVAL_SEC = 45;
-
-    private const VIDEO_REWARD_DAILY_MAX = 25;
+    /**
+     * 激励视频单日领取上限（与分享独立计数）。
+     * 设为 **0** 表示不限制（默认，便于变现）；改为正整数则启用「自然日内最多 N 次」校验，并写入 {@see videoRewardDailyCountCacheKey}。
+     */
+    private const VIDEO_REWARD_DAILY_MAX = 0;
 
     /**
      * 激励视频奖励：揭字次数 +delta（默认 1），风控独立于分享接口
@@ -146,21 +147,14 @@ class PunService
     public function addHintAnswerQuotaByRewardedVideo(int $userId, int $delta = 1): array
     {
         $delta = max(1, (int) $delta);
-        $dailyKey = $this->videoRewardDailyCountCacheKey($userId);
-        $dailyCount = (int) Cache::get($dailyKey, 0);
-        if ($dailyCount + $delta > self::VIDEO_REWARD_DAILY_MAX) {
-            throw new \InvalidArgumentException(
-                '今日观看激励视频领取次数已达上限（' . self::VIDEO_REWARD_DAILY_MAX . '次），请明日再试'
-            );
-        }
-
-        $cooldownKey = $this->videoRewardCooldownCacheKey($userId);
-        $lastRewardAt = (int) Cache::get($cooldownKey, 0);
-        $now = time();
-        $nextAllowedAt = $lastRewardAt + self::VIDEO_REWARD_MIN_INTERVAL_SEC;
-        if ($lastRewardAt > 0 && $now < $nextAllowedAt) {
-            $leftSec = max(1, $nextAllowedAt - $now);
-            throw new \InvalidArgumentException("领取过于频繁，请{$leftSec}秒后再试");
+        if (self::VIDEO_REWARD_DAILY_MAX > 0) {
+            $dailyKey = $this->videoRewardDailyCountCacheKey($userId);
+            $dailyCount = (int) Cache::get($dailyKey, 0);
+            if ($dailyCount + $delta > self::VIDEO_REWARD_DAILY_MAX) {
+                throw new \InvalidArgumentException(
+                    '今日观看激励视频领取次数已达上限（' . self::VIDEO_REWARD_DAILY_MAX . '次），请明日再试'
+                );
+            }
         }
 
         $this->getOrCreateHintAnswerQuota($userId);
@@ -175,18 +169,16 @@ class PunService
             $newQuota = $quota + $delta;
             Db::name('pun_user_hint_quota')->where('user_id', $userId)->update(['quota' => $newQuota]);
         });
-        Cache::set($cooldownKey, $now, self::VIDEO_REWARD_MIN_INTERVAL_SEC + 5);
-        Cache::set($dailyKey, $dailyCount + $delta, $this->shareRewardDailyCacheTtlSeconds());
+        if (self::VIDEO_REWARD_DAILY_MAX > 0) {
+            $dailyKey = $this->videoRewardDailyCountCacheKey($userId);
+            $dailyCount = (int) Cache::get($dailyKey, 0);
+            Cache::set($dailyKey, $dailyCount + $delta, $this->shareRewardDailyCacheTtlSeconds());
+        }
 
         return [
             'hintAnswerQuota' => $newQuota,
             'added' => $delta,
         ];
-    }
-
-    private function videoRewardCooldownCacheKey(int $userId): string
-    {
-        return 'pun:reward_video:cooldown:' . $userId;
     }
 
     private function videoRewardDailyCountCacheKey(int $userId): string

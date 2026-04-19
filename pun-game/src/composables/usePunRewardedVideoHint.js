@@ -73,7 +73,6 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
               } else {
                 hintAnswerQuotaRef.value += 1
               }
-              uni.showToast({ title: '已获得 1 次答案', icon: 'success' })
               finish(true)
             })
             .catch((e) => {

@@ -13,32 +13,72 @@
       @left-click="back"
     >
       <template #title>
-        <text class="nav-title" v-if="level !== 0">经典 · 第{{ level }}关</text>
-        <text class="nav-title" v-else>经典 · 新手引导</text>
+        <text
+          class="nav-title"
+          v-if="level !== 0"
+        >经典 · 第{{ level }}关</text>
+        <text
+          class="nav-title"
+          v-else
+        >经典 · 新手引导</text>
       </template>
     </PunPageNavBar>
 
     <view class="card card--mid">
-      <view v-if="puzzle.keywordHint" class="keyword-tab">
+      <view
+        v-if="puzzle.keywordHint"
+        class="keyword-tab"
+      >
         <text class="keyword-tab-text">{{ puzzle.keywordHint }}</text>
       </view>
 
       <view class="card-inner card-inner--stack">
         <view class="stack-block">
-          <image v-if="puzzle.imageUrlTop" class="stack-img" :src="puzzle.imageUrlTop" mode="aspectFill" />
-          <view v-else-if="loading" class="stack-placeholder">加载中...</view>
-          <view v-else class="stack-placeholder">暂无配图</view>
-          <text v-if="puzzle.topCaption" class="stack-caption">{{ puzzle.topCaption }}</text>
+          <image
+            v-if="puzzle.imageUrlTop"
+            class="stack-img"
+            :src="puzzle.imageUrlTop"
+            mode="aspectFill"
+          />
+          <view
+            v-else-if="loading"
+            class="stack-placeholder"
+          >加载中...</view>
+          <view
+            v-else
+            class="stack-placeholder"
+          >暂无配图</view>
+          <text
+            v-if="puzzle.topCaption"
+            class="stack-caption"
+          >{{ puzzle.topCaption }}</text>
         </view>
 
         <view class="stack-block">
-          <image v-if="puzzle.imageUrlBottom" class="stack-img" :src="puzzle.imageUrlBottom" mode="aspectFill" />
-          <view v-else-if="loading" class="stack-placeholder">加载中...</view>
-          <view v-else class="stack-placeholder">暂无下图</view>
+          <image
+            v-if="puzzle.imageUrlBottom"
+            class="stack-img"
+            :src="puzzle.imageUrlBottom"
+            mode="aspectFill"
+          />
+          <view
+            v-else-if="loading"
+            class="stack-placeholder"
+          >加载中...</view>
+          <view
+            v-else
+            class="stack-placeholder"
+          >暂无下图</view>
           <!-- 你给的数据里 bottomcaption 没有单独字段，这里预留留白 -->
-          <text v-if="puzzle.bottomCaption" class="stack-caption">{{ puzzle.bottomCaption }}</text>
+          <text
+            v-if="puzzle.bottomCaption"
+            class="stack-caption"
+          >{{ puzzle.bottomCaption }}</text>
         </view>
-        <view class="report-entry" @click="goFeedback">报错</view>
+        <view
+          class="report-entry"
+          @click="goFeedback"
+        >报错</view>
       </view>
     </view>
 
@@ -63,8 +103,14 @@
               :key="i"
               :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
             >
-              <text v-if="answerChars[i - 1]" class="slot-char">{{ answerChars[i - 1] }}</text>
-              <view v-else-if="caretIndex === i - 1" class="slot-caret" />
+              <text
+                v-if="answerChars[i - 1]"
+                class="slot-char"
+              >{{ answerChars[i - 1] }}</text>
+              <view
+                v-else-if="caretIndex === i - 1"
+                class="slot-caret"
+              />
             </view>
           </view>
         </view>
@@ -84,19 +130,28 @@
       <text>若通过后没进入下一关，请点击左上角重新游戏</text>
     </view> -->
 
-    <PunPassSuccessOverlay :show="showSuccess" variant="rich" />
+    <PunPassSuccessOverlay
+      :show="showSuccess"
+      variant="rich"
+    />
   </view>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import {
+  onLoad,
+  onShow,
+  onHide,
+  onShareAppMessage,
+  onShareTimeline
+} from '@dcloudio/uni-app'
 import {
   getMidLevelPuzzle,
   getMidNextLevel,
   loadMidLevelList,
   pickMidLevelFromProgress,
-  prefetchNextMidLevelImages,
+  prefetchNextMidLevelImages
 } from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
@@ -112,6 +167,7 @@ import {
   punIsSlotError,
   punScheduleWrongAnswerReset,
   punRevealHintWithModal,
+  punToastRevealHintAfterError
 } from '../../utils/punPlayShared'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -124,7 +180,7 @@ const puzzle = ref({
   imageUrlBottom: '',
   topCaption: '',
   bottomCaption: '',
-  keywordHint: '',
+  keywordHint: ''
 })
 const loading = ref(true)
 const submitting = ref(false)
@@ -144,12 +200,12 @@ const {
   onInputFocus: onMidInputFocus,
   onInputBlur: onMidInputBlur,
   focusInput: focusMidInput,
-  onAnswerInput: onMidAnswerInput,
+  onAnswerInput: onMidAnswerInput
 } = usePunHanAnswerInput({
   answerLen,
   answerChars,
   answerInputValue,
-  onFilled: () => checkAnswer(),
+  onFilled: () => checkAnswer()
 })
 
 function isSlotError(index) {
@@ -165,14 +221,19 @@ async function checkAnswer() {
   feedback.value = []
 
   try {
-    const data = await api.submitAnswer(level.value, userAnswer, { gameTier: 'mid' })
+    const data = await api.submitAnswer(level.value, userAnswer, {
+      gameTier: 'mid'
+    })
     if (data.isCorrect) {
       runPassSuccess({
         durationMs: 1500,
         afterPrepare: () => resolveNextMidLevel(),
         onAfter: (nextLevel) => {
           if (nextLevel == null) {
-            uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~', icon: 'none' })
+            uni.showToast({
+              title: '关卡持续更新中,敬请期待,您可以前往首页关卡继续游玩~',
+              icon: 'none'
+            })
             setTimeout(() => {
               uni.reLaunch({ url: '/pages/index/index' })
             }, 1500)
@@ -180,7 +241,7 @@ async function checkAnswer() {
           }
           // 使用 redirectTo 替换当前页，避免连续 navigateTo 堆满页面栈（微信约 10 层上限）
           uni.redirectTo({ url: `/pages/playMid/playMid?level=${nextLevel}` })
-        },
+        }
       })
       return
     }
@@ -201,8 +262,13 @@ async function checkAnswer() {
 async function resolveNextMidLevel() {
   try {
     const prog = await api.getLevelProgress({ gameTier: 'mid' })
-    const candidate = prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
-    if (Number.isFinite(candidate) && candidate >= 0 && candidate !== level.value) {
+    const candidate =
+      prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
+    if (
+      Number.isFinite(candidate) &&
+      candidate >= 0 &&
+      candidate !== level.value
+    ) {
       return candidate
     }
   } catch (_) {}
@@ -214,15 +280,20 @@ function back() {
 }
 
 function goFeedback() {
-  const title = level.value === 0 ? '经典 · 新手引导' : `经典 · 第${level.value}关`
-  const query = `type=bug&passedLevels=${encodeURIComponent(String(level.value))}&content=${encodeURIComponent(title)}&contentFocus=1`
+  const title =
+    level.value === 0 ? '经典 · 新手引导' : `经典 · 第${level.value}关`
+  const query = `type=bug&passedLevels=${encodeURIComponent(
+    String(level.value)
+  )}&content=${encodeURIComponent(title)}&contentFocus=1`
   uni.navigateTo({ url: `/pages/feedback/feedback?${query}` })
 }
 
 async function onRevealHint() {
   if (hintLoading.value || loading.value) return
+  let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
     // #ifdef MP-WEIXIN
+    afterRewardVideo = true
     hintLoading.value = true
     try {
       const ok = await tryWatchAdForHintQuota()
@@ -242,12 +313,15 @@ async function onRevealHint() {
   }
   hintLoading.value = true
   try {
-    const res = await punRevealHintWithModal({ level: level.value, gameTier: 'mid' })
+    const res = await punRevealHintWithModal({
+      level: level.value,
+      gameTier: 'mid'
+    })
     if (typeof res.hintAnswerQuota === 'number') {
       hintAnswerQuota.value = res.hintAnswerQuota
     }
   } catch (e) {
-    uni.showToast({ title: e.message || '获取失败', icon: 'none' })
+    punToastRevealHintAfterError(e, afterRewardVideo)
   } finally {
     hintLoading.value = false
   }
@@ -268,7 +342,10 @@ onHide(() => {
 })
 
 onLoad(async (opts) => {
-  let lv = opts && opts.level != null && opts.level !== '' ? parseInt(opts.level, 10) : NaN
+  let lv =
+    opts && opts.level != null && opts.level !== ''
+      ? parseInt(opts.level, 10)
+      : NaN
   const fromQuery = Number.isFinite(lv) && lv >= 0
 
   if (!fromQuery) {
@@ -285,51 +362,60 @@ onLoad(async (opts) => {
       lv = 0
     }
   } else {
-    api.getLevelProgress({ gameTier: 'mid' }).then((data) => {
-      if (typeof data.hintAnswerQuota === 'number') {
-        hintAnswerQuota.value = data.hintAnswerQuota
-      }
-    }).catch(() => {})
+    api
+      .getLevelProgress({ gameTier: 'mid' })
+      .then((data) => {
+        if (typeof data.hintAnswerQuota === 'number') {
+          hintAnswerQuota.value = data.hintAnswerQuota
+        }
+      })
+      .catch(() => {})
   }
 
   level.value = lv
   loading.value = true
 
-  getMidLevelPuzzle(lv).then((data) => {
-    answerLen.value = data.answerLength || 3
-    puzzle.value = {
-      imageUrlTop: data.imageUrlTop || '',
-      imageUrlBottom: data.imageUrlBottom || '',
-      topCaption: data.topCaption || '',
-      bottomCaption: data.bottomCaption || '',
-      keywordHint: data.keywordHint || '',
-    }
-    answerChars.value = []
-    feedback.value = []
-    answerInputValue.value = ''
-    loading.value = false
-    prefetchNextMidLevelImages(lv)
-  }).catch(() => {
-    loading.value = false
-  })
+  getMidLevelPuzzle(lv)
+    .then((data) => {
+      answerLen.value = data.answerLength || 3
+      puzzle.value = {
+        imageUrlTop: data.imageUrlTop || '',
+        imageUrlBottom: data.imageUrlBottom || '',
+        topCaption: data.topCaption || '',
+        bottomCaption: data.bottomCaption || '',
+        keywordHint: data.keywordHint || ''
+      }
+      answerChars.value = []
+      feedback.value = []
+      answerInputValue.value = ''
+      loading.value = false
+      prefetchNextMidLevelImages(lv)
+    })
+    .catch(() => {
+      loading.value = false
+    })
 })
 
 onShareAppMessage(() => {
   return withShareReward({
     title: `中级第${level.value}关，快来帮我猜谐音梗！`,
-    path: `/pages/playMid/playMid?level=${level.value}`,
+    path: `/pages/playMid/playMid?level=${level.value}`
   })
 })
 
 onShareTimeline(() => {
   const img =
-    (puzzle.value.imageUrlTop && String(puzzle.value.imageUrlTop).startsWith('http') && puzzle.value.imageUrlTop) ||
-    (puzzle.value.imageUrlBottom && String(puzzle.value.imageUrlBottom).startsWith('http') && puzzle.value.imageUrlBottom) ||
+    (puzzle.value.imageUrlTop &&
+      String(puzzle.value.imageUrlTop).startsWith('http') &&
+      puzzle.value.imageUrlTop) ||
+    (puzzle.value.imageUrlBottom &&
+      String(puzzle.value.imageUrlBottom).startsWith('http') &&
+      puzzle.value.imageUrlBottom) ||
     ''
   return {
     title: `中级第${level.value}关，快来帮我猜谐音梗！`,
     query: `level=${level.value}`,
-    ...(img ? { imageUrl: img } : {}),
+    ...(img ? { imageUrl: img } : {})
   }
 })
 </script>
@@ -349,7 +435,9 @@ onShareTimeline(() => {
   @include pt-page-background;
 }
 
-.nav-star { font-size: 30rpx; }
+.nav-star {
+  font-size: 30rpx;
+}
 .btn-help {
   position: absolute; /* 绝对定位到右侧，因为微信胶囊存在，其实这块区域容易被挡住，看需求可以留着或隐藏 */
   right: 0;
@@ -371,8 +459,13 @@ onShareTimeline(() => {
 .btn-help::after {
   border: none;
 }
-.help-icon { font-size: 30rpx; }
-.help-text { font-size: 26rpx; font-weight: 500; }
+.help-icon {
+  font-size: 30rpx;
+}
+.help-text {
+  font-size: 26rpx;
+  font-weight: 500;
+}
 
 .card {
   position: relative;
@@ -380,14 +473,16 @@ onShareTimeline(() => {
   margin-bottom: 32rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18), 0 2rpx 8rpx rgba(0,0,0,0.04);
+  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18),
+    0 2rpx 8rpx rgba(0, 0, 0, 0.04);
   background: rgba(255, 255, 255, 0.95);
   border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .card--mid {
   overflow: visible;
   border-radius: 28rpx;
-  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22), 0 2rpx 10rpx rgba(0,0,0,0.05);
+  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22),
+    0 2rpx 10rpx rgba(0, 0, 0, 0.05);
   border-color: rgba(169, 201, 238, 0.55);
 }
 
@@ -480,7 +575,8 @@ onShareTimeline(() => {
   background: rgba(255, 255, 255, 0.94);
   border-radius: 28rpx;
   border: 2rpx solid rgba(180, 200, 230, 0.4);
-  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09),
+    0 2rpx 8rpx rgba(0, 0, 0, 0.03);
   overflow: hidden;
 }
 .answer-row {
@@ -564,8 +660,14 @@ onShareTimeline(() => {
 }
 
 @keyframes caret-blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 .stuck-tip {
   position: relative;
@@ -590,12 +692,22 @@ onShareTimeline(() => {
   animation: slot-shake 0.4s ease-in-out;
 }
 @keyframes slot-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8rpx); }
-  40% { transform: translateX(8rpx); }
-  60% { transform: translateX(-6rpx); }
-  80% { transform: translateX(6rpx); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8rpx);
+  }
+  40% {
+    transform: translateX(8rpx);
+  }
+  60% {
+    transform: translateX(-6rpx);
+  }
+  80% {
+    transform: translateX(6rpx);
+  }
 }
-
 </style>
 

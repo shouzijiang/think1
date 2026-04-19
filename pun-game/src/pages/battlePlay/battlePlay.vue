@@ -16,16 +16,21 @@
         <text class="nav-title">1V1 对战 · 第 {{ currentQuestionIndex + 1 }}/5 题</text>
       </template>
     </PunPageNavBar>
-    
+
     <!-- 对战进度条 -->
     <view class="battle-status">
       <view class="player-progress left">
         <text class="name">{{ myName }}</text>
         <view class="dots">
-          <view v-for="i in 5" :key="i" class="dot" :class="{ 'active': myProgress >= i }"></view>
+          <view
+            v-for="i in 5"
+            :key="i"
+            class="dot"
+            :class="{ 'active': myProgress >= i }"
+          ></view>
         </view>
       </view>
-      
+
       <view class="center-time">
         <text class="time-label">已用时</text>
         <text class="time-value">{{ formatTime(globalTimeMs) }}</text>
@@ -34,36 +39,75 @@
       <view class="player-progress right">
         <text class="name">{{ opponentName }}</text>
         <view class="dots">
-          <view v-for="i in 5" :key="i" class="dot oppo" :class="{ 'active': opponentProgress >= i }"></view>
+          <view
+            v-for="i in 5"
+            :key="i"
+            class="dot oppo"
+            :class="{ 'active': opponentProgress >= i }"
+          ></view>
         </view>
       </view>
     </view>
 
     <view class="card card--mid">
-      <view v-if="puzzle.keywordHint" class="keyword-tab">
+      <view
+        v-if="puzzle.keywordHint"
+        class="keyword-tab"
+      >
         <text class="keyword-tab-text">{{ puzzle.keywordHint }}</text>
       </view>
 
       <view class="card-inner card-inner--stack">
         <view class="stack-block">
-          <image v-if="puzzle.imageUrlTop" class="stack-img" :src="puzzle.imageUrlTop" mode="aspectFill" />
-          <view v-else-if="loading" class="stack-placeholder">加载中...</view>
-          <view v-else class="stack-placeholder">暂无配图</view>
-          <text v-if="puzzle.topCaption" class="stack-caption">{{ puzzle.topCaption }}</text>
+          <image
+            v-if="puzzle.imageUrlTop"
+            class="stack-img"
+            :src="puzzle.imageUrlTop"
+            mode="aspectFill"
+          />
+          <view
+            v-else-if="loading"
+            class="stack-placeholder"
+          >加载中...</view>
+          <view
+            v-else
+            class="stack-placeholder"
+          >暂无配图</view>
+          <text
+            v-if="puzzle.topCaption"
+            class="stack-caption"
+          >{{ puzzle.topCaption }}</text>
         </view>
 
         <view class="stack-block">
-          <image v-if="puzzle.imageUrlBottom" class="stack-img" :src="puzzle.imageUrlBottom" mode="aspectFill" />
-          <view v-else-if="loading" class="stack-placeholder">加载中...</view>
-          <view v-else class="stack-placeholder">暂无下图</view>
-          <text v-if="puzzle.bottomCaption" class="stack-caption">{{ puzzle.bottomCaption }}</text>
+          <image
+            v-if="puzzle.imageUrlBottom"
+            class="stack-img"
+            :src="puzzle.imageUrlBottom"
+            mode="aspectFill"
+          />
+          <view
+            v-else-if="loading"
+            class="stack-placeholder"
+          >加载中...</view>
+          <view
+            v-else
+            class="stack-placeholder"
+          >暂无下图</view>
+          <text
+            v-if="puzzle.bottomCaption"
+            class="stack-caption"
+          >{{ puzzle.bottomCaption }}</text>
         </view>
       </view>
     </view>
 
     <view class="answer-block answer-block--mid">
       <view class="answer-row answer-row--mid">
-        <view class="answer-left" v-if="!finished">
+        <view
+          class="answer-left"
+          v-if="!finished"
+        >
           <input
             ref="midInputRef"
             class="answer-mid-input-cover"
@@ -82,13 +126,22 @@
               :key="i"
               :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
             >
-              <text v-if="answerChars[i - 1]" class="slot-char">{{ answerChars[i - 1] }}</text>
-              <view v-else-if="caretIndex === i - 1" class="slot-caret" />
+              <text
+                v-if="answerChars[i - 1]"
+                class="slot-char"
+              >{{ answerChars[i - 1] }}</text>
+              <view
+                v-else-if="caretIndex === i - 1"
+                class="slot-caret"
+              />
             </view>
           </view>
         </view>
 
-        <view class="answer-left finished-msg" v-else>
+        <view
+          class="answer-left finished-msg"
+          v-else
+        >
           <text v-if="gameOver">对战已结束，正在结算中...</text>
           <text v-else>你已完成所有题目，等待对手中...</text>
         </view>
@@ -104,16 +157,25 @@
       />
     </view>
 
-    <PunPassSuccessOverlay :show="showSuccess" variant="battle" />
+    <PunPassSuccessOverlay
+      :show="showSuccess"
+      variant="battle"
+    />
 
     <!-- 结算弹层 -->
-    <view v-if="gameOver" class="result-overlay">
+    <view
+      v-if="gameOver"
+      class="result-overlay"
+    >
       <view class="result-card">
         <text class="res-title">{{ resultTitle }}</text>
         <view class="res-detail">
           <text>本局总耗时: {{ formatTime(resultData.totalTimeMs || 0) }}</text>
         </view>
-        <button class="btn-home" @click="confirmBackToRoom">确认返回房间</button>
+        <button
+          class="btn-home"
+          @click="confirmBackToRoom"
+        >确认返回房间</button>
       </view>
     </view>
   </view>
@@ -137,6 +199,7 @@ import {
   punIsSlotError,
   punScheduleWrongAnswerReset,
   punRevealHintWithModal,
+  punToastRevealHintAfterError
 } from '../../utils/punPlayShared'
 import { getUserInfo } from '../../utils/auth'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
@@ -190,7 +253,7 @@ const puzzle = ref({
   imageUrlBottom: '',
   topCaption: '',
   bottomCaption: '',
-  keywordHint: '',
+  keywordHint: ''
 })
 const loading = ref(true)
 const submitting = ref(false)
@@ -209,12 +272,12 @@ const {
   onInputFocus: onMidInputFocus,
   onInputBlur: onMidInputBlur,
   focusInput: focusMidInput,
-  onAnswerInput: onMidAnswerInput,
+  onAnswerInput: onMidAnswerInput
 } = usePunHanAnswerInput({
   answerLen,
   answerChars,
   answerInputValue,
-  onFilled: () => checkAnswer(),
+  onFilled: () => checkAnswer()
 })
 
 function formatTime(ms) {
@@ -222,9 +285,12 @@ function formatTime(ms) {
 }
 
 async function onRevealHint() {
-  if (finished.value || gameOver.value || hintLoading.value || loading.value) return
+  if (finished.value || gameOver.value || hintLoading.value || loading.value)
+    return
+  let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
     // #ifdef MP-WEIXIN
+    afterRewardVideo = true
     hintLoading.value = true
     try {
       const ok = await tryWatchAdForHintQuota()
@@ -250,24 +316,27 @@ async function onRevealHint() {
       level: lv,
       gameTier: 'battle',
       roomId: roomId.value,
-      questionIndex: currentQuestionIndex.value,
+      questionIndex: currentQuestionIndex.value
     })
     if (typeof res.hintAnswerQuota === 'number') {
       hintAnswerQuota.value = res.hintAnswerQuota
     }
   } catch (e) {
-    uni.showToast({ title: e.message || '获取失败', icon: 'none' })
+    punToastRevealHintAfterError(e, afterRewardVideo)
   } finally {
     hintLoading.value = false
   }
 }
 
 function refreshHintAnswerQuota() {
-  api.getLevelProgress({ gameTier: 'mid' }).then((data) => {
-    if (typeof data.hintAnswerQuota === 'number') {
-      hintAnswerQuota.value = data.hintAnswerQuota
-    }
-  }).catch(() => {})
+  api
+    .getLevelProgress({ gameTier: 'mid' })
+    .then((data) => {
+      if (typeof data.hintAnswerQuota === 'number') {
+        hintAnswerQuota.value = data.hintAnswerQuota
+      }
+    })
+    .catch(() => {})
 }
 
 function isSlotError(index) {
@@ -282,9 +351,14 @@ async function checkAnswer() {
   feedback.value = []
 
   try {
-    const currentLevelId = parseInt(levels.value[currentQuestionIndex.value], 10)
+    const currentLevelId = parseInt(
+      levels.value[currentQuestionIndex.value],
+      10
+    )
     // 使用 battle mode，不更新个人关卡进度
-    const data = await api.submitAnswer(currentLevelId, userAnswer, { gameTier: 'battle' })
+    const data = await api.submitAnswer(currentLevelId, userAnswer, {
+      gameTier: 'battle'
+    })
     // 修改这行：因为 submitAnswer 返回的结果结构有可能是 { isCorrect: true } 或者是原格式，根据实际情况适配
     if (data && data.isCorrect) {
       runPassSuccess({
@@ -317,7 +391,7 @@ async function checkAnswer() {
             currentQuestionIndex.value++
             loadCurrentQuestion()
           }
-        },
+        }
       })
       return
     }
@@ -339,27 +413,28 @@ function loadCurrentQuestion() {
   if (currentQuestionIndex.value >= 5) return
   const lv = levels.value[currentQuestionIndex.value]
   loading.value = true
-  
-  getMidLevelPuzzle(lv).then((data) => {
-    answerLen.value = data.answerLength || 3
-    puzzle.value = {
-      imageUrlTop: data.imageUrlTop || '',
-      imageUrlBottom: data.imageUrlBottom || '',
-      topCaption: data.topCaption || '',
-      bottomCaption: data.bottomCaption || '',
-      keywordHint: data.keywordHint || '',
-    }
-    answerChars.value = []
-    feedback.value = []
-    answerInputValue.value = ''
-    loading.value = false
-  }).catch((err) => {
-    console.error('加载题目失败', err)
-    loading.value = false
-    uni.showToast({ title: '加载题目失败', icon: 'none' })
-  })
-}
 
+  getMidLevelPuzzle(lv)
+    .then((data) => {
+      answerLen.value = data.answerLength || 3
+      puzzle.value = {
+        imageUrlTop: data.imageUrlTop || '',
+        imageUrlBottom: data.imageUrlBottom || '',
+        topCaption: data.topCaption || '',
+        bottomCaption: data.bottomCaption || '',
+        keywordHint: data.keywordHint || ''
+      }
+      answerChars.value = []
+      feedback.value = []
+      answerInputValue.value = ''
+      loading.value = false
+    })
+    .catch((err) => {
+      console.error('加载题目失败', err)
+      loading.value = false
+      uni.showToast({ title: '加载题目失败', icon: 'none' })
+    })
+}
 
 function goBack() {
   const pages = getCurrentPages()
@@ -383,7 +458,6 @@ onShow(() => {
     if (!gameOver.value) syncBattleStateForWake()
   }, WAKE_SYNC_FALLBACK_MS)
   playBgmPlay()
-
 })
 
 onHide(() => {
@@ -417,7 +491,8 @@ onLoad((opts) => {
     prefetchBattleMidImages(levels.value)
   }
   if (opts.myName) myName.value = decodeURIComponent(opts.myName)
-  if (opts.opponentName) opponentName.value = decodeURIComponent(opts.opponentName)
+  if (opts.opponentName)
+    opponentName.value = decodeURIComponent(opts.opponentName)
   ensureBattleWsConnected()
   refreshHintAnswerQuota()
 
@@ -441,19 +516,21 @@ onLoad((opts) => {
     }
     if (timer) clearInterval(timer)
     // 结束态如后端下发了双方最终进度，则直接覆盖 dots，确保一致性
-    if (data && data.myProgress !== undefined) myProgress.value = Number(data.myProgress || 0)
-    if (data && data.opponentProgress !== undefined) opponentProgress.value = Number(data.opponentProgress || 0)
+    if (data && data.myProgress !== undefined)
+      myProgress.value = Number(data.myProgress || 0)
+    if (data && data.opponentProgress !== undefined)
+      opponentProgress.value = Number(data.opponentProgress || 0)
     resultData.value = {
       winnerId: data.winnerId,
-      totalTimeMs: Number(data.totalTimeMs || 0),
+      totalTimeMs: Number(data.totalTimeMs || 0)
     }
     const winnerId = Number(data.winnerId || 0)
     const myId = Number(myUserId.value || 0)
     const endMsg = !winnerId
       ? '本局平局，本局结束'
       : winnerId === myId
-        ? '你已获胜，本局结束'
-        : '对手已获胜，本局结束'
+      ? '你已获胜，本局结束'
+      : '对手已获胜，本局结束'
     uni.showToast({ title: endMsg, icon: 'none' })
   })
 
@@ -491,7 +568,7 @@ onLoad((opts) => {
     myProgress.value = parseInt(opts.myProgress || '0', 10)
     opponentProgress.value = parseInt(opts.opponentProgress || '0', 10)
     currentQuestionIndex.value = myProgress.value
-    
+
     let serverPassedTime = parseInt(opts.timePassed || '0', 10)
     startTime = Date.now() - serverPassedTime
   }
@@ -638,14 +715,16 @@ async function syncBattleStateForWake() {
   margin-bottom: 32rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18), 0 2rpx 8rpx rgba(0,0,0,0.04);
+  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18),
+    0 2rpx 8rpx rgba(0, 0, 0, 0.04);
   background: rgba(255, 255, 255, 0.95);
   border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 .card--mid {
   overflow: visible;
   border-radius: 28rpx;
-  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22), 0 2rpx 10rpx rgba(0,0,0,0.05);
+  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22),
+    0 2rpx 10rpx rgba(0, 0, 0, 0.05);
   border-color: rgba(169, 201, 238, 0.55);
 }
 
@@ -706,7 +785,8 @@ async function syncBattleStateForWake() {
   background: rgba(255, 255, 255, 0.94);
   border-radius: 28rpx;
   border: 2rpx solid rgba(180, 200, 230, 0.4);
-  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09),
+    0 2rpx 8rpx rgba(0, 0, 0, 0.03);
   overflow: hidden;
 }
 .answer-row {
@@ -769,7 +849,9 @@ async function syncBattleStateForWake() {
   color: #5a6d7a;
   background: rgba(255, 255, 255, 0.9);
 }
-.slot-char { line-height: 1; }
+.slot-char {
+  line-height: 1;
+}
 .slot-caret {
   width: 10rpx;
   height: 46rpx;
@@ -778,8 +860,14 @@ async function syncBattleStateForWake() {
 }
 
 @keyframes caret-blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .slot-error {
@@ -792,11 +880,22 @@ async function syncBattleStateForWake() {
   animation: slot-shake 0.4s ease-in-out;
 }
 @keyframes slot-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8rpx); }
-  40% { transform: translateX(8rpx); }
-  60% { transform: translateX(-6rpx); }
-  80% { transform: translateX(6rpx); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8rpx);
+  }
+  40% {
+    transform: translateX(8rpx);
+  }
+  60% {
+    transform: translateX(-6rpx);
+  }
+  80% {
+    transform: translateX(6rpx);
+  }
 }
 
 .result-overlay {

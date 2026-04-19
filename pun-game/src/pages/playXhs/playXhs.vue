@@ -21,14 +21,31 @@
       <view class="keyword-tab keyword-tab--empty">
         <text class="keyword-tab-text">小红书专辑</text>
       </view>
-      <view class="author-tag" v-if="puzzle.author">
+      <view
+        class="author-tag"
+        v-if="puzzle.author"
+      >
         <text class="author-text">作者：{{ puzzle.author }}</text>
       </view>
       <view class="card-inner">
-        <image v-if="puzzle.imageUrlTop" class="main-img" :src="puzzle.imageUrlTop" mode="aspectFill" />
-        <view v-else-if="loading" class="img-placeholder">加载中...</view>
-        <view v-else class="img-placeholder">暂无配图</view>
-        <view class="report-entry" @click="goFeedback">报错</view>
+        <image
+          v-if="puzzle.imageUrlTop"
+          class="main-img"
+          :src="puzzle.imageUrlTop"
+          mode="aspectFill"
+        />
+        <view
+          v-else-if="loading"
+          class="img-placeholder"
+        >加载中...</view>
+        <view
+          v-else
+          class="img-placeholder"
+        >暂无配图</view>
+        <view
+          class="report-entry"
+          @click="goFeedback"
+        >报错</view>
       </view>
     </view>
 
@@ -52,8 +69,14 @@
               :key="i"
               :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
             >
-              <text v-if="answerChars[i - 1]" class="slot-char">{{ answerChars[i - 1] }}</text>
-              <view v-else-if="caretIndex === i - 1" class="slot-caret" />
+              <text
+                v-if="answerChars[i - 1]"
+                class="slot-char"
+              >{{ answerChars[i - 1] }}</text>
+              <view
+                v-else-if="caretIndex === i - 1"
+                class="slot-caret"
+              />
             </view>
           </view>
         </view>
@@ -69,14 +92,29 @@
       />
     </view>
 
-    <PunPassSuccessOverlay :show="showSuccess" variant="plain" />
+    <PunPassSuccessOverlay
+      :show="showSuccess"
+      variant="plain"
+    />
   </view>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import { getXhsLevelPuzzle, getXhsNextLevel, loadXhsLevelList, pickXhsLevelFromProgress, prefetchNextXhsLevelImage } from '../../data/levels'
+import {
+  onLoad,
+  onShow,
+  onHide,
+  onShareAppMessage,
+  onShareTimeline
+} from '@dcloudio/uni-app'
+import {
+  getXhsLevelPuzzle,
+  getXhsNextLevel,
+  loadXhsLevelList,
+  pickXhsLevelFromProgress,
+  prefetchNextXhsLevelImage
+} from '../../data/levels'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
@@ -91,6 +129,7 @@ import {
   punIsSlotError,
   punScheduleWrongAnswerReset,
   punRevealHintWithModal,
+  punToastRevealHintAfterError
 } from '../../utils/punPlayShared'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -101,7 +140,7 @@ const answerChars = ref([])
 const puzzle = ref({
   imageUrlTop: '',
   keywordHint: '',
-  author: '',
+  author: ''
 })
 const loading = ref(true)
 const submitting = ref(false)
@@ -120,12 +159,12 @@ const {
   onInputFocus,
   onInputBlur,
   focusInput,
-  onAnswerInput,
+  onAnswerInput
 } = usePunHanAnswerInput({
   answerLen,
   answerChars,
   answerInputValue,
-  onFilled: () => checkAnswer(),
+  onFilled: () => checkAnswer()
 })
 
 function isSlotError(index) {
@@ -140,7 +179,9 @@ async function checkAnswer() {
   feedback.value = []
 
   try {
-    const data = await api.submitAnswer(level.value, userAnswer, { gameTier: 'xhs' })
+    const data = await api.submitAnswer(level.value, userAnswer, {
+      gameTier: 'xhs'
+    })
     if (data.isCorrect) {
       runPassSuccess({
         durationMs: 1200,
@@ -154,7 +195,7 @@ async function checkAnswer() {
             return
           }
           uni.redirectTo({ url: `/pages/playXhs/playXhs?level=${nextLevel}` })
-        },
+        }
       })
       return
     }
@@ -174,8 +215,13 @@ async function checkAnswer() {
 async function resolveNextXhsLevel() {
   try {
     const prog = await api.getLevelProgress({ gameTier: 'xhs' })
-    const candidate = prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
-    if (Number.isFinite(candidate) && candidate > 0 && candidate !== level.value) {
+    const candidate =
+      prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
+    if (
+      Number.isFinite(candidate) &&
+      candidate > 0 &&
+      candidate !== level.value
+    ) {
       return candidate
     }
   } catch (_) {}
@@ -184,8 +230,10 @@ async function resolveNextXhsLevel() {
 
 async function onRevealHint() {
   if (hintLoading.value || loading.value) return
+  let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
     // #ifdef MP-WEIXIN
+    afterRewardVideo = true
     hintLoading.value = true
     try {
       const ok = await tryWatchAdForHintQuota()
@@ -205,12 +253,15 @@ async function onRevealHint() {
   }
   hintLoading.value = true
   try {
-    const res = await punRevealHintWithModal({ level: level.value, gameTier: 'xhs' })
+    const res = await punRevealHintWithModal({
+      level: level.value,
+      gameTier: 'xhs'
+    })
     if (typeof res.hintAnswerQuota === 'number') {
       hintAnswerQuota.value = res.hintAnswerQuota
     }
   } catch (e) {
-    uni.showToast({ title: e.message || '获取失败', icon: 'none' })
+    punToastRevealHintAfterError(e, afterRewardVideo)
   } finally {
     hintLoading.value = false
   }
@@ -228,7 +279,9 @@ function back() {
 
 function goFeedback() {
   const title = `小红书专辑 · 第${level.value}关`
-  const query = `type=bug&passedLevels=${encodeURIComponent(String(level.value))}&content=${encodeURIComponent(title)}&contentFocus=1`
+  const query = `type=bug&passedLevels=${encodeURIComponent(
+    String(level.value)
+  )}&content=${encodeURIComponent(title)}&contentFocus=1`
   uni.navigateTo({ url: `/pages/feedback/feedback?${query}` })
 }
 
@@ -241,7 +294,10 @@ onHide(() => {
 })
 
 onLoad(async (opts) => {
-  let lv = opts && opts.level != null && opts.level !== '' ? parseInt(opts.level, 10) : NaN
+  let lv =
+    opts && opts.level != null && opts.level !== ''
+      ? parseInt(opts.level, 10)
+      : NaN
   const fromQuery = Number.isFinite(lv) && lv > 0
   if (!fromQuery) {
     loading.value = true
@@ -257,11 +313,14 @@ onLoad(async (opts) => {
       lv = 1
     }
   } else {
-    api.getLevelProgress({ gameTier: 'xhs' }).then((data) => {
-      if (typeof data.hintAnswerQuota === 'number') {
-        hintAnswerQuota.value = data.hintAnswerQuota
-      }
-    }).catch(() => {})
+    api
+      .getLevelProgress({ gameTier: 'xhs' })
+      .then((data) => {
+        if (typeof data.hintAnswerQuota === 'number') {
+          hintAnswerQuota.value = data.hintAnswerQuota
+        }
+      })
+      .catch(() => {})
   }
 
   level.value = lv
@@ -272,7 +331,7 @@ onLoad(async (opts) => {
       puzzle.value = {
         imageUrlTop: data.imageUrlTop || data.imageUrl || '',
         keywordHint: '',
-        author: data.author || '',
+        author: data.author || ''
       }
       answerChars.value = []
       feedback.value = []
@@ -288,7 +347,7 @@ onLoad(async (opts) => {
 onShareAppMessage(() => {
   return withShareReward({
     title: `小红书专辑·第${level.value}关，快来帮我猜！`,
-    path: `/pages/playXhs/playXhs?level=${level.value}`,
+    path: `/pages/playXhs/playXhs?level=${level.value}`
   })
 })
 
@@ -297,7 +356,7 @@ onShareTimeline(() => {
   return {
     title: `小红书专辑·第${level.value}关，快来帮我猜！`,
     query: `level=${level.value}`,
-    ...(img ? { imageUrl: img } : {}),
+    ...(img ? { imageUrl: img } : {})
   }
 })
 </script>
@@ -322,7 +381,8 @@ onShareTimeline(() => {
   margin-bottom: 32rpx;
   border-radius: 24rpx;
   overflow: visible;
-  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22), 0 2rpx 10rpx rgba(0,0,0,0.05);
+  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22),
+    0 2rpx 10rpx rgba(0, 0, 0, 0.05);
   background: rgba(255, 255, 255, 0.95);
   border: 2rpx solid rgba(169, 201, 238, 0.55);
 }
@@ -403,7 +463,8 @@ onShareTimeline(() => {
   background: rgba(255, 255, 255, 0.94);
   border-radius: 28rpx;
   border: 2rpx solid rgba(180, 200, 230, 0.4);
-  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09),
+    0 2rpx 8rpx rgba(0, 0, 0, 0.03);
   overflow: hidden;
 }
 .answer-row {
@@ -480,15 +541,31 @@ onShareTimeline(() => {
 }
 
 @keyframes caret-blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 @keyframes slot-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8rpx); }
-  40% { transform: translateX(8rpx); }
-  60% { transform: translateX(-6rpx); }
-  80% { transform: translateX(6rpx); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8rpx);
+  }
+  40% {
+    transform: translateX(8rpx);
+  }
+  60% {
+    transform: translateX(-6rpx);
+  }
+  80% {
+    transform: translateX(6rpx);
+  }
 }
-
 </style>
