@@ -12,16 +12,26 @@ import { playCongratsOnce } from '../utils/gameAudio'
 export function usePunPassSuccess() {
   const showSuccess = ref(false)
   let hideTimer = null
+  let pendingAfter = null
 
-  function runPassSuccess({ durationMs, onAfter, afterPrepare }) {
+  function runPassSuccess({ durationMs, onAfter, afterPrepare, manualClose = false }) {
     playCongratsOnce()
     showSuccess.value = true
     if (hideTimer) {
       clearTimeout(hideTimer)
       hideTimer = null
     }
+    pendingAfter = null
 
     const armCloseTimer = (prepResult) => {
+      if (manualClose) {
+        pendingAfter = () => {
+          showSuccess.value = false
+          if (typeof onAfter === 'function') onAfter(prepResult)
+          pendingAfter = null
+        }
+        return
+      }
       hideTimer = setTimeout(() => {
         showSuccess.value = false
         hideTimer = null
@@ -45,9 +55,22 @@ export function usePunPassSuccess() {
     }
   }
 
+  function confirmPassSuccess() {
+    if (hideTimer) {
+      clearTimeout(hideTimer)
+      hideTimer = null
+    }
+    if (typeof pendingAfter === 'function') {
+      pendingAfter()
+      return true
+    }
+    return false
+  }
+
   onUnmounted(() => {
     if (hideTimer) clearTimeout(hideTimer)
+    pendingAfter = null
   })
 
-  return { showSuccess, runPassSuccess }
+  return { showSuccess, runPassSuccess, confirmPassSuccess }
 }

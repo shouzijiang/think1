@@ -73,7 +73,12 @@
       </view>
     </view>
 
-    <PunPassSuccessOverlay :show="showSuccess" variant="rich" />
+    <PunPassSuccessOverlay
+      :show="showSuccess"
+      variant="rich"
+      :tap-anywhere="true"
+      @action="confirmPassSuccess"
+    />
   </view>
 </template>
 
@@ -112,7 +117,7 @@ const submitting = ref(false)
 
 const feedback = ref([])
 const slotShake = ref(false)
-const { showSuccess, runPassSuccess } = usePunPassSuccess()
+const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
 /** 揭字剩余次数（/pun/level/progress 与 reveal-hint 返回） */
 const hintAnswerQuota = ref(0)
@@ -192,6 +197,7 @@ async function checkAnswer() {
     if (data.isCorrect) {
       runPassSuccess({
         durationMs: 1500,
+        manualClose: true,
         afterPrepare: () => resolveNextBeginnerLevel(),
         onAfter: (nextLevel) => {
           const targetLevel = Number(nextLevel)

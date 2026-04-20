@@ -1,5 +1,9 @@
 <template>
-  <view v-if="show" :class="['pun-pass', `pun-pass--${variant}`]">
+  <view
+    v-if="props.show"
+    :class="['pun-pass', `pun-pass--${props.variant}`, { 'pun-pass--interactive': props.showAction || props.tapAnywhere }]"
+    @click="handleOverlayClick"
+  >
     <view class="pun-pass__scene">
       <!-- 全屏底光 -->
       <view class="pun-pass__mesh" />
@@ -32,12 +36,12 @@
 
       <!-- 主文案区：全屏重心，弱化「弹窗卡片」 -->
       <view class="pun-pass__hero">
-        <template v-if="variant === 'battle'">
+        <template v-if="props.variant === 'battle'">
           <text class="pun-pass__kicker pun-pass__kicker--battle">Nice!</text>
           <text class="pun-pass__headline pun-pass__headline--battle">回答正确~</text>
           <text class="pun-pass__sub pun-pass__sub--battle">继续加油</text>
         </template>
-        <template v-else-if="variant === 'plain'">
+        <template v-else-if="props.variant === 'plain'">
           <text class="pun-pass__kicker">闯关成功</text>
           <text class="pun-pass__headline">回答正确~</text>
           <text class="pun-pass__sub">太棒了</text>
@@ -47,13 +51,22 @@
           <text class="pun-pass__headline">回答正确~</text>
           <text class="pun-pass__sub">继续下一关吧</text>
         </template>
+
+        <button
+          v-if="props.showAction"
+          class="pun-pass__action"
+          type="primary"
+          @click.stop="emit('action')"
+        >
+          {{ props.actionText }}
+        </button>
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   show: { type: Boolean, default: false },
   /** rich：经典绿调全屏；plain：小红书粉调；battle：对战蓝青调 */
   variant: {
@@ -61,7 +74,16 @@ defineProps({
     default: 'rich',
     validator: (v) => ['rich', 'plain', 'battle'].includes(v),
   },
+  showAction: { type: Boolean, default: false },
+  actionText: { type: String, default: '下一关' },
+  tapAnywhere: { type: Boolean, default: false },
 })
+const emit = defineEmits(['action'])
+
+function handleOverlayClick() {
+  if (!props.showAction && !props.tapAnywhere) return
+  emit('action')
+}
 
 /** 放射短线角度 */
 function rayStyle(i) {
@@ -90,6 +112,10 @@ function confettiStyle(i) {
   inset: 0;
   z-index: 999;
   pointer-events: none;
+}
+
+.pun-pass--interactive {
+  pointer-events: auto;
 }
 
 .pun-pass__scene {
@@ -375,6 +401,28 @@ function confettiStyle(i) {
 .pun-pass__sub--battle {
   font-size: 28rpx;
   opacity: 0.95;
+}
+
+.pun-pass__action {
+  margin-top: 32rpx;
+  min-width: 240rpx;
+  height: 76rpx;
+  border-radius: 999rpx;
+  border: none;
+  background: rgba(255, 255, 255, 0.96);
+  color: #2e7d32;
+  font-size: 30rpx;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: 0 10rpx 24rpx rgba(0, 0, 0, 0.2);
+}
+
+.pun-pass--plain .pun-pass__action {
+  color: #be185d;
+}
+
+.pun-pass--battle .pun-pass__action {
+  color: #1d4ed8;
 }
 
 @keyframes pun-pass-hero-line {

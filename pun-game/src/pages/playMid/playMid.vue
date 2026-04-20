@@ -133,6 +133,8 @@
     <PunPassSuccessOverlay
       :show="showSuccess"
       variant="rich"
+      :tap-anywhere="true"
+      @action="confirmPassSuccess"
     />
   </view>
 </template>
@@ -187,7 +189,7 @@ const submitting = ref(false)
 
 const feedback = ref([])
 const slotShake = ref(false)
-const { showSuccess, runPassSuccess } = usePunPassSuccess()
+const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
 const hintAnswerQuota = ref(0)
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota)
@@ -227,6 +229,7 @@ async function checkAnswer() {
     if (data.isCorrect) {
       runPassSuccess({
         durationMs: 1500,
+        manualClose: true,
         afterPrepare: () => resolveNextMidLevel(),
         onAfter: (nextLevel) => {
           if (nextLevel == null) {
