@@ -43,7 +43,7 @@ return [
         'request_audit' => [
             'type'           => 'File',
             'path'           => '',
-            'single'         => 'request_audit.log',
+            'single'         => 'request_audit',
             'max_files'      => 30,
             'apart_level'    => [],
             'json'           => false,

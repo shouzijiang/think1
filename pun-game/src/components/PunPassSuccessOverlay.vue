@@ -56,7 +56,8 @@
           v-if="props.showAction"
           class="pun-pass__action"
           type="primary"
-          @click.stop="emit('action')"
+          :disabled="!canInteract"
+          @click.stop="handleActionClick"
         >
           {{ props.actionText }}
         </button>
@@ -66,6 +67,11 @@
 </template>
 
 <script setup>
+import { ref, watch, onUnmounted } from 'vue'
+
+/** 过关动画展示后延迟（毫秒），避免误触瞬间关闭 */
+const ACTION_UNLOCK_MS = 1000
+
 const props = defineProps({
   show: { type: Boolean, default: false },
   /** rich：经典绿调全屏；plain：小红书粉调；battle：对战蓝青调 */
@@ -80,8 +86,44 @@ const props = defineProps({
 })
 const emit = defineEmits(['action'])
 
+const canInteract = ref(false)
+let unlockTimer = null
+
+watch(
+  () => props.show,
+  (visible) => {
+    if (unlockTimer) {
+      clearTimeout(unlockTimer)
+      unlockTimer = null
+    }
+    if (visible) {
+      canInteract.value = false
+      unlockTimer = setTimeout(() => {
+        unlockTimer = null
+        canInteract.value = true
+      }, ACTION_UNLOCK_MS)
+    } else {
+      canInteract.value = false
+    }
+  },
+  { immediate: true },
+)
+
+onUnmounted(() => {
+  if (unlockTimer) {
+    clearTimeout(unlockTimer)
+    unlockTimer = null
+  }
+})
+
 function handleOverlayClick() {
   if (!props.showAction && !props.tapAnywhere) return
+  if (!canInteract.value) return
+  emit('action')
+}
+
+function handleActionClick() {
+  if (!canInteract.value) return
   emit('action')
 }
 

@@ -17,7 +17,7 @@ return [
     ],
 
     // 是否记录访问日志
-    'access_log_enabled' => true,
+    'access_log_enabled' => false,
 
     // 日志通道名（需在 config/log.php 的 channels 中配置）
     'access_log_channel' => 'request_audit',
