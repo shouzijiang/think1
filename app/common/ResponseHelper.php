@@ -57,5 +57,13 @@ class ResponseHelper
     {
         return self::error($message, 400);
     }
+
+    /**
+     * 禁止访问（如 IP 黑名单）
+     */
+    public static function forbidden(string $message = '禁止访问')
+    {
+        return self::error($message, 403);
+    }
 }
 

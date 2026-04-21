@@ -39,6 +39,19 @@ return [
             // 是否实时写入
             'realtime_write' => false,
         ],
+        /** HTTP 访问审计（每行一条 JSON，由 AccessLogAndIpBlacklist 中间件写入） */
+        'request_audit' => [
+            'type'           => 'File',
+            'path'           => '',
+            'single'         => 'request_audit.log',
+            'max_files'      => 30,
+            'apart_level'    => [],
+            'json'           => false,
+            'processor'      => null,
+            'close'          => false,
+            'format'         => '[%s][%s] %s',
+            'realtime_write' => true,
+        ],
         // 其它日志通道配置
     ],
 
