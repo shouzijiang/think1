@@ -263,9 +263,8 @@ CREATE TABLE `pun_game_mail_reads` (
 
 -- 全服邮件示例
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
-VALUES ('all', NULL, NULL, '全服公告', '玩家（id172）反馈【小红书专辑 · 第144关明明是饺子，结果答案是四面八方】，问题已采纳，奖励查看答案次数10，奖励已发放。', 1);
-
+VALUES ('all', NULL, NULL, '全服公告', '玩家（id563）反馈【小红书专辑 · 第88关 这是鹅】，问题已采纳，奖励查看答案次数10，奖励已发放。', 1);
 -- 指定用户邮件示例（将 123 替换为 users 表中的用户 id）
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
-VALUES ('user', 123, NULL, '奖励说明', '感谢您的反馈，已处理，奖励查看答案10次，已发放。', 1);
+VALUES ('user', 563, NULL, '奖励说明', '感谢您的反馈，已处理，奖励查看答案10次，已发放。', 1);
 
