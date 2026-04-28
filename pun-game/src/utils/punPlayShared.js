@@ -102,3 +102,12 @@ export async function punRevealHintWithModal(payload) {
     throw err
   }
 }
+
+/**
+ * 读取指定题目的提示缓存（用于提示已用尽后重复查看）。
+ * @param {Record<string, unknown>} payload revealHint 请求体
+ */
+export function punGetCachedHint(payload) {
+  const cacheKey = getPunHintCacheKey(payload)
+  return punHintCache.get(cacheKey) || null
+}

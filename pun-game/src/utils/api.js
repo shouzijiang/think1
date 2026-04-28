@@ -176,7 +176,7 @@ export const api = {
 
   /**
    * 统一领取接口：按 type 领取次数
-   * @param {{type: 'share'|'reward_video'|'daily_noon_hint_5', add?: number, subscribeStatus?: 'accept'|'reject', templateId?: string}} payload
+   * @param {{type: 'share'|'reward_video'|'daily_noon_hint_5'|'daily_watch_ad_hint_1'|'daily_battle_3_hint_3', add?: number, subscribeStatus?: 'accept'|'reject', templateId?: string}} payload
    */
   claimReward(payload) {
     return request({

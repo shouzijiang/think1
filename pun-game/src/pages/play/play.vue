@@ -106,6 +106,7 @@ import { usePunShareReward } from '../../composables/usePunShareReward'
 import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHint'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
 import {
+  punGetCachedHint,
   punIsSlotError,
   punScheduleWrongAnswerReset,
   punRevealHintWithModal,
@@ -274,6 +275,16 @@ async function resolveNextBeginnerLevel() {
 
 async function onRevealHint() {
   if (hintLoading.value || loading.value) return
+  const hintPayload = { level: level.value, gameTier: 'beginner' }
+  const cachedHint = punGetCachedHint(hintPayload)
+  if (cachedHint && cachedHint.isComplete) {
+    hintOverlayText.value = String(cachedHint.hintText || '')
+    hintOverlayStep.value = Number(cachedHint.step || 0)
+    hintOverlayMaxSteps.value = Number(cachedHint.maxSteps || 0)
+    hintOverlayComplete.value = true
+    hintOverlayVisible.value = true
+    return
+  }
   let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
     // #ifdef MP-WEIXIN
@@ -297,7 +308,7 @@ async function onRevealHint() {
   }
   hintLoading.value = true
   try {
-    const res = await punRevealHintWithModal({ level: level.value, gameTier: 'beginner' })
+    const res = await punRevealHintWithModal(hintPayload)
     if (typeof res.hintAnswerQuota === 'number') {
       hintAnswerQuota.value = res.hintAnswerQuota
     }

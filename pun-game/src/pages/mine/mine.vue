@@ -56,17 +56,24 @@
         <view class="cell-daily-head">
           <text class="cell-icon">🎁</text>
           <view class="cell-main">
-            <text class="cell-text">每日领5次答案</text>
-            <text class="cell-sub">需授权订阅通知，每日限领一次</text>
+            <text class="cell-text">答题奖励</text>
+            <text class="cell-sub">每日答题{{ dailyAnswerRequired }}题后可领5次（今日{{ dailyAnswerCount }}/{{ dailyAnswerRequired }}）</text>
           </view>
         </view>
         <button
           class="daily-claim-btn"
+          :class="{ 'daily-claim-btn--disabled': dailyNoonTaskClaimed }"
           type="primary"
-          :disabled="dailyClaimLoading"
-          @click.stop="claimDailyNoonReward"
+          :disabled="dailyNoonTaskClaimed || (canClaimDailyReward ? dailyClaimLoading : false)"
+          @click.stop="onDailyRewardAction"
         >
-          {{ dailyClaimLoading ? '领取中...' : '点击领取' }}
+          {{
+            dailyNoonTaskClaimed
+              ? '已完成'
+              : (canClaimDailyReward
+              ? (dailyClaimLoading ? '领取中...' : '领取')
+              : '去答题')
+          }}
         </button>
       </view>
       <view class="cell cell--daily">
@@ -74,26 +81,69 @@
           <text class="cell-icon">📣</text>
           <view class="cell-main">
             <text class="cell-text">分享至微信群最多领5次</text>
-            <text class="cell-sub">今日已领取 {{ shareDailyClaimed }}/{{ hintAnswerShareDailyMax }} 次</text>
+            <text class="cell-sub">今日已完成 {{ shareDailyClaimed }}/{{ hintAnswerShareDailyMax }} 次</text>
           </view>
         </view>
         <!-- #ifdef MP-WEIXIN -->
         <button
           class="daily-claim-btn daily-claim-btn--share"
+          :class="{ 'daily-claim-btn--disabled': shareTaskClaimedAll }"
+          :disabled="shareTaskClaimedAll || shareClaimLoading"
           open-type="share"
           @click="onShareTaskIntent"
         >
-          分享
+          {{ shareTaskButtonText }}
         </button>
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
         <button
           class="daily-claim-btn daily-claim-btn--share"
+          :class="{ 'daily-claim-btn--disabled': shareTaskClaimedAll }"
+          :disabled="shareTaskClaimedAll || shareClaimLoading"
           @click="onShareTaskIntent"
         >
-          分享
+          {{ shareTaskButtonText }}
         </button>
         <!-- #endif -->
+      </view>
+      <view class="cell cell--daily">
+        <view class="cell-daily-head">
+          <text class="cell-icon">🎬</text>
+          <view class="cell-main">
+            <text class="cell-text">看广告领答案</text>
+            <text class="cell-sub">每次完整观看+1（不限次，今日已完成{{ dailyAdTaskCount }}次）</text>
+          </view>
+        </view>
+        <button
+          class="daily-claim-btn"
+          :disabled="dailyAdTaskLoading"
+          @click.stop="claimDailyAdTask"
+        >
+          {{ dailyAdTaskLoading ? '处理中...' : '领取' }}
+        </button>
+      </view>
+      <view class="cell cell--daily">
+        <view class="cell-daily-head">
+          <text class="cell-icon">⚔️</text>
+          <view class="cell-main">
+            <text class="cell-text">1V1对局任务</text>
+            <text class="cell-sub">当日完成{{ dailyBattleRequired }}局可领3次（今日{{ dailyBattleCount }}/{{ dailyBattleRequired }}）</text>
+          </view>
+        </view>
+        <button
+          class="daily-claim-btn"
+          :class="{ 'daily-claim-btn--disabled': dailyBattleTaskClaimed }"
+          :disabled="dailyBattleTaskClaimed || (canClaimDailyBattleTask ? dailyBattleTaskLoading : false)"
+          @click.stop="onDailyBattleTaskAction"
+        >
+          {{
+            dailyBattleTaskClaimed
+              ? '已完成'
+              : (canClaimDailyBattleTask
+                  ? (dailyBattleTaskLoading ? '领取中...' : '领取')
+                  : '去对局')
+          }}
+        </button>
       </view>
       <text class="section-title">其他</text>
       <view class="cell" @click="goFeedback">
@@ -126,7 +176,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { wechatLogin } from '../../utils/auth'
 import UserProfileNav from '../../components/UserProfileNav.vue'
@@ -134,6 +184,7 @@ import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { useNavBar } from '../../composables/useNavBar'
 import { usePunShareReward } from '../../composables/usePunShareReward'
 import { api } from '../../utils/api'
+import { REWARDED_VIDEO_AD_UNIT_ID } from '../../constants/rewardedVideoAd'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 const userProfileRef = ref(null)
@@ -141,10 +192,37 @@ const hintAnswerQuota = ref(0)
 const hintAnswerTotalUsed = ref(0)
 const hintAnswerShareDailyMax = ref(5)
 const shareDailyClaimed = ref(0)
+const shareClaimLoading = ref(false)
+const dailyAnswerCount = ref(0)
+const dailyAnswerRequired = ref(20)
+const dailyNoonTaskClaimed = ref(false)
+const dailyAdTaskCount = ref(0)
+const dailyBattleCount = ref(0)
+const dailyBattleRequired = ref(3)
+const dailyBattleTaskClaimed = ref(false)
 const hintQuotaTipVisible = ref(false)
 const dailyClaimLoading = ref(false)
-const DAILY_NOON_TEMPLATE_ID = 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE'
-const DAILY_SUBSCRIBE_ACCEPT_KEY = `pun_daily_subscribe_accept_${DAILY_NOON_TEMPLATE_ID}`
+const dailyAdTaskLoading = ref(false)
+const dailyBattleTaskLoading = ref(false)
+const canClaimDailyReward = computed(
+  () => dailyAnswerCount.value >= dailyAnswerRequired.value
+)
+const shareTaskClaimedAll = computed(
+  () => hintAnswerShareDailyMax.value > 0 && shareDailyClaimed.value >= hintAnswerShareDailyMax.value
+)
+const shareTaskButtonText = computed(() => {
+  if (shareTaskClaimedAll.value) return '已完成'
+  if (shareClaimLoading.value) return '领取中...'
+  if (shareDailyClaimed.value > 0) return '领取'
+  return '分享'
+})
+const canClaimDailyBattleTask = computed(
+  () => !dailyBattleTaskClaimed.value && dailyBattleCount.value >= dailyBattleRequired.value
+)
+
+let mineDailyVideoAd = null
+let mineDailyVideoBusy = false
+let shareLoadingTimer = null
 
 // #ifdef MP-WEIXIN
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
@@ -152,6 +230,11 @@ const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, 
   shareSuccessThresholdMs: 3000,
   showCancelToast: true,
   onClaimSuccess(payload) {
+    if (shareLoadingTimer) {
+      clearTimeout(shareLoadingTimer)
+      shareLoadingTimer = null
+    }
+    shareClaimLoading.value = false
     const add = Number(payload && payload.added) > 0 ? Number(payload.added) : 1
     const max = Math.max(0, Math.floor(hintAnswerShareDailyMax.value || 0))
     shareDailyClaimed.value = Math.max(0, Math.min(max, Math.floor(shareDailyClaimed.value + add)))
@@ -201,6 +284,61 @@ function dismissHintQuotaTip() {
   hintQuotaTipVisible.value = false
 }
 
+// #ifdef MP-WEIXIN
+function ensureMineDailyVideoAd() {
+  if (mineDailyVideoAd) {
+    return mineDailyVideoAd
+  }
+  if (typeof wx === 'undefined' || typeof wx.createRewardedVideoAd !== 'function') {
+    return null
+  }
+  mineDailyVideoAd = wx.createRewardedVideoAd({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
+  mineDailyVideoAd.onError((err) => {
+    console.error('mine每日广告任务异常', err)
+  })
+  return mineDailyVideoAd
+}
+
+function watchDailyTaskAd() {
+  if (mineDailyVideoBusy) {
+    return Promise.resolve(false)
+  }
+  const ad = ensureMineDailyVideoAd()
+  if (!ad) {
+    uni.showToast({ title: '当前环境不支持激励视频', icon: 'none' })
+    return Promise.resolve(false)
+  }
+  mineDailyVideoBusy = true
+  return new Promise((resolve) => {
+    let settled = false
+    const finish = (ok) => {
+      if (settled) return
+      settled = true
+      mineDailyVideoBusy = false
+      resolve(ok)
+    }
+
+    const onClose = (res) => {
+      try {
+        ad.offClose(onClose)
+      } catch (_) {}
+      finish(!!(res && res.isEnded))
+    }
+    ad.onClose(onClose)
+    ad.show()
+      .catch(() => ad.load().then(() => ad.show()))
+      .catch((err) => {
+        console.error('mine每日广告任务拉起失败', err)
+        try {
+          ad.offClose(onClose)
+        } catch (_) {}
+        uni.showToast({ title: '广告加载失败，请稍后重试', icon: 'none' })
+        finish(false)
+      })
+  })
+}
+// #endif
+
 async function refreshHintAnswerQuota() {
   try {
     const data = await api.getLevelProgress({ gameTier: 'mid' })
@@ -217,73 +355,44 @@ async function refreshHintAnswerQuota() {
       const max = Math.max(0, Math.floor(data.hintAnswerShareDailyMax ?? hintAnswerShareDailyMax.value))
       shareDailyClaimed.value = Math.max(0, Math.min(max, Math.floor(data.hintAnswerShareDailyClaimed)))
     }
+    if (data && typeof data.dailyAnswerRequired === 'number' && data.dailyAnswerRequired > 0) {
+      dailyAnswerRequired.value = Math.floor(data.dailyAnswerRequired)
+    }
+    if (data && typeof data.dailyAnswerCount === 'number' && data.dailyAnswerCount >= 0) {
+      dailyAnswerCount.value = Math.max(0, Math.floor(data.dailyAnswerCount))
+    }
+    if (data && typeof data.dailyNoonTaskClaimed !== 'undefined') {
+      dailyNoonTaskClaimed.value = Number(data.dailyNoonTaskClaimed) > 0
+    }
+    if (data && typeof data.dailyAdTaskCount === 'number' && data.dailyAdTaskCount >= 0) {
+      dailyAdTaskCount.value = Math.max(0, Math.floor(data.dailyAdTaskCount))
+    }
+    if (data && typeof data.dailyBattleRequired === 'number' && data.dailyBattleRequired > 0) {
+      dailyBattleRequired.value = Math.max(1, Math.floor(data.dailyBattleRequired))
+    }
+    if (data && typeof data.dailyBattleCount === 'number' && data.dailyBattleCount >= 0) {
+      dailyBattleCount.value = Math.max(0, Math.floor(data.dailyBattleCount))
+    }
+    if (data && typeof data.dailyBattleTaskClaimed !== 'undefined') {
+      dailyBattleTaskClaimed.value = Number(data.dailyBattleTaskClaimed) > 0
+    }
   } catch {
     // 忽略未登录场景
   }
 }
 
 async function claimDailyNoonReward() {
-  if (dailyClaimLoading.value) return
+  if (dailyClaimLoading.value || dailyNoonTaskClaimed.value) return
   dailyClaimLoading.value = true
-  let subscribeStatus = 'accept'
-  const acceptedBefore = !!uni.getStorageSync(DAILY_SUBSCRIBE_ACCEPT_KEY)
-
-  async function requestSubscribeIfNeeded() {
-    // #ifdef MP-WEIXIN
-    if (acceptedBefore) return 'accept'
-    const res = await new Promise((resolve, reject) => {
-      wx.requestSubscribeMessage({
-        tmplIds: [DAILY_NOON_TEMPLATE_ID],
-        success: resolve,
-        fail: reject,
-      })
+  try {
+    const data = await api.claimReward({
+      type: 'daily_noon_hint_5',
+      add: 5,
     })
-    const status = String(res && res[DAILY_NOON_TEMPLATE_ID] ? res[DAILY_NOON_TEMPLATE_ID] : 'reject')
-    if (status === 'accept') {
-      uni.setStorageSync(DAILY_SUBSCRIBE_ACCEPT_KEY, 1)
-    }
-    return status
-    // #endif
-    // #ifndef MP-WEIXIN
-    throw new Error('仅微信小程序支持该活动')
-    // #endif
-  }
-
-  try {
-    subscribeStatus = await requestSubscribeIfNeeded()
-  } catch (e) {
-    dailyClaimLoading.value = false
-    uni.showToast({ title: e.message || '订阅授权失败，请稍后重试', icon: 'none' })
-    return
-  }
-
-  try {
-    let data
-    try {
-      data = await api.claimReward({
-        type: 'daily_noon_hint_5',
-        add: 5,
-        subscribeStatus,
-        templateId: DAILY_NOON_TEMPLATE_ID,
-      })
-    } catch (e) {
-      // 本地已标记 accept 但服务端未记录时，补一次授权再重试
-      if (acceptedBefore && String(e.message || '').includes('请先授权订阅通知')) {
-        const latestStatus = await requestSubscribeIfNeeded()
-        data = await api.claimReward({
-          type: 'daily_noon_hint_5',
-          add: 5,
-          subscribeStatus: latestStatus,
-          templateId: DAILY_NOON_TEMPLATE_ID,
-        })
-      } else {
-        throw e
-      }
-    }
-
     if (typeof data.hintAnswerQuota === 'number') {
       hintAnswerQuota.value = data.hintAnswerQuota
     }
+    dailyNoonTaskClaimed.value = true
     uni.showToast({ title: `领取成功 +${data.added || 5}`, icon: 'none' })
     refreshHintAnswerQuota()
   } catch (e) {
@@ -293,8 +402,92 @@ async function claimDailyNoonReward() {
   }
 }
 
+function onDailyRewardAction() {
+  if (dailyNoonTaskClaimed.value) return
+  if (!canClaimDailyReward.value) {
+    goHome()
+    return
+  }
+  claimDailyNoonReward()
+}
+
+async function claimDailyAdTask() {
+  if (dailyAdTaskLoading.value) return
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '仅微信小程序支持看广告领取', icon: 'none' })
+  return
+  // #endif
+
+  // #ifdef MP-WEIXIN
+  dailyAdTaskLoading.value = true
+  try {
+    const watched = await watchDailyTaskAd()
+    if (!watched) {
+      uni.showToast({ title: '请完整观看广告后领取', icon: 'none' })
+      return
+    }
+    const data = await api.claimReward({
+      type: 'daily_watch_ad_hint_1',
+      add: 1,
+    })
+    if (typeof data.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = data.hintAnswerQuota
+    }
+    const add = Number(data && data.added) > 0 ? Number(data.added) : 1
+    dailyAdTaskCount.value = Math.max(0, dailyAdTaskCount.value + add)
+    uni.showToast({ title: `领取成功 +${data.added || 1}`, icon: 'none' })
+    refreshHintAnswerQuota()
+  } catch (e) {
+    uni.showToast({ title: e.message || '领取失败', icon: 'none' })
+  } finally {
+    dailyAdTaskLoading.value = false
+  }
+  // #endif
+}
+
+async function claimDailyBattleTask() {
+  if (dailyBattleTaskLoading.value || dailyBattleTaskClaimed.value) return
+  dailyBattleTaskLoading.value = true
+  try {
+    const data = await api.claimReward({
+      type: 'daily_battle_3_hint_3',
+      add: 3,
+    })
+    if (typeof data.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = data.hintAnswerQuota
+    }
+    dailyBattleTaskClaimed.value = true
+    uni.showToast({ title: `领取成功 +${data.added || 3}`, icon: 'none' })
+    refreshHintAnswerQuota()
+  } catch (e) {
+    uni.showToast({ title: e.message || '领取失败', icon: 'none' })
+  } finally {
+    dailyBattleTaskLoading.value = false
+  }
+}
+
+function onDailyBattleTaskAction() {
+  if (dailyBattleTaskClaimed.value) return
+  if (!canClaimDailyBattleTask.value) {
+    uni.navigateTo({ url: '/pages/battleRoom/battleRoom' })
+    return
+  }
+  claimDailyBattleTask()
+}
+
 function onShareTaskIntent() {
   // #ifdef MP-WEIXIN
+  if (shareTaskClaimedAll.value) return
+  shareClaimLoading.value = true
+  if (shareLoadingTimer) {
+    clearTimeout(shareLoadingTimer)
+    shareLoadingTimer = null
+  }
+  // 兜底：取消分享/异常时自动回到可点击态
+  shareLoadingTimer = setTimeout(() => {
+    shareLoadingTimer = null
+    shareClaimLoading.value = false
+  }, 6000)
   // 记录分享意图；实际领奖由 usePunShareReward 按“后台停留 >= 3000ms”判定
   markShareIntent()
   // #endif
@@ -302,6 +495,23 @@ function onShareTaskIntent() {
   uni.showToast({ title: '仅微信小程序支持分享领奖', icon: 'none' })
   // #endif
 }
+
+onBeforeUnmount(() => {
+  if (shareLoadingTimer) {
+    clearTimeout(shareLoadingTimer)
+    shareLoadingTimer = null
+  }
+  shareClaimLoading.value = false
+  // #ifdef MP-WEIXIN
+  if (mineDailyVideoAd && typeof mineDailyVideoAd.destroy === 'function') {
+    try {
+      mineDailyVideoAd.destroy()
+    } catch (_) {}
+  }
+  mineDailyVideoAd = null
+  mineDailyVideoBusy = false
+  // #endif
+})
 </script>
 
 <style lang="scss" scoped>
@@ -387,6 +597,12 @@ function onShareTaskIntent() {
 
 .daily-claim-btn::after {
   border: none;
+}
+
+.daily-claim-btn--disabled,
+.daily-claim-btn[disabled] {
+  background: linear-gradient(180deg, #e5e7eb 0%, #d1d5db 100%) !important;
+  color: #6b7280 !important;
 }
 
 .daily-claim-btn--share {

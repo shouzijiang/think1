@@ -6,7 +6,6 @@
         class="mid-act-btn mid-act-btn--hint"
         :class="{
           'mid-act-btn--cooldown': hintNoQuota,
-          'mid-act-btn--hint-badged': showHintVideoBadge,
         }"
         :loading="hintLoading"
         :disabled="hintBtnDisabled"
@@ -14,17 +13,18 @@
         @click="emit('hint')"
       >
         <image
-          v-if="!hintLoading"
+          v-if="!hintLoading && hasHintQuota"
           class="mid-act-ico-img"
           src="https://sofun.online/static/mini/hintLabel.png"
           mode="aspectFit"
         />
+        <image
+          v-if="!hintLoading && hintNoQuota"
+          class="mid-act-ico-img"
+          src="https://sofun.online/static/mini/video.png"
+          mode="aspectFit"
+        />
         <text class="mid-act-txt">{{ hintLabel }}</text>
-        <!-- #ifdef MP-WEIXIN -->
-        <view v-if="hintNoQuota" class="hint-video-tag" aria-hidden="true">
-          <text class="hint-video-tag__play">▶</text>
-        </view>
-        <!-- #endif -->
       </button>
       <button
         v-if="showShare"
@@ -38,7 +38,7 @@
           src="https://sofun.online/static/mini/share.png"
           mode="aspectFit"
         />
-        <text class="mid-act-txt">分享+1次</text>
+        <text class="mid-act-txt">求助好友</text>
       </button>
     </view>
   </view>
@@ -61,7 +61,12 @@ const props = defineProps({
 
 const emit = defineEmits(['hint', 'help', 'share-intent'])
 
-const hintNoQuota = computed(() => props.hintAnswerQuota <= 0)
+const hintQuotaNum = computed(() => {
+  const n = Number(props.hintAnswerQuota)
+  return Number.isFinite(n) ? n : 0
+})
+const hasHintQuota = computed(() => hintQuotaNum.value > 0)
+const hintNoQuota = computed(() => hintQuotaNum.value <= 0)
 
 /** 微信小程序且无次数：角标在按钮内，整钮可点走激励视频；其它端无次数仍禁用 */
 const isMpWeixin = computed(() => {
@@ -83,9 +88,10 @@ const hintBtnDisabled = computed(() => {
 })
 
 const hintLabel = computed(() => {
-  if (hintNoQuota.value) return '答案（剩0）'
-  const n = Number.isFinite(props.hintAnswerQuota) ? Math.max(0, Math.floor(props.hintAnswerQuota)) : 0
-  return `答案（剩${n > 99 ? '99+' : n}）`
+  // if (hintNoQuota.value) return '答案（剩0）'
+  // const n = Number.isFinite(props.hintAnswerQuota) ? Math.max(0, Math.floor(props.hintAnswerQuota)) : 0
+  // return `答案（剩${n > 99 ? '99+' : n}）`
+  return `答案提示`
 })
 
 function onShareClick() {
@@ -170,19 +176,12 @@ function onShareClick() {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 10rpx;
-  background: linear-gradient(160deg, #fff7ed 0%, #ffedd5 100%);
-  border: 1rpx solid rgba(251, 146, 60, 0.45);
-  box-shadow: 0 2rpx 8rpx rgba(251, 146, 60, 0.18);
   pointer-events: none;
 }
 
-.hint-video-tag__play {
-  font-size: 20rpx;
-  line-height: 1;
-  color: #ea580c;
-  font-weight: 900;
-  margin-left: 2rpx;
+.hint-video-tag__img {
+  width: 100%;
+  height: 100%;
 }
 
 .mid-act-btn--share {

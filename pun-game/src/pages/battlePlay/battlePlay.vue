@@ -205,6 +205,7 @@ import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHi
 import { usePunHanAnswerInput } from '../../composables/usePunHanAnswerInput'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
 import {
+  punGetCachedHint,
   punIsSlotError,
   punScheduleWrongAnswerReset,
   punRevealHintWithModal,
@@ -301,6 +302,23 @@ function formatTime(ms) {
 async function onRevealHint() {
   if (finished.value || gameOver.value || hintLoading.value || loading.value)
     return
+  const lv = parseInt(levels.value[currentQuestionIndex.value], 10)
+  if (!Number.isFinite(lv) || !roomId.value) return
+  const hintPayload = {
+    level: lv,
+    gameTier: 'battle',
+    roomId: roomId.value,
+    questionIndex: currentQuestionIndex.value
+  }
+  const cachedHint = punGetCachedHint(hintPayload)
+  if (cachedHint && cachedHint.isComplete) {
+    hintOverlayText.value = String(cachedHint.hintText || '')
+    hintOverlayStep.value = Number(cachedHint.step || 0)
+    hintOverlayMaxSteps.value = Number(cachedHint.maxSteps || 0)
+    hintOverlayComplete.value = true
+    hintOverlayVisible.value = true
+    return
+  }
   let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
     // #ifdef MP-WEIXIN
@@ -322,16 +340,9 @@ async function onRevealHint() {
     return
     // #endif
   }
-  const lv = parseInt(levels.value[currentQuestionIndex.value], 10)
-  if (!Number.isFinite(lv) || !roomId.value) return
   hintLoading.value = true
   try {
-    const res = await punRevealHintWithModal({
-      level: lv,
-      gameTier: 'battle',
-      roomId: roomId.value,
-      questionIndex: currentQuestionIndex.value
-    })
+    const res = await punRevealHintWithModal(hintPayload)
     if (typeof res.hintAnswerQuota === 'number') {
       hintAnswerQuota.value = res.hintAnswerQuota
     }

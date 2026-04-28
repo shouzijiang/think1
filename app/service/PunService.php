@@ -21,7 +21,13 @@ class PunService
     public const REWARD_TYPE_SHARE = 'share';
     public const REWARD_TYPE_VIDEO = 'reward_video';
     public const REWARD_TYPE_DAILY_NOON = 'daily_noon_hint_5';
+    public const REWARD_TYPE_DAILY_AD_TASK = 'daily_watch_ad_hint_1';
+    public const REWARD_TYPE_DAILY_BATTLE_TASK = 'daily_battle_3_hint_3';
     public const DAILY_NOON_REWARD_ADD = 5;
+    public const DAILY_NOON_MIN_ANSWER_COUNT = 20;
+    public const DAILY_AD_TASK_REWARD_ADD = 1;
+    public const DAILY_BATTLE_TASK_REWARD_ADD = 3;
+    public const DAILY_BATTLE_TASK_REQUIRED = 3;
     public const DAILY_NOON_TEMPLATE_ID = 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE';
 
     /** 分享领奖最小间隔（秒） */
@@ -137,6 +143,86 @@ class PunService
     }
 
     /**
+     * 记录用户当日答题次数（按 submitAnswer 调用计数，自然日 Asia/Shanghai）。
+     */
+    private function incrementDailyAnswerCount(int $userId): void
+    {
+        $today = $this->todayShanghai();
+        try {
+            Db::execute(
+                "INSERT INTO pun_daily_answer_stat (user_id, stat_date, answer_count, created_at, updated_at)
+                 VALUES (:uid, :d, 1, NOW(), NOW())
+                 ON DUPLICATE KEY UPDATE answer_count = answer_count + 1, updated_at = NOW()",
+                ['uid' => $userId, 'd' => $today]
+            );
+        } catch (\Throwable $e) {
+            // 计数失败不影响答题主流程，避免用户端答题不可用
+            \think\facade\Log::error('incrementDailyAnswerCount失败 user_id=' . $userId . ' err=' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 查询用户当日答题次数（自然日 Asia/Shanghai）。
+     */
+    private function getDailyAnswerCount(int $userId): int
+    {
+        $today = $this->todayShanghai();
+        try {
+            $count = Db::name('pun_daily_answer_stat')
+                ->where('user_id', $userId)
+                ->where('stat_date', $today)
+                ->value('answer_count');
+            return max(0, (int) $count);
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('getDailyAnswerCount失败 user_id=' . $userId . ' err=' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * 查询用户当日已完成 1V1 对局数（自然日 Asia/Shanghai，按对局结束时间 updated_at 统计）。
+     */
+    private function getTodayBattleFinishedCount(int $userId): int
+    {
+        $start = $this->todayShanghai() . ' 00:00:00';
+        $end = $this->todayShanghai() . ' 23:59:59';
+        try {
+            $count = Db::name('pun_game_battle_record')
+                ->where('status', 2)
+                ->where(function ($query) use ($userId) {
+                    $query->where('creator_id', $userId)->whereOr('challenger_id', $userId);
+                })
+                ->whereBetweenTime('updated_at', $start, $end)
+                ->count();
+            return max(0, (int) $count);
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('getTodayBattleFinishedCount失败 user_id=' . $userId . ' err=' . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * 统一增加答案次数（事务内加锁）。
+     */
+    private function increaseHintQuota(int $userId, int $delta): int
+    {
+        $delta = max(1, (int) $delta);
+        $this->getOrCreateHintAnswerQuota($userId);
+        $newQuota = 0;
+        Db::transaction(function () use ($userId, $delta, &$newQuota) {
+            $row = Db::name('pun_user_hint_quota')->where('user_id', $userId)->lock(true)->find();
+            if (!$row) {
+                throw new \RuntimeException('揭字配额数据异常');
+            }
+            $quota = (int) $row['quota'];
+            $newQuota = $quota + $delta;
+            Db::name('pun_user_hint_quota')->where('user_id', $userId)->update(['quota' => $newQuota]);
+        });
+
+        return $newQuota;
+    }
+
+    /**
      * 统一领取接口：按 type 路由到不同领取逻辑，并统一写领取记录。
      *
      * @param array<string,mixed> $extra
@@ -145,7 +231,13 @@ class PunService
     public function claimReward(int $userId, string $type, int $delta = 1, array $extra = []): array
     {
         $type = strtolower(trim((string) $type));
-        if (!in_array($type, [self::REWARD_TYPE_SHARE, self::REWARD_TYPE_VIDEO, self::REWARD_TYPE_DAILY_NOON], true)) {
+        if (!in_array($type, [
+            self::REWARD_TYPE_SHARE,
+            self::REWARD_TYPE_VIDEO,
+            self::REWARD_TYPE_DAILY_NOON,
+            self::REWARD_TYPE_DAILY_AD_TASK,
+            self::REWARD_TYPE_DAILY_BATTLE_TASK,
+        ], true)) {
             throw new \InvalidArgumentException('不支持的领取类型');
         }
 
@@ -158,8 +250,12 @@ class PunService
                 $result = $this->claimByShare($userId, $delta);
             } elseif ($type === self::REWARD_TYPE_VIDEO) {
                 $result = $this->claimByRewardVideo($userId, $delta);
-            } else {
+            } elseif ($type === self::REWARD_TYPE_DAILY_NOON) {
                 $result = $this->claimByDailyNoon($userId, $extra);
+            } elseif ($type === self::REWARD_TYPE_DAILY_AD_TASK) {
+                $result = $this->claimByDailyAdTask($userId);
+            } else {
+                $result = $this->claimByDailyBattleTask($userId);
             }
 
             $this->createRewardClaimRecord($userId, $type, (int) $result['added'], 'success', '', $meta);
@@ -311,37 +407,64 @@ class PunService
     }
 
     /**
-     * 每日任务领取 +5 次揭字（自然日限一次；不限制具体时段；需请求体 accept 且库 user_subscribes 该模板非 reject、写入后为 accept）
+     * 看广告任务：每次完整观看后领 +1（不做每日次数上限）
+     * @return array{hintAnswerQuota:int,added:int,type:string}
+     */
+    private function claimByDailyAdTask(int $userId): array
+    {
+        $newQuota = $this->increaseHintQuota($userId, self::DAILY_AD_TASK_REWARD_ADD);
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => self::DAILY_AD_TASK_REWARD_ADD,
+            'type' => self::REWARD_TYPE_DAILY_AD_TASK,
+        ];
+    }
+
+    /**
+     * 每日任务：当日完成 1V1 对局满 3 局，领 +3（自然日限一次）
+     * @return array{hintAnswerQuota:int,added:int,type:string}
+     */
+    private function claimByDailyBattleTask(int $userId): array
+    {
+        $today = $this->todayShanghai();
+        $already = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::REWARD_TYPE_DAILY_BATTLE_TASK)
+            ->where('claim_date', $today)
+            ->where('status', 'success')
+            ->find();
+        if ($already) {
+            throw new \InvalidArgumentException('今日1V1任务已领取');
+        }
+
+        $battleCount = $this->getTodayBattleFinishedCount($userId);
+        if ($battleCount < self::DAILY_BATTLE_TASK_REQUIRED) {
+            throw new \InvalidArgumentException(
+                '今日1V1已完成' . $battleCount . '/' . self::DAILY_BATTLE_TASK_REQUIRED . '局，达标后可领取'
+            );
+        }
+
+        $newQuota = $this->increaseHintQuota($userId, self::DAILY_BATTLE_TASK_REWARD_ADD);
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => self::DAILY_BATTLE_TASK_REWARD_ADD,
+            'type' => self::REWARD_TYPE_DAILY_BATTLE_TASK,
+        ];
+    }
+
+    /**
+     * 每日任务领取 +5 次揭字（自然日限一次；不限制具体时段；个人小程序场景下不要求订阅模板授权）
      * @param array<string,mixed> $extra
      * @return array{hintAnswerQuota:int,added:int,type:string}
      */
     private function claimByDailyNoon(int $userId, array $extra): array
     {
-        $status = strtolower(trim((string) ($extra['subscribeStatus'] ?? '')));
-        $templateId = trim((string) ($extra['templateId'] ?? self::DAILY_NOON_TEMPLATE_ID));
-
-        if ($templateId !== self::DAILY_NOON_TEMPLATE_ID) {
-            throw new \InvalidArgumentException('模板ID不匹配');
-        }
-        if ($status !== 'accept') {
-            throw new \InvalidArgumentException('请先授权订阅通知后再领取');
-        }
-
-        // 以库为准：若该模板已标记 reject（如用户曾拒绝、定时任务同步），不允许仅凭本次请求体 accept 覆盖后领奖
-        $existingSub = UserSubscribe::where('user_id', $userId)
-            ->where('template_id', self::DAILY_NOON_TEMPLATE_ID)
-            ->find();
-        if ($existingSub && strtolower((string) $existingSub->subscribe_status) === 'reject') {
-            throw new \InvalidArgumentException('订阅已取消或未授权，请在「我的」重新订阅后再领取');
-        }
-
-        $this->saveSubscribeStatus($userId, $templateId, 'accept');
-
-        $afterSub = UserSubscribe::where('user_id', $userId)
-            ->where('template_id', self::DAILY_NOON_TEMPLATE_ID)
-            ->find();
-        if (!$afterSub || strtolower((string) $afterSub->subscribe_status) !== 'accept') {
-            throw new \InvalidArgumentException('订阅状态未生效，请重新在「我的」完成订阅后再领取');
+        // 个人小程序不支持长期订阅消息模板：每日登录奖励不依赖 subscribeStatus/templateId
+        $dailyAnswerCount = $this->getDailyAnswerCount($userId);
+        if ($dailyAnswerCount < self::DAILY_NOON_MIN_ANSWER_COUNT) {
+            throw new \InvalidArgumentException(
+                '今日已答' . $dailyAnswerCount . '/' . self::DAILY_NOON_MIN_ANSWER_COUNT . '题，答满后可领取'
+            );
         }
 
         $today = $this->todayShanghai();
@@ -589,6 +712,7 @@ class PunService
      */
     public function submitAnswer(int $userId, int $level, array $userAnswer, string $mode = 'beginner'): array
     {
+        $this->incrementDailyAnswerCount($userId);
         $mode = $this->normalizeMode($mode);
         if ($mode === 'intermediate' || $mode === 'battle') {
             $answersRaw = Config::get('pun_levels_issue2', []);
@@ -994,7 +1118,7 @@ class PunService
      * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数 
      * @param int $userId
      * @param string $mode beginner=初级 | intermediate=中级
-     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed, hintAnswerShareDailyMax, hintAnswerShareDailyClaimed}
+     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed, hintAnswerShareDailyMax, hintAnswerShareDailyClaimed, dailyAnswerCount, dailyAnswerRequired, dailyNoonTaskClaimed, dailyAdTaskCount, dailyBattleCount, dailyBattleRequired, dailyBattleTaskClaimed}
      */
     public function getLevelProgress(int $userId, string $mode = 'beginner'): array
     {
@@ -1003,6 +1127,11 @@ class PunService
         $hintAnswerQuota = $hintRow ? (int) $hintRow['quota'] : PunUserHintQuota::DEFAULT_QUOTA;
         $hintAnswerTotalUsed = $hintRow ? (int) ($hintRow['total_used'] ?? 0) : 0;
         $hintAnswerShareDailyClaimed = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_SHARE);
+        $dailyAnswerCount = $this->getDailyAnswerCount($userId);
+        $dailyNoonTaskClaimed = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_DAILY_NOON) > 0 ? 1 : 0;
+        $dailyAdTaskCount = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_DAILY_AD_TASK);
+        $dailyBattleCount = $this->getTodayBattleFinishedCount($userId);
+        $dailyBattleTaskClaimed = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_DAILY_BATTLE_TASK) > 0 ? 1 : 0;
         $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
         $mode = $this->normalizeMode($mode);
 
@@ -1018,6 +1147,13 @@ class PunService
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
                 'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
+                'dailyAnswerCount' => $dailyAnswerCount,
+                'dailyAnswerRequired' => self::DAILY_NOON_MIN_ANSWER_COUNT,
+                'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
+                'dailyAdTaskCount' => $dailyAdTaskCount,
+                'dailyBattleCount' => $dailyBattleCount,
+                'dailyBattleRequired' => self::DAILY_BATTLE_TASK_REQUIRED,
+                'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
             ];
         }
         if ($mode === 'xhs') {
@@ -1032,9 +1168,15 @@ class PunService
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
                 'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
+                'dailyAnswerCount' => $dailyAnswerCount,
+                'dailyAnswerRequired' => self::DAILY_NOON_MIN_ANSWER_COUNT,
+                'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
+                'dailyAdTaskCount' => $dailyAdTaskCount,
+                'dailyBattleCount' => $dailyBattleCount,
+                'dailyBattleRequired' => self::DAILY_BATTLE_TASK_REQUIRED,
+                'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
             ];
-        }
-        else {
+        } else {
             $answersRaw = Config::get('pun_levels', []);
             $allKeys = array_keys($answersRaw);
             sort($allKeys);
@@ -1065,6 +1207,13 @@ class PunService
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
                 'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
+                'dailyAnswerCount' => $dailyAnswerCount,
+                'dailyAnswerRequired' => self::DAILY_NOON_MIN_ANSWER_COUNT,
+                'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
+                'dailyAdTaskCount' => $dailyAdTaskCount,
+                'dailyBattleCount' => $dailyBattleCount,
+                'dailyBattleRequired' => self::DAILY_BATTLE_TASK_REQUIRED,
+                'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
             ];
         }
     }
@@ -1221,7 +1370,7 @@ class PunService
                 $rUser = $row->user;
                 $tReply = $row->targetReply;
                 $tUser = $tReply ? $tReply->user : null;
-                
+
                 return [
                     'id'              => $row->id,
                     'user_id'         => $row->user_id,
@@ -1363,5 +1512,4 @@ class PunService
             'lines'       => $lines,
         ];
     }
-
 }
