@@ -175,27 +175,14 @@ export const api = {
   },
 
   /**
-   * 分享奖励：揭字次数 +add（默认 1）
-   * 应在用户点击「分享+1次」后调用；领奖时机见 composables/usePunShareReward.js
-   * @param {number} [add=1]
+   * 统一领取接口：按 type 领取次数
+   * @param {{type: 'share'|'reward_video'|'daily_noon_hint_5', add?: number, subscribeStatus?: 'accept'|'reject', templateId?: string}} payload
    */
-  claimHintShareReward(add = 1) {
+  claimReward(payload) {
     return request({
-      url: '/pun/level/share-reward',
+      url: '/pun/reward/claim',
       method: 'POST',
-      data: { add },
-    })
-  },
-
-  /**
-   * 激励视频奖励：揭字次数 +add（默认 1），风控独立于分享
-   * @param {number} [add=1]
-   */
-  claimHintRewardVideoAd(add = 1) {
-    return request({
-      url: '/pun/level/reward-video',
-      method: 'POST',
-      data: { add },
+      data: payload || {},
     })
   },
 

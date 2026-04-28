@@ -24,11 +24,10 @@
 - **pun_game_changelog**: 版本更新说明（首页弹窗，`version_code` 唯一，`body` 为每行一条或 JSON 数组）
 - **pun_game_mail**: 游戏站内信邮件主体表（支持全服 all 与单玩家 user）
 - **pun_game_mail_reads**: 游戏站内信已读记录表（按 user_id/mail_id 记录 read_at，用于列表角标）
+- **pun_reward_claim_record**: 统一领奖记录（`share` / `reward_video` / `daily_noon_hint_5` 全量入库，含 success/rejected/failed）
 - *(论坛相关表)*: 帖子表 (topic)、回复表 (reply)
 
 ### 3. 久坐提醒相关表
-- **punch_records**: 打卡记录表
-- **user_settings**: 用户设置（上下班时间、提醒间隔）
 - **user_subscribes**: 订阅消息授权状态
 - **message_logs**: 消息发送日志
 
@@ -47,11 +46,10 @@
 ### 2. 谐音梗图游戏模块 (Pun Game)
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
-| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数）、`hintAnswerTotalUsed`（累计消耗答案次数，上线后统计） |
+| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数）、`hintAnswerTotalUsed`（累计消耗答案次数）、`hintAnswerShareDailyMax`（分享日上限）、`hintAnswerShareDailyClaimed`（当日分享已领取次数，跨设备一致） |
 | `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支） |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
-| `/pun/level/share-reward` | POST | 分享奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }` |
-| `/pun/level/reward-video` | POST | 激励视频奖励揭字次数（默认 `+1`）。需 Token。Body: `{ add?: number }`。风控**独立于** `share-reward`；默认无单日上限（服务端常量可调），客户端应在用户完整观看激励视频后调用 |
+| `/pun/reward/claim` | POST | 统一领奖接口：`type=share/reward_video/daily_noon_hint_5`；所有领取都会写 `pun_reward_claim_record` |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
 | `/pun/stats/home` | GET | 首页统计（无需 Token）：`players` 为 `pun_game_level_progress` 行数，`answers` 为全表 `JSON_LENGTH(passed_levels)+JSON_LENGTH(passed_levels_mid)` 之和 |
 | `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分；同分按**该模式** `last_pass_at_*`，无则回退行 `updated_at`） |
@@ -77,21 +75,15 @@
 
 成功时 `data` 示例：`{ "hintText": "火 _ _", "step": 1, "maxSteps": 3, "isComplete": false, "hintAnswerQuota": 4 }`（`hintAnswerQuota` 为本笔扣减后的剩余次数）。同一用户同一题步数递增；**每成功揭一步扣 `pun_user_hint_quota.quota` 1**；次数不足返回业务错误「提示次数不足…」；本题步数用尽返回「本题提示已用尽」。
 
-#### 分享奖励次数 `/pun/level/share-reward`（需登录）
+#### 统一领奖 `/pun/reward/claim`（需登录）
 
-请求体：`{ "add": 1 }`（可省略，默认 `1`）。  
-成功返回示例：`{ "hintAnswerQuota": 12, "added": 1 }`。
-前端约定：在用户触发转发时调用本接口——包括右上角菜单「转发」与带 `open-type="share"` 的按钮（均在 `onShareAppMessage` 回调里调度；按钮点击与回调约 900ms 内去重为一次请求）。风控由后端校验（最小间隔 + 单日上限）。
-风控：
-- 同一用户两次领奖最小间隔 **60 秒**；过于频繁时返回业务错误（含剩余等待秒数）。
-- **同一自然日**（按服务端 `Asia/Shanghai` 计）通过本接口成功领取的累计次数（含每次 `add` 增量）不超过 **5 次**；超出时返回业务错误（提示已达今日上限、请明日再试）。计数存于缓存，与文件/缓存驱动一致；跨日自动按日期键重置。
-
-#### 激励视频奖励 `/pun/level/reward-video`（需登录）
-
-请求体：`{ "add": 1 }`（可省略，默认 `1`）。成功返回格式与 `share-reward` 相同。  
-前端约定：**仅在微信小程序**、且用户**完整观看**激励视频广告（`RewardedVideoAd` 的 `onClose` 中 `isEnded === true`）之后调用；揭字次数为 0 时点击「答案」可先拉广告再领奖。开发者工具若无法预览广告，请切换基础库版本或真机调试。  
-风控（与分享接口**独立**；**不设**领取间隔，与分享 60 秒冷却区分）：
-- **默认无单日领取上限**（便于激励变现）；服务端 `PunService::VIDEO_REWARD_DAILY_MAX` 改为正整数后可启用「自然日内最多 N 次」并与独立日计数缓存键配合。
+请求体：`{ "type": "share|reward_video|daily_noon_hint_5", "add"?: 1, "subscribeStatus"?: "accept|reject", "templateId"?: "..." }`。  
+成功返回示例：`{ "hintAnswerQuota": 12, "added": 1, "type": "share" }`。  
+说明：
+- `type=share`：用于转发领奖，仍有 60 秒最小间隔与单日上限（5 次）风控。
+- `type=reward_video`：用于激励视频完整观看后领奖（与分享风控独立）。
+- `type=daily_noon_hint_5`：每日 12 点后可领 5 次，且要求本次订阅授权 `subscribeStatus=accept`、`templateId` 匹配活动模板。
+- 不论成功/拒绝/失败，后端都会写入 `pun_reward_claim_record` 便于审计与风控分析。
 
 #### 站内信 `/pun/mail/*`（需登录）
 
@@ -119,11 +111,6 @@
 ### 3. 久坐提醒模块 (Standup App)
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
-| `/punch/submit` | POST | 提交站立打卡记录 |
-| `/punch/records` | GET | 分页获取打卡记录 |
-| `/punch/statistics` | GET | 获取打卡统计（今日、连续、总数等） |
-| `/settings/save` | POST | 保存用户提醒设置 |
-| `/settings/get` | GET | 获取用户提醒设置 |
 | `/subscribe/save` | POST | 保存微信订阅消息授权状态 |
 | `/cron/send-remind` | GET | 内部定时任务：触发发送订阅提醒消息 |
 
@@ -133,7 +120,7 @@
 
 ### 1. 前端 (UniApp) 注意事项
 - **API 规范**：遵循 `uniapp-apis.mdc` 规范，禁止使用原生的 `fetch` 或 `window`，必须统一使用 `uni.request` 和 `uni.setStorageSync`。
-- **揭字次数与激励视频（仅微信小程序）**：玩法页揭字次数为 0 时点击「答案」会尝试拉起微信激励视频；用户完整观看后由前端调用 `POST /pun/level/reward-video` 发放 +1 次（与分享领奖接口分离）。广告位 `adUnitId` 配置在 `pun-game/src/constants/rewardedVideoAd.js`；开发者工具若无法预览广告，请切换基础库版本或真机调试。
+- **统一领奖调用（仅微信小程序）**：分享、激励视频、每日12点活动统一调用 `POST /pun/reward/claim`，按 `type` 区分逻辑；激励视频仍要求完整观看后再领奖。广告位 `adUnitId` 配置在 `pun-game/src/constants/rewardedVideoAd.js`。
 - **中级与小红书关卡逻辑**：`mid` 与 `xhs` 关卡 `level` 均可能不连续，不能用 ID 大小判断进度，必须依赖接口 `/pun/level/progress` 返回的 `currentLevel`、`passedLevels`、`totalLevels` 渲染锁定/解锁状态。
 - **首页更新弹窗**：进入首页请求 `/pun/changelog/latest`，与本地 `pun_changelog_seen_version`（`version_code`）比对，未读则弹窗；点「知道了」写入本地已读。
 - **微信小程序转发/朋友圈**：官方 `app.json` / 页面 `*.json` **不包含** `enableShareAppMessage`、`enableShareTimeline`（写入会被开发者工具标为无效字段）；需在页面实现 `onShareAppMessage` / `onShareTimeline`，并在 `App.vue` 的 `onLaunch`/`onShow`（及 `useWechatPageShare` 等）中调用 `uni.showShareMenu({ menus: ['shareAppMessage','shareTimeline'] })` 打开右上角菜单能力。
@@ -145,7 +132,7 @@
 - **passedLevels 顺序约定**：`/pun/level/progress` 返回的 `passedLevels` 按题库关卡定义顺序返回（而非答题时间顺序），避免出现如 `222` 后才出现 `7` 的展示问题。
 - **xhs 当前关选择规则**：`/pun/level/progress?gameTier=xhs` 的 `currentLevel` 按关卡号升序计算，返回“最小的未通过且存在的关卡号”；例如已通过 7/8/9 时优先返回 10，若 10 不存在则返回 11（依此类推）。
 - **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；**揭字剩余次数**存于 **`pun_user_hint_quota`**（按用户一行）。对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
-- **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发久坐提醒。
+- **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发「每日领奖提醒」（过滤条件：已订阅 accept、今日未登录且未领取）。
 - **统一响应封装**：所有接口均需返回 `{ "code": 200, "message": "...", "data": {...} }` 格式。
 
 ### 3. 运维扩展（可选）

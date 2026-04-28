@@ -51,6 +51,50 @@
         <text class="cell-text">我的关卡</text>
         <text class="cell-arrow">›</text>
       </view>
+      <text class="section-title">每日任务</text>
+      <view class="cell cell--daily">
+        <view class="cell-daily-head">
+          <text class="cell-icon">🎁</text>
+          <view class="cell-main">
+            <text class="cell-text">每日12点领5次答案</text>
+            <text class="cell-sub">需授权订阅通知，今日限领一次</text>
+          </view>
+        </view>
+        <button
+          class="daily-claim-btn"
+          type="primary"
+          :disabled="dailyClaimLoading"
+          @click.stop="claimDailyNoonReward"
+        >
+          {{ dailyClaimLoading ? '领取中...' : '点击领取' }}
+        </button>
+      </view>
+      <view class="cell cell--daily">
+        <view class="cell-daily-head">
+          <text class="cell-icon">📣</text>
+          <view class="cell-main">
+            <text class="cell-text">分享给好友领1次</text>
+            <text class="cell-sub">今日已领取 {{ shareDailyClaimed }}/{{ hintAnswerShareDailyMax }} 次</text>
+          </view>
+        </view>
+        <!-- #ifdef MP-WEIXIN -->
+        <button
+          class="daily-claim-btn daily-claim-btn--share"
+          open-type="share"
+          @click.stop="onShareTaskIntent"
+        >
+          分享给好友
+        </button>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <button
+          class="daily-claim-btn daily-claim-btn--share"
+          @click.stop="onShareTaskIntent"
+        >
+          分享给好友
+        </button>
+        <!-- #endif -->
+      </view>
       <text class="section-title">其他</text>
       <view class="cell" @click="goFeedback">
         <text class="cell-icon">📝</text>
@@ -71,7 +115,7 @@
         <view class="quota-tip-body">
           <text class="quota-tip-line quota-tip-line--lead">剩余：当前可用次数。</text>
           <text class="quota-tip-line">历史累计：自统计上线后，你累计使用「答案」的总次数。</text>
-          <text class="quota-tip-line">分享至朋友圈/微信可增加剩余次数。</text>
+          <text class="quota-tip-line">分享给好友可增加剩余次数。</text>
         </view>
         <view class="quota-tip-btn" @click="dismissHintQuotaTip">
           <text class="quota-tip-btn-text">知道了</text>
@@ -96,10 +140,21 @@ const userProfileRef = ref(null)
 const hintAnswerQuota = ref(0)
 const hintAnswerTotalUsed = ref(0)
 const hintAnswerShareDailyMax = ref(5)
+const shareDailyClaimed = ref(0)
 const hintQuotaTipVisible = ref(false)
+const dailyClaimLoading = ref(false)
+const DAILY_NOON_TEMPLATE_ID = 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE'
+const DAILY_SUBSCRIBE_ACCEPT_KEY = `pun_daily_subscribe_accept_${DAILY_NOON_TEMPLATE_ID}`
 
 // #ifdef MP-WEIXIN
-useWechatPageShare('我的 · 谐音梗图', hintAnswerQuota)
+useWechatPageShare('我的 · 谐音梗图', hintAnswerQuota, {
+  onShareRewardSuccess(payload) {
+    const add = Number(payload && payload.added) > 0 ? Number(payload.added) : 1
+    const max = Math.max(0, Math.floor(hintAnswerShareDailyMax.value || 0))
+    shareDailyClaimed.value = Math.max(0, Math.min(max, Math.floor(shareDailyClaimed.value + add)))
+    refreshHintAnswerQuota()
+  },
+})
 // #endif
 
 onShow(async () => {
@@ -146,9 +201,90 @@ async function refreshHintAnswerQuota() {
     if (data && typeof data.hintAnswerShareDailyMax === 'number' && data.hintAnswerShareDailyMax > 0) {
       hintAnswerShareDailyMax.value = Math.floor(data.hintAnswerShareDailyMax)
     }
+    if (data && typeof data.hintAnswerShareDailyClaimed === 'number' && data.hintAnswerShareDailyClaimed >= 0) {
+      const max = Math.max(0, Math.floor(data.hintAnswerShareDailyMax ?? hintAnswerShareDailyMax.value))
+      shareDailyClaimed.value = Math.max(0, Math.min(max, Math.floor(data.hintAnswerShareDailyClaimed)))
+    }
   } catch {
     // 忽略未登录场景
   }
+}
+
+async function claimDailyNoonReward() {
+  if (dailyClaimLoading.value) return
+  dailyClaimLoading.value = true
+  let subscribeStatus = 'accept'
+  const acceptedBefore = !!uni.getStorageSync(DAILY_SUBSCRIBE_ACCEPT_KEY)
+
+  async function requestSubscribeIfNeeded() {
+    // #ifdef MP-WEIXIN
+    if (acceptedBefore) return 'accept'
+    const res = await new Promise((resolve, reject) => {
+      wx.requestSubscribeMessage({
+        tmplIds: [DAILY_NOON_TEMPLATE_ID],
+        success: resolve,
+        fail: reject,
+      })
+    })
+    const status = String(res && res[DAILY_NOON_TEMPLATE_ID] ? res[DAILY_NOON_TEMPLATE_ID] : 'reject')
+    if (status === 'accept') {
+      uni.setStorageSync(DAILY_SUBSCRIBE_ACCEPT_KEY, 1)
+    }
+    return status
+    // #endif
+    // #ifndef MP-WEIXIN
+    throw new Error('仅微信小程序支持该活动')
+    // #endif
+  }
+
+  try {
+    subscribeStatus = await requestSubscribeIfNeeded()
+  } catch (e) {
+    dailyClaimLoading.value = false
+    uni.showToast({ title: e.message || '订阅授权失败，请稍后重试', icon: 'none' })
+    return
+  }
+
+  try {
+    let data
+    try {
+      data = await api.claimReward({
+        type: 'daily_noon_hint_5',
+        add: 5,
+        subscribeStatus,
+        templateId: DAILY_NOON_TEMPLATE_ID,
+      })
+    } catch (e) {
+      // 本地已标记 accept 但服务端未记录时，补一次授权再重试
+      if (acceptedBefore && String(e.message || '').includes('请先授权订阅通知')) {
+        const latestStatus = await requestSubscribeIfNeeded()
+        data = await api.claimReward({
+          type: 'daily_noon_hint_5',
+          add: 5,
+          subscribeStatus: latestStatus,
+          templateId: DAILY_NOON_TEMPLATE_ID,
+        })
+      } else {
+        throw e
+      }
+    }
+
+    if (typeof data.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = data.hintAnswerQuota
+    }
+    uni.showToast({ title: `领取成功 +${data.added || 5}`, icon: 'none' })
+    refreshHintAnswerQuota()
+  } catch (e) {
+    uni.showToast({ title: e.message || '领取失败', icon: 'none' })
+  } finally {
+    dailyClaimLoading.value = false
+  }
+}
+
+function onShareTaskIntent() {
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '仅微信小程序支持分享领奖', icon: 'none' })
+  // #endif
 }
 </script>
 
@@ -207,6 +343,39 @@ async function refreshHintAnswerQuota() {
   gap: 20rpx;
   padding-top: 24rpx;
   padding-bottom: 22rpx;
+}
+
+.cell--daily {
+  padding-top: 24rpx;
+  padding-bottom: 24rpx;
+  gap: 18rpx;
+}
+
+.cell-daily-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 20rpx;
+  width: 100%;
+}
+
+.daily-claim-btn {
+  width: 50%;
+  height: 74rpx;
+  border-radius: 18rpx;
+  border: none;
+  background: linear-gradient(180deg, #ffd98f 0%, #f7be60 100%);
+  color: #754400;
+  font-size: 28rpx;
+  font-weight: 800;
+}
+
+.daily-claim-btn::after {
+  border: none;
+}
+
+.daily-claim-btn--share {
+  background: linear-gradient(180deg, #c9e6ff 0%, #9ccfff 100%);
+  color: #1f4f7a;
 }
 
 .cell-quota-head {

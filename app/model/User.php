@@ -22,24 +22,10 @@ class User extends Model
         'unionid'     => 'string',
         'nickname'    => 'string',
         'avatar'      => 'string',
+        'last_login_at' => 'datetime',
         'created_at'  => 'datetime',
         'updated_at'  => 'datetime',
     ];
     
-    /**
-     * 关联用户设置
-     */
-    public function settings()
-    {
-        return $this->hasOne(UserSetting::class, 'user_id');
-    }
-    
-    /**
-     * 关联打卡记录
-     */
-    public function punchRecords()
-    {
-        return $this->hasMany(PunchRecord::class, 'user_id');
-    }
 }
 

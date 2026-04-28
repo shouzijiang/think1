@@ -66,7 +66,7 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
 
         if (res && res.isEnded) {
           api
-            .claimHintRewardVideoAd(1)
+            .claimReward({ type: 'reward_video', add: 1 })
             .then((data) => {
               if (typeof data.hintAnswerQuota === 'number') {
                 hintAnswerQuotaRef.value = data.hintAnswerQuota

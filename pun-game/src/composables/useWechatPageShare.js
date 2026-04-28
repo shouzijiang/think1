@@ -45,8 +45,9 @@ function ensureMpShareMenu() {
 /**
  * @param {string | (() => string)} titleOrFn
  * @param {import('vue').Ref<number> | null} [hintAnswerQuotaRef] 传入则转发时尝试领取分享奖励并回写剩余次数
+ * @param {{ onShareRewardSuccess?: (payload: {added:number, quota:number, type:string}) => void }} [options]
  */
-export function useWechatPageShare(titleOrFn, hintAnswerQuotaRef = null) {
+export function useWechatPageShare(titleOrFn, hintAnswerQuotaRef = null, options = {}) {
   ensureMpShareMenu()
 
   const getTitle = typeof titleOrFn === 'function' ? titleOrFn : () => titleOrFn || '谐音梗图'
@@ -55,6 +56,7 @@ export function useWechatPageShare(titleOrFn, hintAnswerQuotaRef = null) {
   const quotaRef = hintAnswerQuotaRef ?? noopQuotaRef
   const { withShareReward } = usePunShareReward(quotaRef, {
     enabled: hintAnswerQuotaRef != null,
+    onClaimSuccess: options.onShareRewardSuccess,
   })
 
   onShareAppMessage(() => withShareReward({
@@ -62,7 +64,7 @@ export function useWechatPageShare(titleOrFn, hintAnswerQuotaRef = null) {
     path: currentSharePath(),
   }))
 
-  onShareTimeline(() => ({
+  onShareTimeline(() => withShareReward({
     title: getTitle(),
     query: currentTimelineQuery(),
   }))

@@ -12,6 +12,7 @@ import { api } from '../utils/api'
 export function usePunShareReward(hintAnswerQuotaRef, options = {}) {
   const enabled = options.enabled !== false
   const rewardDelayMs = options.rewardDelayMs ?? 0
+  const onClaimSuccess = typeof options.onClaimSuccess === 'function' ? options.onClaimSuccess : null
   /** 同一次分享动作内可能先后触发 click + onShareAppMessage，合并为单次领奖 */
   const dedupeWindowMs = options.dedupeWindowMs ?? 900
   let rewardTimer = null
@@ -19,11 +20,18 @@ export function usePunShareReward(hintAnswerQuotaRef, options = {}) {
 
   async function claimShareReward(add = 1) {
     try {
-      const data = await api.claimHintShareReward(add)
+      const data = await api.claimReward({ type: 'share', add })
       if (typeof data.hintAnswerQuota === 'number') {
         hintAnswerQuotaRef.value = data.hintAnswerQuota
       } else {
         hintAnswerQuotaRef.value += add
+      }
+      if (onClaimSuccess) {
+        onClaimSuccess({
+          added: Number(data && data.added) > 0 ? Number(data.added) : add,
+          quota: hintAnswerQuotaRef.value,
+          type: data && data.type ? String(data.type) : 'share',
+        })
       }
       uni.showToast({ title: `分享成功，次数+${add}`, icon: 'none' })
     } catch (e) {

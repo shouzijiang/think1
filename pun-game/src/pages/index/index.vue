@@ -90,8 +90,14 @@
     <view class="side-toolbar">
       <view class="toolbar-item" @click.stop="toggleBgm">
         <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
-        <text class="toolbar-text">{{ bgmOn ? '关闭' : '开启' }}</text>
+        <text class="toolbar-text">背景</text>
         <text class="toolbar-text">音乐</text>
+      </view>
+      <view class="toolbar-divider"></view>
+      <view class="toolbar-item" @click.stop="toggleSfx">
+        <text class="toolbar-icon">{{ sfxOn ? '🔊' : '🔕' }}</text>
+        <text class="toolbar-text">交互</text>
+        <text class="toolbar-text">音效</text>
       </view>
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goLevels">
@@ -115,6 +121,11 @@
         <text class="toolbar-text">邮件</text>
       </view>
     </view>
+
+    <view class="daily-task-float" @click="goMine">
+      <text class="daily-task-float-icon">🎁</text>
+      <text class="daily-task-float-text">每日任务</text>
+    </view>
   </view>
 </template>
 
@@ -126,8 +137,10 @@ import { wechatLogin } from '../../utils/auth'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import {
-  isGameAudioEnabled,
-  setGameAudioEnabled,
+  isBgmEnabled,
+  isSfxEnabled,
+  setBgmEnabled,
+  setSfxEnabled,
   preloadGameAudio,
   playBgmHome,
   stopBgm,
@@ -142,7 +155,8 @@ const { withShareReward } = usePunShareReward(hintShareQuotaRef)
 const CHANGELOG_SEEN_KEY = 'pun_changelog_seen_version'
 
 const stats = ref({ players: 0, answers: 0 })
-const bgmOn = ref(isGameAudioEnabled())
+const bgmOn = ref(isBgmEnabled())
+const sfxOn = ref(isSfxEnabled())
 
 const changelogVisible = ref(false)
 const changelogTitle = ref('本期更新')
@@ -193,12 +207,18 @@ async function tryShowChangelog() {
 function toggleBgm() {
   const next = !bgmOn.value
   bgmOn.value = next
-  setGameAudioEnabled(next)
+  setBgmEnabled(next)
   if (next) {
     playBgmHome()
   } else {
     stopBgm()
   }
+}
+
+function toggleSfx() {
+  const next = !sfxOn.value
+  sfxOn.value = next
+  setSfxEnabled(next)
 }
 
 onShow(async () => {
@@ -212,7 +232,8 @@ onShow(async () => {
     console.warn('wechatLogin 失败', e)
   }
   // #endif
-  bgmOn.value = isGameAudioEnabled()
+  bgmOn.value = isBgmEnabled()
+  sfxOn.value = isSfxEnabled()
   if (bgmOn.value) {
     playBgmHome()
   }
@@ -317,6 +338,7 @@ function startGame() {
     })
     .catch(() => goPlay(getCurrentLevel()))
 }
+
 </script>
 
 <style lang="scss" scoped>
@@ -751,6 +773,61 @@ function startGame() {
   border: 3rpx solid rgba(169, 201, 238, 0.45);
   box-shadow: 0 8rpx 24rpx rgba(169, 201, 238, 0.2);
   padding: 20rpx 0;
+}
+
+.daily-task-float {
+  position: fixed;
+  right: 0rpx;
+  top: 38%;
+  transform: translateY(-50%);
+  z-index: 52;
+  width: 112rpx;
+  min-height: 120rpx;
+  padding: 16rpx 10rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  border-top-left-radius: 22rpx;
+  border-bottom-left-radius: 22rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.72);
+  border-right: none;
+  background: linear-gradient(180deg, #ffd98f 0%, #f7be60 100%);
+  box-shadow: 0 10rpx 24rpx rgba(242, 180, 95, 0.35);
+  animation: daily-task-float-wiggle 2.4s ease-in-out infinite;
+}
+
+.daily-task-float:active {
+  opacity: 0.92;
+  transform: translateY(-50%) scale(0.98);
+}
+
+.daily-task-float-icon {
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.daily-task-float-text {
+  font-size: 20rpx;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #754400;
+  letter-spacing: 0.04em;
+}
+
+@keyframes daily-task-float-wiggle {
+  0%,
+  100% {
+    transform: translateY(-50%) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-50%) rotate(-4deg);
+  }
+  75% {
+    transform: translateY(-50%) rotate(4deg);
+  }
 }
 
 .toolbar-item {

@@ -8,6 +8,7 @@ use app\model\PunGameLevelProgress;
 use app\model\PunGameFeedback;
 use app\model\PunGameChangelog;
 use app\model\PunUserHintQuota;
+use app\model\UserSubscribe;
 use think\facade\Cache;
 use think\facade\Config;
 use think\facade\Db;
@@ -17,6 +18,12 @@ use think\facade\Db;
  */
 class PunService
 {
+    public const REWARD_TYPE_SHARE = 'share';
+    public const REWARD_TYPE_VIDEO = 'reward_video';
+    public const REWARD_TYPE_DAILY_NOON = 'daily_noon_hint_5';
+    public const DAILY_NOON_REWARD_ADD = 5;
+    public const DAILY_NOON_TEMPLATE_ID = 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE';
+
     /** 分享领奖最小间隔（秒） */
     private const SHARE_REWARD_MIN_INTERVAL_SEC = 60;
 
@@ -64,11 +71,122 @@ class PunService
         return $default;
     }
 
+    private function shanghaiNow(): \DateTime
+    {
+        return new \DateTime('now', new \DateTimeZone('Asia/Shanghai'));
+    }
+
+    private function todayShanghai(): string
+    {
+        return $this->shanghaiNow()->format('Y-m-d');
+    }
+
+    private function saveSubscribeStatus(int $userId, string $templateId, string $status): void
+    {
+        if ($templateId === '' || !in_array($status, ['accept', 'reject'], true)) {
+            return;
+        }
+        $row = UserSubscribe::where('user_id', $userId)
+            ->where('template_id', $templateId)
+            ->find();
+        if ($row) {
+            $row->subscribe_status = $status;
+            $row->save();
+            return;
+        }
+        UserSubscribe::create([
+            'user_id' => $userId,
+            'template_id' => $templateId,
+            'subscribe_status' => $status,
+        ]);
+    }
+
+    private function createRewardClaimRecord(
+        int $userId,
+        string $claimType,
+        int $addQuota,
+        string $status,
+        string $reason = '',
+        array $meta = []
+    ): void {
+        Db::name('pun_reward_claim_record')->insert([
+            'user_id' => $userId,
+            'claim_type' => $claimType,
+            'claim_date' => $this->todayShanghai(),
+            'add_quota' => $addQuota,
+            'status' => $status,
+            'reason' => $reason,
+            'meta_json' => json_encode($meta, JSON_UNESCAPED_UNICODE),
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
+     * 统计用户当天某类型奖励已成功领取的「累计增加次数」。
+     */
+    private function getTodayRewardAddedCount(int $userId, string $claimType): int
+    {
+        $sum = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', $claimType)
+            ->where('claim_date', $this->todayShanghai())
+            ->where('status', 'success')
+            ->sum('add_quota');
+
+        return max(0, (int) $sum);
+    }
+
+    /**
+     * 统一领取接口：按 type 路由到不同领取逻辑，并统一写领取记录。
+     *
+     * @param array<string,mixed> $extra
+     * @return array{hintAnswerQuota:int,added:int,type:string}
+     */
+    public function claimReward(int $userId, string $type, int $delta = 1, array $extra = []): array
+    {
+        $type = strtolower(trim((string) $type));
+        if (!in_array($type, [self::REWARD_TYPE_SHARE, self::REWARD_TYPE_VIDEO, self::REWARD_TYPE_DAILY_NOON], true)) {
+            throw new \InvalidArgumentException('不支持的领取类型');
+        }
+
+        $meta = $extra;
+        $meta['type'] = $type;
+        $meta['requested_add'] = $delta;
+
+        try {
+            if ($type === self::REWARD_TYPE_SHARE) {
+                $result = $this->claimByShare($userId, $delta);
+            } elseif ($type === self::REWARD_TYPE_VIDEO) {
+                $result = $this->claimByRewardVideo($userId, $delta);
+            } else {
+                $result = $this->claimByDailyNoon($userId, $extra);
+            }
+
+            $this->createRewardClaimRecord($userId, $type, (int) $result['added'], 'success', '', $meta);
+            return $result;
+        } catch (\InvalidArgumentException $e) {
+            $this->createRewardClaimRecord($userId, $type, 0, 'rejected', $e->getMessage(), $meta);
+            throw $e;
+        } catch (\Throwable $e) {
+            $this->createRewardClaimRecord($userId, $type, 0, 'failed', $e->getMessage(), $meta);
+            throw $e;
+        }
+    }
+
     /**
      * 分享奖励：给当前用户揭字次数 +1（或指定增量）
      * @return array{hintAnswerQuota:int,added:int}
      */
     public function addHintAnswerQuotaByShare(int $userId, int $delta = 1): array
+    {
+        return $this->claimReward($userId, self::REWARD_TYPE_SHARE, $delta);
+    }
+
+    /**
+     * 分享领奖核心实现（不含记录）
+     * @return array{hintAnswerQuota:int,added:int,type:string}
+     */
+    private function claimByShare(int $userId, int $delta = 1): array
     {
         $delta = max(1, (int) $delta);
         $dailyKey = $this->shareRewardDailyCountCacheKey($userId);
@@ -106,6 +224,7 @@ class PunService
         return [
             'hintAnswerQuota' => $newQuota,
             'added' => $delta,
+            'type' => self::REWARD_TYPE_SHARE,
         ];
     }
 
@@ -146,6 +265,15 @@ class PunService
      */
     public function addHintAnswerQuotaByRewardedVideo(int $userId, int $delta = 1): array
     {
+        return $this->claimReward($userId, self::REWARD_TYPE_VIDEO, $delta);
+    }
+
+    /**
+     * 激励视频领奖核心实现（不含记录）
+     * @return array{hintAnswerQuota:int,added:int,type:string}
+     */
+    private function claimByRewardVideo(int $userId, int $delta = 1): array
+    {
         $delta = max(1, (int) $delta);
         if (self::VIDEO_REWARD_DAILY_MAX > 0) {
             $dailyKey = $this->videoRewardDailyCountCacheKey($userId);
@@ -178,6 +306,63 @@ class PunService
         return [
             'hintAnswerQuota' => $newQuota,
             'added' => $delta,
+            'type' => self::REWARD_TYPE_VIDEO,
+        ];
+    }
+
+    /**
+     * 每日中午领取（需订阅授权 accept）
+     * @param array<string,mixed> $extra
+     * @return array{hintAnswerQuota:int,added:int,type:string}
+     */
+    private function claimByDailyNoon(int $userId, array $extra): array
+    {
+        $status = strtolower(trim((string) ($extra['subscribeStatus'] ?? '')));
+        $templateId = trim((string) ($extra['templateId'] ?? self::DAILY_NOON_TEMPLATE_ID));
+        $this->saveSubscribeStatus($userId, $templateId, in_array($status, ['accept', 'reject'], true) ? $status : 'reject');
+
+        if ($templateId !== self::DAILY_NOON_TEMPLATE_ID) {
+            throw new \InvalidArgumentException('模板ID不匹配');
+        }
+        if ($status !== 'accept') {
+            throw new \InvalidArgumentException('请先授权订阅通知后再领取');
+        }
+
+        $now = $this->shanghaiNow();
+        $todayNoon = \DateTime::createFromFormat('Y-m-d H:i:s', $now->format('Y-m-d') . ' 12:00:00', new \DateTimeZone('Asia/Shanghai'));
+        if ($todayNoon && $now < $todayNoon) {
+            throw new \InvalidArgumentException('每日12点后可领取');
+        }
+
+        $today = $this->todayShanghai();
+        $already = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::REWARD_TYPE_DAILY_NOON)
+            ->where('claim_date', $today)
+            ->where('status', 'success')
+            ->find();
+        if ($already) {
+            throw new \InvalidArgumentException('今日已领取，请明天再来');
+        }
+
+        $delta = self::DAILY_NOON_REWARD_ADD;
+        $this->getOrCreateHintAnswerQuota($userId);
+
+        $newQuota = 0;
+        Db::transaction(function () use ($userId, $delta, &$newQuota) {
+            $row = Db::name('pun_user_hint_quota')->where('user_id', $userId)->lock(true)->find();
+            if (!$row) {
+                throw new \RuntimeException('揭字配额数据异常');
+            }
+            $quota = (int) $row['quota'];
+            $newQuota = $quota + $delta;
+            Db::name('pun_user_hint_quota')->where('user_id', $userId)->update(['quota' => $newQuota]);
+        });
+
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => $delta,
+            'type' => self::REWARD_TYPE_DAILY_NOON,
         ];
     }
 
@@ -799,7 +984,7 @@ class PunService
      * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数 
      * @param int $userId
      * @param string $mode beginner=初级 | intermediate=中级
-     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed, hintAnswerShareDailyMax}
+     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed, hintAnswerShareDailyMax, hintAnswerShareDailyClaimed}
      */
     public function getLevelProgress(int $userId, string $mode = 'beginner'): array
     {
@@ -807,6 +992,7 @@ class PunService
         $hintRow = Db::name('pun_user_hint_quota')->where('user_id', $userId)->find();
         $hintAnswerQuota = $hintRow ? (int) $hintRow['quota'] : PunUserHintQuota::DEFAULT_QUOTA;
         $hintAnswerTotalUsed = $hintRow ? (int) ($hintRow['total_used'] ?? 0) : 0;
+        $hintAnswerShareDailyClaimed = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_SHARE);
         $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
         $mode = $this->normalizeMode($mode);
 
@@ -821,6 +1007,7 @@ class PunService
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
+                'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
             ];
         }
         if ($mode === 'xhs') {
@@ -834,6 +1021,7 @@ class PunService
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
+                'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
             ];
         }
         else {
@@ -866,6 +1054,7 @@ class PunService
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
+                'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
             ];
         }
     }

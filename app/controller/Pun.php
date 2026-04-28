@@ -138,55 +138,40 @@ class Pun extends BaseController
     }
 
     /**
-     * 分享奖励次数 POST /pun/level/share-reward
-     * Body: { "add"?: 1 }
+     * 统一领取接口：分享/激励视频/每日领取
+     * POST /pun/reward/claim
+     * Body: { type: share|reward_video|daily_noon_hint_5, add?: number, subscribeStatus?: accept|reject, templateId?: string }
      */
-    public function shareReward(Request $request)
+    public function claimReward(Request $request)
     {
         $userId = $request->user_id ?? 0;
         if (!$userId) {
             return ResponseHelper::unauthorized();
         }
 
+        $type = (string) $request->post('type', '');
         $add = (int) $request->post('add', 1);
         if ($add <= 0) {
             $add = 1;
         }
+        $subscribeStatus = (string) $request->post('subscribeStatus', '');
+        $templateId = (string) $request->post('templateId', '');
 
         try {
-            $result = $this->punService->addHintAnswerQuotaByShare((int) $userId, $add);
+            $result = $this->punService->claimReward(
+                (int) $userId,
+                $type,
+                $add,
+                [
+                    'subscribeStatus' => $subscribeStatus,
+                    'templateId' => $templateId,
+                ]
+            );
             return ResponseHelper::success($result);
         } catch (\InvalidArgumentException $e) {
             return ResponseHelper::badRequest($e->getMessage());
         } catch (\Throwable $e) {
-            \think\facade\Log::error('pun/level/share-reward 异常: ' . $e->getMessage());
-            return ResponseHelper::error('奖励发放失败', 500);
-        }
-    }
-
-    /**
-     * 激励视频奖励：揭字次数 +add（默认 1），风控独立于分享
-     * POST /pun/level/reward-video
-     */
-    public function rewardVideo(Request $request)
-    {
-        $userId = $request->user_id ?? 0;
-        if (!$userId) {
-            return ResponseHelper::unauthorized();
-        }
-
-        $add = (int) $request->post('add', 1);
-        if ($add <= 0) {
-            $add = 1;
-        }
-
-        try {
-            $result = $this->punService->addHintAnswerQuotaByRewardedVideo((int) $userId, $add);
-            return ResponseHelper::success($result);
-        } catch (\InvalidArgumentException $e) {
-            return ResponseHelper::badRequest($e->getMessage());
-        } catch (\Throwable $e) {
-            \think\facade\Log::error('pun/level/reward-video 异常: ' . $e->getMessage());
+            \think\facade\Log::error('pun/reward/claim 异常: ' . $e->getMessage());
             return ResponseHelper::error('奖励发放失败', 500);
         }
     }

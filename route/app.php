@@ -20,8 +20,6 @@ Route::get('hello/:name', 'index/hello');
 // ==================== API 路由 ====================
 // 已拆分至各业务路由文件:
 // - route/auth.php
-// - route/punch.php
 // - route/pun.php
-// - route/settings.php
 // - route/subscribe.php
 // - route/cron.php

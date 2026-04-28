@@ -5,8 +5,6 @@ namespace app\service;
 use app\common\WechatHelper;
 use app\model\MessageLog;
 use app\model\User;
-use app\model\UserSetting;
-use app\model\UserSubscribe;
 use think\facade\Log;
 
 /**
@@ -14,84 +12,55 @@ use think\facade\Log;
  */
 class CronService
 {
+    private const DAILY_REWARD_TYPE = 'daily_noon_hint_5';
+
     /**
-     * 发送提醒消息
+     * 发送「每日领奖」提醒：仅给已订阅且今日未登录、未领取的用户
      * @return array
      */
     public function sendRemind(): array
     {
         $successCount = 0;
         $failCount = 0;
-        
-        // 查询所有启用提醒的用户
+
+        $tz = new \DateTimeZone('Asia/Shanghai');
+        $today = (new \DateTime('now', $tz))->format('Y-m-d');
+        $timeStr = (new \DateTime('now', $tz))->format('Y年m月d日 H:i');
+        $templateId = PunService::DAILY_NOON_TEMPLATE_ID;
+
         $users = User::alias('u')
-            ->join('user_settings us', 'u.id = us.user_id')
-            ->where('us.enabled', 1)
-            ->field('u.id, u.openid, us.work_start_time, us.work_end_time, us.remind_interval, us.last_remind_time')
+            ->join('user_subscribes s', 'u.id = s.user_id')
+            ->leftJoin('pun_reward_claim_record r', "u.id = r.user_id AND r.claim_type = '" . self::DAILY_REWARD_TYPE . "' AND r.claim_date = '" . $today . "' AND r.status = 'success'")
+            ->where('s.template_id', $templateId)
+            ->where('s.subscribe_status', 'accept')
+            ->whereNull('r.id')
+            ->where(function ($q) use ($today) {
+                $q->whereNull('u.last_login_at')
+                    ->whereOr("DATE(u.last_login_at) < '{$today}'");
+            })
+            ->field('u.id, u.openid')
+            ->group('u.id, u.openid')
             ->select();
-        
-        $now = time() * 1000; // 当前时间戳（毫秒）
-        
+
         foreach ($users as $user) {
-            // 检查是否在工作时间内
-            if (!$this->isWorkTime($user->work_start_time, $user->work_end_time)) {
-                continue;
-            }
-            
-            // 检查是否到了提醒时间
-            $lastRemindTime = $user->last_remind_time ?? 0;
-            $intervalMs = $user->remind_interval * 60 * 60 * 1000;
-            
-            if ($now - $lastRemindTime < $intervalMs) {
-                continue; // 还没到提醒时间
-            }
-            
-            // 查询用户是否授权了订阅消息
-            $subscribe = UserSubscribe::where('user_id', $user->id)
-                ->where('subscribe_status', 'accept')
-                ->order('updated_at', 'desc')
-                ->find();
-            
-            if (!$subscribe) {
-                continue; // 用户未授权订阅消息
-            }
-            
-            $templateId = $subscribe->template_id;
-
-            // 发送订阅消息（字段名需与微信公众平台订阅消息模板一致：thing1/time1/thing3 等）
-            $timeStr = date('Y年m月d日 H:i');
             $messageData = [
-                'time1'  => ['value' => $timeStr],
-                'time2'  => ['value' => $timeStr],
-                'thing1' => ['value' => '久坐提醒'],
-                'thing3' => ['value' => '起来~~~~~~~'],
-                'thing4' => ['value' => '您已经坐了很久了，站起来活动一下吧！']
+                'thing1'  => ['value' => '奖励领取'],
+                'thing4'  => ['value' => '请尽快领取，每日限一次'],
+                'thing5'  => ['value' => '每日12点可领取5次查看答案次数，分享也可领取次数'],
+                'time8'   => ['value' => $timeStr],
             ];
-            // 若模板还有 time2，可取消下行注释
-            // $messageData['time2'] = ['value' => $timeStr];
 
-            $result = WechatHelper::sendSubscribeMessage(
-                $user->openid,
-                $templateId,
-                $messageData
-            );
-            
-            // 更新最后提醒时间
+            $result = WechatHelper::sendSubscribeMessage((string) $user->openid, $templateId, $messageData, 'pages/index/index');
+
             if ($result['success']) {
-                UserSetting::where('user_id', $user->id)
-                    ->update(['last_remind_time' => $now]);
-                
-                // 记录发送日志
                 MessageLog::create([
                     'user_id' => $user->id,
                     'template_id' => $templateId,
                     'send_status' => 'success',
                     'send_time' => date('Y-m-d H:i:s'),
                 ]);
-                
                 $successCount++;
             } else {
-                // 记录失败日志
                 MessageLog::create([
                     'user_id' => $user->id,
                     'template_id' => $templateId,
@@ -99,30 +68,17 @@ class CronService
                     'error_msg' => $result['error'] ?? '未知错误',
                     'send_time' => date('Y-m-d H:i:s'),
                 ]);
-                
                 $failCount++;
                 Log::error('发送订阅消息失败 user_id=' . $user->id . ' error=' . ($result['error'] ?? '未知错误'));
             }
         }
 
-        Log::info('定时任务 执行完成 success_count=' . $successCount . ' fail_count=' . $failCount . ' total_checked=' . count($users));
+        Log::info('每日领奖提醒执行完成 success_count=' . $successCount . ' fail_count=' . $failCount . ' total_checked=' . count($users));
         return [
             'success_count' => $successCount,
             'fail_count' => $failCount,
             'total_checked' => count($users),
         ];
-    }
-    
-    /**
-     * 判断是否在工作时间内
-     * @param string $workStartTime
-     * @param string $workEndTime
-     * @return bool
-     */
-    private function isWorkTime(string $workStartTime, string $workEndTime): bool
-    {
-        $now = date('H:i');
-        return $now >= $workStartTime && $now <= $workEndTime;
     }
 }
 

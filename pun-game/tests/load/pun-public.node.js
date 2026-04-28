@@ -77,9 +77,9 @@ const AUTH_WRITE_ENDPOINTS = [
   {
     name: "share_reward",
     method: "POST",
-    path: "/pun/level/share-reward",
+    path: "/pun/reward/claim",
     auth: true,
-    body: { add: 1 },
+    body: { type: "share", add: 1 },
   },
   {
     name: "feedback_submit",

@@ -5,7 +5,8 @@
  * - 说明：不再使用 wx.getBackgroundAudioManager，可避免微信系统音乐控件常驻显示
  */
 
-const STORAGE_KEY = 'pun_game_bgm_enabled'
+const BGM_STORAGE_KEY = 'pun_game_bgm_enabled'
+const SFX_STORAGE_KEY = 'pun_game_sfx_enabled'
 
 const BGM_HOME = 'https://static2.sofun.online/mp3/BGMMain.wav'
 const BGM_PLAY = 'https://static2.sofun.online/mp3/BGMGame1.wav'
@@ -71,9 +72,9 @@ function applyCtxDefaults(ctx, loop) {
   // #endif
 }
 
-export function isGameAudioEnabled() {
+function readAudioSwitch(storageKey) {
   try {
-    const v = uni.getStorageSync(STORAGE_KEY)
+    const v = uni.getStorageSync(storageKey)
     if (v === '' || v === undefined || v === null) return true
     return v === true || v === 'true' || v === 1 || v === '1'
   } catch {
@@ -81,16 +82,52 @@ export function isGameAudioEnabled() {
   }
 }
 
+function writeAudioSwitch(storageKey, on) {
+  uni.setStorageSync(storageKey, !!on)
+}
+
+export function isBgmEnabled() {
+  return readAudioSwitch(BGM_STORAGE_KEY)
+}
+
+export function isSfxEnabled() {
+  return readAudioSwitch(SFX_STORAGE_KEY)
+}
+
+/**
+ * 兼容旧接口：等同于 isBgmEnabled
+ */
+export function isGameAudioEnabled() {
+  return isBgmEnabled()
+}
+
 /**
  * @param {boolean} on
  */
-export function setGameAudioEnabled(on) {
-  uni.setStorageSync(STORAGE_KEY, !!on)
+export function setBgmEnabled(on) {
+  writeAudioSwitch(BGM_STORAGE_KEY, on)
   if (!on) {
     stopBgm()
+  }
+}
+
+/**
+ * @param {boolean} on
+ */
+export function setSfxEnabled(on) {
+  writeAudioSwitch(SFX_STORAGE_KEY, on)
+  if (!on) {
     stopCongratsSfx()
     stopErrorSfx()
   }
+}
+
+/**
+ * 兼容旧接口：等同于 setBgmEnabled
+ * @param {boolean} on
+ */
+export function setGameAudioEnabled(on) {
+  setBgmEnabled(on)
 }
 
 function getBgmContextInner() {
@@ -158,7 +195,7 @@ function playWhenReady(ctx, playFn) {
 }
 
 function playBgmInner(url) {
-  if (!isGameAudioEnabled()) return
+  if (!isBgmEnabled()) return
   const ctx = getBgmContextInner()
   applyCtxDefaults(ctx, true)
 
@@ -178,7 +215,7 @@ function playBgmInner(url) {
 }
 
 function playBgm(url) {
-  if (!isGameAudioEnabled()) return
+  if (!isBgmEnabled()) return
   preloadGameAudio()
   playBgmInner(url)
 }
@@ -202,7 +239,7 @@ export function stopBgm() {
 }
 
 export function playCongratsOnce() {
-  if (!isGameAudioEnabled()) return
+  if (!isSfxEnabled()) return
   preloadGameAudio()
   const ctx = getCongratsContext()
   applyCtxDefaults(ctx, false)
@@ -216,7 +253,7 @@ export function playCongratsOnce() {
 }
 
 export function playErrorOnce() {
-  if (!isGameAudioEnabled()) return
+  if (!isSfxEnabled()) return
   preloadGameAudio()
   const ctx = getErrorContext()
   applyCtxDefaults(ctx, false)

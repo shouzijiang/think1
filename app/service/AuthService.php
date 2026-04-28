@@ -6,7 +6,6 @@ use app\common\JwtHelper;
 use app\common\WechatHelper;
 use app\model\PunUserHintQuota;
 use app\model\User;
-use app\model\UserSetting;
 use think\facade\Db;
 
 /**
@@ -47,21 +46,14 @@ class AuthService
                 'openid' => $openid,
                 'unionid' => $unionid ?: null,
             ]);
-            
-            // 创建默认设置
-            UserSetting::create([
-                'user_id' => $user->id,
-                'enabled' => 1,
-                'work_start_time' => '09:00',
-                'work_end_time' => '18:00',
-                'remind_interval' => 2,
-            ]);
 
             PunUserHintQuota::create([
                 'user_id' => $user->id,
                 'quota'   => PunUserHintQuota::DEFAULT_QUOTA,
             ]);
         }
+        $user->last_login_at = date('Y-m-d H:i:s');
+        $user->save();
         
         // 生成 JWT token
         $token = JwtHelper::generate([
