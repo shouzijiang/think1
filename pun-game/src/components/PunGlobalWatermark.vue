@@ -2,7 +2,7 @@
   <view class="pun-wm">
     <view class="pun-wm-inner">
       <view v-for="row in ROWS" :key="row" class="pun-wm-row">
-        <text v-for="col in COLS" :key="`${row}-${col}`" class="pun-wm-text">谐音梗猜一猜</text>
+        <text v-for="col in COLS" :key="`${row}-${col}`" class="pun-wm-text">微信谐音梗猜一猜</text>
       </view>
     </view>
   </view>
@@ -10,8 +10,8 @@
 
 <script setup>
 /** 平铺斜向水印，pointer-events: none 不挡点击 */
-const ROWS = 7
-const COLS = 3
+const ROWS = 5
+const COLS = 2
 </script>
 
 <style lang="scss" scoped>
@@ -36,7 +36,7 @@ const COLS = 3
   flex-direction: column;
   justify-content: space-between;
   align-items: stretch;
-  padding: 10rpx 0 125rpx;
+  padding: 20rpx 0 100rpx;
   box-sizing: border-box;
   transform: rotate(-16deg);
   transform-origin: center center;
@@ -55,7 +55,7 @@ const COLS = 3
   font-size: 22rpx;
   line-height: 1.3;
   color: rgba(255, 255, 255, 0.18);
-  text-shadow: 0 0 3rpx rgba(0, 0, 0, 0.35);
+  text-shadow: 0 0 3rpx rgba(0, 0, 0, 0.25);
   white-space: nowrap;
 }
 </style>
