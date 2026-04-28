@@ -82,7 +82,7 @@
 说明：
 - `type=share`：用于转发领奖，仍有 60 秒最小间隔与单日上限（5 次）风控。
 - `type=reward_video`：用于激励视频完整观看后领奖（与分享风控独立）。
-- `type=daily_noon_hint_5`：每个自然日（上海时区）限领一次 +5 次揭字配额，**不限制具体领取时段**；要求本次订阅授权 `subscribeStatus=accept`、`templateId` 匹配活动模板。
+- `type=daily_noon_hint_5`：每个自然日（上海时区）限领一次 +5 次揭字配额，**不限制具体领取时段**；要求 `subscribeStatus=accept`、`templateId` 匹配活动模板；且 **`user_subscribes` 中该模板不得已为 `reject`**（否则拒绝领取），写入后再校验库内为 **`accept`** 方可发奖。
 - 不论成功/拒绝/失败，后端都会写入 `pun_reward_claim_record` 便于审计与风控分析。
 
 #### 站内信 `/pun/mail/*`（需登录）

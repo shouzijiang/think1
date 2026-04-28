@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page page--mid">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -193,7 +193,11 @@ const slotShake = ref(false)
 const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
 const hintAnswerQuota = ref(0)
-const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota)
+const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
+  mode: 'heuristic',
+  shareSuccessThresholdMs: 3000,
+  showCancelToast: true,
+})
 const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
 
 const answerInputValue = ref('')
@@ -714,5 +718,6 @@ onShareTimeline(() => {
   }
 }
 </style>
+
 
 

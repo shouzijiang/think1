@@ -311,7 +311,7 @@ class PunService
     }
 
     /**
-     * 每日任务领取 +5 次揭字（自然日限一次；不限制具体时段，需订阅授权 accept）
+     * 每日任务领取 +5 次揭字（自然日限一次；不限制具体时段；需请求体 accept 且库 user_subscribes 该模板非 reject、写入后为 accept）
      * @param array<string,mixed> $extra
      * @return array{hintAnswerQuota:int,added:int,type:string}
      */
@@ -319,13 +319,29 @@ class PunService
     {
         $status = strtolower(trim((string) ($extra['subscribeStatus'] ?? '')));
         $templateId = trim((string) ($extra['templateId'] ?? self::DAILY_NOON_TEMPLATE_ID));
-        $this->saveSubscribeStatus($userId, $templateId, in_array($status, ['accept', 'reject'], true) ? $status : 'reject');
 
         if ($templateId !== self::DAILY_NOON_TEMPLATE_ID) {
             throw new \InvalidArgumentException('模板ID不匹配');
         }
         if ($status !== 'accept') {
             throw new \InvalidArgumentException('请先授权订阅通知后再领取');
+        }
+
+        // 以库为准：若该模板已标记 reject（如用户曾拒绝、定时任务同步），不允许仅凭本次请求体 accept 覆盖后领奖
+        $existingSub = UserSubscribe::where('user_id', $userId)
+            ->where('template_id', self::DAILY_NOON_TEMPLATE_ID)
+            ->find();
+        if ($existingSub && strtolower((string) $existingSub->subscribe_status) === 'reject') {
+            throw new \InvalidArgumentException('订阅已取消或未授权，请在「我的」重新订阅后再领取');
+        }
+
+        $this->saveSubscribeStatus($userId, $templateId, 'accept');
+
+        $afterSub = UserSubscribe::where('user_id', $userId)
+            ->where('template_id', self::DAILY_NOON_TEMPLATE_ID)
+            ->find();
+        if (!$afterSub || strtolower((string) $afterSub->subscribe_status) !== 'accept') {
+            throw new \InvalidArgumentException('订阅状态未生效，请重新在「我的」完成订阅后再领取');
         }
 
         $today = $this->todayShanghai();

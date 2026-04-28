@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -122,7 +122,11 @@ const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
 /** 揭字剩余次数（/pun/level/progress 与 reveal-hint 返回） */
 const hintAnswerQuota = ref(0)
-const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota)
+const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
+  mode: 'heuristic',
+  shareSuccessThresholdMs: 3000,
+  showCancelToast: true,
+})
 const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
 /** 当前已选入答案槽的字在 chars 中的下标，与 answerChars 一一对应 */
 const pickedIndices = ref([])
@@ -523,4 +527,5 @@ onShareTimeline(() => {
   border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 </style>
+
 

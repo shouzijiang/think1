@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -73,7 +73,7 @@
         <view class="cell-daily-head">
           <text class="cell-icon">📣</text>
           <view class="cell-main">
-            <text class="cell-text">分享给好友领1次</text>
+            <text class="cell-text">分享至微信群最多领5次</text>
             <text class="cell-sub">今日已领取 {{ shareDailyClaimed }}/{{ hintAnswerShareDailyMax }} 次</text>
           </view>
         </view>
@@ -81,17 +81,17 @@
         <button
           class="daily-claim-btn daily-claim-btn--share"
           open-type="share"
-          @click.stop="onShareTaskIntent"
+          @click="onShareTaskIntent"
         >
-          分享给好友
+          分享
         </button>
         <!-- #endif -->
         <!-- #ifndef MP-WEIXIN -->
         <button
           class="daily-claim-btn daily-claim-btn--share"
-          @click.stop="onShareTaskIntent"
+          @click="onShareTaskIntent"
         >
-          分享给好友
+          分享
         </button>
         <!-- #endif -->
       </view>
@@ -127,12 +127,12 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { wechatLogin } from '../../utils/auth'
 import UserProfileNav from '../../components/UserProfileNav.vue'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { useNavBar } from '../../composables/useNavBar'
-import { useWechatPageShare } from '../../composables/useWechatPageShare'
+import { usePunShareReward } from '../../composables/usePunShareReward'
 import { api } from '../../utils/api'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -147,14 +147,26 @@ const DAILY_NOON_TEMPLATE_ID = 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE'
 const DAILY_SUBSCRIBE_ACCEPT_KEY = `pun_daily_subscribe_accept_${DAILY_NOON_TEMPLATE_ID}`
 
 // #ifdef MP-WEIXIN
-useWechatPageShare('我的 · 谐音梗图', hintAnswerQuota, {
-  onShareRewardSuccess(payload) {
+const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
+  mode: 'heuristic',
+  shareSuccessThresholdMs: 3000,
+  showCancelToast: true,
+  onClaimSuccess(payload) {
     const add = Number(payload && payload.added) > 0 ? Number(payload.added) : 1
     const max = Math.max(0, Math.floor(hintAnswerShareDailyMax.value || 0))
     shareDailyClaimed.value = Math.max(0, Math.min(max, Math.floor(shareDailyClaimed.value + add)))
     refreshHintAnswerQuota()
   },
 })
+
+onShareAppMessage(() => withShareReward({
+  title: '我的 · 谐音梗图',
+  path: '/pages/mine/mine',
+}))
+
+onShareTimeline(() => withShareReward({
+  title: '我的 · 谐音梗图',
+}))
 // #endif
 
 onShow(async () => {
@@ -282,6 +294,10 @@ async function claimDailyNoonReward() {
 }
 
 function onShareTaskIntent() {
+  // #ifdef MP-WEIXIN
+  // 记录分享意图；实际领奖由 usePunShareReward 按“后台停留 >= 3000ms”判定
+  markShareIntent()
+  // #endif
   // #ifndef MP-WEIXIN
   uni.showToast({ title: '仅微信小程序支持分享领奖', icon: 'none' })
   // #endif
