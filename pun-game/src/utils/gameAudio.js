@@ -8,9 +8,9 @@
 const BGM_STORAGE_KEY = 'pun_game_bgm_enabled'
 const SFX_STORAGE_KEY = 'pun_game_sfx_enabled'
 
-const BGM_HOME = 'https://static2.sofun.online/mp3/BGMMain.wav'
-const BGM_PLAY = 'https://static2.sofun.online/mp3/BGMGame1.wav'
-const SFX_CONGRATS = 'https://static2.sofun.online/mp3/SFXCongrats.wav'
+const BGM_HOME = 'https://static2.sofun.online/mp3/BGMMain.mp3'
+const BGM_PLAY = 'https://static2.sofun.online/mp3/BGMGame1.mp3'
+const SFX_CONGRATS = 'https://static2.sofun.online/mp3/SFXCongrats.mp3'
 const SFX_ERROR = 'https://static2.sofun.online/mp3/error.mp3'
 const AUDIO_PRELOAD_LIST = [BGM_HOME, BGM_PLAY, SFX_CONGRATS, SFX_ERROR]
 

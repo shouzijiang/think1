@@ -222,7 +222,6 @@ function toggleSfx() {
 }
 
 onShow(async () => {
-  preloadGameAudio()
   // #ifdef MP-WEIXIN
   try {
     // 确保登录完成后再读取本地 userInfo，避免 onShow 过早读取
@@ -239,6 +238,10 @@ onShow(async () => {
   }
   loadHomeStats()
   tryShowChangelog()
+  // 延迟预加载音频，避免和首屏 API 请求抢带宽导致超时
+  setTimeout(() => {
+    preloadGameAudio()
+  }, 500)
 })
 
 onHide(() => {

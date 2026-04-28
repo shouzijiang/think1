@@ -1454,6 +1454,12 @@ class PunService
      */
     public function getHomeProgressStats(): array
     {
+        $cacheKey = 'home_progress_stats';
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null && is_array($cached)) {
+            return $cached;
+        }
+
         $players = (int) Db::name('pun_game_level_progress')->count();
         $aggRows = Db::name('pun_game_level_progress')
             ->fieldRaw(
@@ -1467,10 +1473,14 @@ class PunService
             $answers = (int) ($arr['agg_total'] ?? 0);
         }
 
-        return [
+        $result = [
             'players' => $players,
             'answers' => $answers,
         ];
+        // 缓存 5 分钟，避免全表 JSON 聚合查询频繁执行
+        Cache::set($cacheKey, $result, 300);
+
+        return $result;
     }
 
     /**

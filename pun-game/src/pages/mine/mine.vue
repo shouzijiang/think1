@@ -292,10 +292,15 @@ function ensureMineDailyVideoAd() {
   if (typeof wx === 'undefined' || typeof wx.createRewardedVideoAd !== 'function') {
     return null
   }
-  mineDailyVideoAd = wx.createRewardedVideoAd({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
-  mineDailyVideoAd.onError((err) => {
-    console.error('mine每日广告任务异常', err)
-  })
+  try {
+    mineDailyVideoAd = wx.createRewardedVideoAd({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
+    mineDailyVideoAd.onError(() => {
+      // 广告加载失败静默处理，避免 DevTools 报 timeout
+    })
+  } catch (e) {
+    // 广告创建失败（如 DevTools 环境），静默降级
+    mineDailyVideoAd = null
+  }
   return mineDailyVideoAd
 }
 
@@ -324,15 +329,23 @@ function watchDailyTaskAd() {
       } catch (_) {}
       finish(!!(res && res.isEnded))
     }
+    function loadAdWithTimeout(adInstance, timeoutMs = 10000) {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('广告加载超时')), timeoutMs)
+        adInstance
+          .load()
+          .then(() => { clearTimeout(timer); resolve() })
+          .catch((err) => { clearTimeout(timer); reject(err) })
+      })
+    }
+
     ad.onClose(onClose)
     ad.show()
-      .catch(() => ad.load().then(() => ad.show()))
+      .catch(() => loadAdWithTimeout(ad, 10000).then(() => ad.show()))
       .catch((err) => {
-        console.error('mine每日广告任务拉起失败', err)
-        try {
-          ad.offClose(onClose)
-        } catch (_) {}
-        uni.showToast({ title: '广告加载失败，请稍后重试', icon: 'none' })
+        try { ad.offClose(onClose) } catch (_) {}
+        const msg = err.message === '广告加载超时' ? '广告加载超时，请稍后重试' : '广告加载失败，请稍后重试'
+        uni.showToast({ title: msg, icon: 'none' })
         finish(false)
       })
   })

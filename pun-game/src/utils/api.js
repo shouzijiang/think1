@@ -34,16 +34,17 @@ function requestWithHttp(options) {
     }
 
     const requestUrl = BASE_URL + options.url
-    console.log('发起 HTTP 请求:', requestUrl, options.method || 'GET', options.data)
+    // console.log('发起 HTTP 请求:', requestUrl, options.method || 'GET', options.data)
 
     uni.request({
       url: requestUrl,
       method: options.method || 'GET',
       data: options.data || {},
       header,
+      timeout: options.timeout || 15000,
       success: (res) => {
         if (res.statusCode === 200) {
-          console.log('请求响应:', res.statusCode, res.data)
+          // console.log('请求响应:', res.statusCode, res.data)
           if (res.data.code === 200) {
             resolve(res.data.data)
           } else if (res.data.code === 401) {
@@ -78,7 +79,7 @@ function requestWithHttp(options) {
         let errorMsg = '网络请求失败'
         if (err.errMsg) {
           if (err.errMsg.includes('timeout') || err.errMsg.includes('超时')) {
-            errorMsg = `请求超时，请检查：\n1. 后端服务是否正常运行 (${BASE_URL})\n2. 网络连接是否正常\n3. 微信开发者工具 -> 设置 -> 项目设置 -> 是否勾选"不校验合法域名"\n\n错误详情: ${err.errMsg}`
+            errorMsg = '网络请求超时，请检查网络后重试'
           } else if (err.errMsg.includes('fail')) {
             errorMsg = `网络请求失败，可能的原因：\n1. 后端服务未启动或无法访问 (${BASE_URL})\n2. 请求地址错误: ${requestUrl}\n3. 微信开发者工具 -> 设置 -> 项目设置 -> 是否勾选"不校验合法域名"\n4. 网络连接问题\n\n错误详情: ${err.errMsg}`
           } else {
