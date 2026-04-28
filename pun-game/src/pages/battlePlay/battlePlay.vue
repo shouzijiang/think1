@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="page page--mid">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -161,6 +161,14 @@
       :show="showSuccess"
       variant="battle"
     />
+    <PunHintOverlay
+      :show="hintOverlayVisible"
+      :hint-text="hintOverlayText"
+      :step="hintOverlayStep"
+      :max-steps="hintOverlayMaxSteps"
+      :is-complete="hintOverlayComplete"
+      @close="hintOverlayVisible = false"
+    />
 
     <!-- 结算弹层 -->
     <view
@@ -191,6 +199,7 @@ import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
 import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
+import PunHintOverlay from '../../components/PunHintOverlay.vue'
 import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
 import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHint'
 import { usePunHanAnswerInput } from '../../composables/usePunHanAnswerInput'
@@ -263,6 +272,11 @@ const slotShake = ref(false)
 const { showSuccess, runPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
 const hintAnswerQuota = ref(0)
+const hintOverlayVisible = ref(false)
+const hintOverlayText = ref('')
+const hintOverlayStep = ref(0)
+const hintOverlayMaxSteps = ref(0)
+const hintOverlayComplete = ref(false)
 const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
 
 const answerInputValue = ref('')
@@ -321,6 +335,11 @@ async function onRevealHint() {
     if (typeof res.hintAnswerQuota === 'number') {
       hintAnswerQuota.value = res.hintAnswerQuota
     }
+    hintOverlayText.value = String(res.hintText || '')
+    hintOverlayStep.value = Number(res.step || 0)
+    hintOverlayMaxSteps.value = Number(res.maxSteps || 0)
+    hintOverlayComplete.value = !!res.isComplete
+    hintOverlayVisible.value = true
   } catch (e) {
     punToastRevealHintAfterError(e, afterRewardVideo)
   } finally {

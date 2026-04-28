@@ -1,6 +1,22 @@
 import { api } from './api'
 import { playErrorOnce } from './gameAudio'
 
+/** @type {Map<string, { hintText: string, step: number, maxSteps: number, isComplete: boolean }>} */
+const punHintCache = new Map()
+
+/**
+ * 同一题目的缓存 key（支持 beginner/mid/xhs/battle）。
+ * @param {Record<string, unknown>} payload
+ */
+function getPunHintCacheKey(payload) {
+  return JSON.stringify({
+    gameTier: String(payload.gameTier || ''),
+    level: Number(payload.level || 0),
+    roomId: String(payload.roomId || ''),
+    questionIndex: Number(payload.questionIndex ?? -1),
+  })
+}
+
 /**
  * 槽位是否显示为错误态（与 submit 返回的 feedback 一致）
  * @param {Array<{ isCorrect?: boolean }>|null|undefined} feedbackList
@@ -60,11 +76,29 @@ export function punToastRevealHintAfterError(err, afterRewardVideo) {
  * @param {Record<string, unknown>} payload revealHint 请求体
  */
 export async function punRevealHintWithModal(payload) {
-  const data = await api.revealHint(payload)
-  uni.showModal({
-    title: data.isComplete ? '已全部提示' : `提示 (${data.step}/${data.maxSteps})`,
-    content: data.hintText,
-    showCancel: false,
-  })
-  return data
+  const cacheKey = getPunHintCacheKey(payload)
+  try {
+    const data = await api.revealHint(payload)
+    const normalized = {
+      hintText: String(data.hintText || ''),
+      step: Number(data.step || 0),
+      maxSteps: Number(data.maxSteps || 0),
+      isComplete: !!data.isComplete,
+      hintAnswerQuota: Number(data.hintAnswerQuota ?? 0),
+    }
+    punHintCache.set(cacheKey, normalized)
+    return normalized
+  } catch (err) {
+    // 本题已用尽时，允许重复查看上次完整提示（不再抛错）
+    if (punIsHintExhaustedError(err)) {
+      const cached = punHintCache.get(cacheKey)
+      if (cached) {
+        return {
+          ...cached,
+          isComplete: true,
+        }
+      }
+    }
+    throw err
+  }
 }

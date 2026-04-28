@@ -99,6 +99,14 @@
       :tap-anywhere="true"
       @action="confirmPassSuccess"
     />
+    <PunHintOverlay
+      :show="hintOverlayVisible"
+      :hint-text="hintOverlayText"
+      :step="hintOverlayStep"
+      :max-steps="hintOverlayMaxSteps"
+      :is-complete="hintOverlayComplete"
+      @close="hintOverlayVisible = false"
+    />
   </view>
 </template>
 
@@ -123,6 +131,7 @@ import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
 import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
+import PunHintOverlay from '../../components/PunHintOverlay.vue'
 import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
 import { usePunShareReward } from '../../composables/usePunShareReward'
 import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHint'
@@ -153,6 +162,11 @@ const slotShake = ref(false)
 const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
 const hintAnswerQuota = ref(0)
+const hintOverlayVisible = ref(false)
+const hintOverlayText = ref('')
+const hintOverlayStep = ref(0)
+const hintOverlayMaxSteps = ref(0)
+const hintOverlayComplete = ref(false)
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
   mode: 'heuristic',
   shareSuccessThresholdMs: 3000,
@@ -268,6 +282,11 @@ async function onRevealHint() {
     if (typeof res.hintAnswerQuota === 'number') {
       hintAnswerQuota.value = res.hintAnswerQuota
     }
+    hintOverlayText.value = String(res.hintText || '')
+    hintOverlayStep.value = Number(res.step || 0)
+    hintOverlayMaxSteps.value = Number(res.maxSteps || 0)
+    hintOverlayComplete.value = !!res.isComplete
+    hintOverlayVisible.value = true
   } catch (e) {
     punToastRevealHintAfterError(e, afterRewardVideo)
   } finally {
