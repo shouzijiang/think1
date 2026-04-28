@@ -112,7 +112,7 @@
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
 | `/subscribe/save` | POST | 保存微信订阅消息授权状态 |
-| `/cron/send-remind` | GET | 内部定时任务：触发发送订阅提醒消息；模板各 `thing*` 字段文案须 **≤约 20 字**（见 `CronService`），否则微信返回 `data.thingN.value invalid` |
+| `/cron/send-remind` | GET | 内部定时任务：触发发送订阅提醒消息；可选查询参数 **`user_id`**（正整数）时仅对该用户尝试发送，规则与全量一致（已订阅 accept、当日未成功领取 `daily_noon_hint_5`、今日未登录等）。指定 `user_id` 时响应 `data` 会带 **`target_user_id`**、**`matched_user_ids`**（实际 SQL 命中的用户 id，应与之一致）。若微信返回用户拒绝（如 errmsg 含 `user refuse` / errcode `43101`），服务端会将 **`user_subscribes` 对应行改为 `reject`**，避免下次任务重复发送。模板各 `thing*` 字段文案须 **≤约 20 字**（见 `CronService`），否则微信返回 `data.thingN.value invalid` |
 
 ---
 

@@ -120,7 +120,8 @@ class WechatHelper
         } else {
             return [
                 'success' => false,
-                'error' => $result['errmsg'] ?? '未知错误'
+                'error' => $result['errmsg'] ?? '未知错误',
+                'errcode' => isset($result['errcode']) ? (int) $result['errcode'] : null,
             ];
         }
     }
