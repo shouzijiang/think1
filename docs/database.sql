@@ -244,7 +244,7 @@ VALUES ('user', 563, NULL, '奖励说明', '感谢您的反馈，已处理，奖
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
 VALUES ('user', 634, NULL, 'bug反馈回复', '感谢您的反馈。梗图填词 · 第1关 答案为蛋包饭，并非为蛋炒饭哦~。', 1);
 
--- 14. 谐音梗图统一领奖记录（所有领取类型都落此表：分享/激励视频/每日12点）
+-- 14. 谐音梗图统一领奖记录（所有领取类型都落此表：分享/激励视频/daily_noon_hint_5 每日任务）
 CREATE TABLE `pun_reward_claim_record` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int(11) unsigned NOT NULL COMMENT '用户ID',
@@ -260,7 +260,7 @@ CREATE TABLE `pun_reward_claim_record` (
   KEY `idx_status_created` (`status`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图领奖记录';
 
--- 若线上已存在 users 表，请新增登录时间字段
+-- 若线上已存在 users 表，请新增登录时间字段（亦可直接执行 docs/migrations/add_users_last_login_at.sql）
 ALTER TABLE `users`
   ADD COLUMN `last_login_at` datetime DEFAULT NULL COMMENT '最近登录时间（用于活动提醒过滤）' AFTER `avatar`;
 

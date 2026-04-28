@@ -138,9 +138,10 @@ class Pun extends BaseController
     }
 
     /**
-     * 统一领取接口：分享/激励视频/每日领取
+     * 统一领取接口：分享/激励视频/每日任务领取
      * POST /pun/reward/claim
      * Body: { type: share|reward_video|daily_noon_hint_5, add?: number, subscribeStatus?: accept|reject, templateId?: string }
+     * daily_noon_hint_5：每自然日限一次 +5 次揭字，不限具体时段，需 subscribe accept。
      */
     public function claimReward(Request $request)
     {

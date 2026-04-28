@@ -311,7 +311,7 @@ class PunService
     }
 
     /**
-     * 每日中午领取（需订阅授权 accept）
+     * 每日任务领取 +5 次揭字（自然日限一次；不限制具体时段，需订阅授权 accept）
      * @param array<string,mixed> $extra
      * @return array{hintAnswerQuota:int,added:int,type:string}
      */
@@ -326,12 +326,6 @@ class PunService
         }
         if ($status !== 'accept') {
             throw new \InvalidArgumentException('请先授权订阅通知后再领取');
-        }
-
-        $now = $this->shanghaiNow();
-        $todayNoon = \DateTime::createFromFormat('Y-m-d H:i:s', $now->format('Y-m-d') . ' 12:00:00', new \DateTimeZone('Asia/Shanghai'));
-        if ($todayNoon && $now < $todayNoon) {
-            throw new \InvalidArgumentException('每日12点后可领取');
         }
 
         $today = $this->todayShanghai();

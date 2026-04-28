@@ -13,7 +13,7 @@
 ## 二、 数据库核心表结构
 
 ### 1. 公共与基础表
-- **users (或 pun_game_user)**: 用户基础信息表（openid, nickname, avatar）
+- **users (或 pun_game_user)**: 用户基础信息表（openid, nickname, avatar，**last_login_at** 最近登录时间；微信登录成功时写入，`/cron/send-remind` 等逻辑依赖；老库迁移见 `docs/migrations/add_users_last_login_at.sql`）
 
 ### 2. 谐音梗图游戏相关表
 - **pun_game_rank**: 游戏排行榜（user_id, max_level, max_level_mid, max_level_xhs；**last_pass_at_beginner / last_pass_at_mid / last_pass_at_xhs** 为各轨道最近一次通关时间，用于该榜**同分排序**；`updated_at` 仍为行级更新时间。同分排序规则：`ORDER BY 该轨最高关 DESC, COALESCE(该轨 last_pass_at_*, updated_at) DESC`）
@@ -82,7 +82,7 @@
 说明：
 - `type=share`：用于转发领奖，仍有 60 秒最小间隔与单日上限（5 次）风控。
 - `type=reward_video`：用于激励视频完整观看后领奖（与分享风控独立）。
-- `type=daily_noon_hint_5`：每日 12 点后可领 5 次，且要求本次订阅授权 `subscribeStatus=accept`、`templateId` 匹配活动模板。
+- `type=daily_noon_hint_5`：每个自然日（上海时区）限领一次 +5 次揭字配额，**不限制具体领取时段**；要求本次订阅授权 `subscribeStatus=accept`、`templateId` 匹配活动模板。
 - 不论成功/拒绝/失败，后端都会写入 `pun_reward_claim_record` 便于审计与风控分析。
 
 #### 站内信 `/pun/mail/*`（需登录）
@@ -112,7 +112,7 @@
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
 | `/subscribe/save` | POST | 保存微信订阅消息授权状态 |
-| `/cron/send-remind` | GET | 内部定时任务：触发发送订阅提醒消息 |
+| `/cron/send-remind` | GET | 内部定时任务：触发发送订阅提醒消息；模板各 `thing*` 字段文案须 **≤约 20 字**（见 `CronService`），否则微信返回 `data.thingN.value invalid` |
 
 ---
 
@@ -120,7 +120,7 @@
 
 ### 1. 前端 (UniApp) 注意事项
 - **API 规范**：遵循 `uniapp-apis.mdc` 规范，禁止使用原生的 `fetch` 或 `window`，必须统一使用 `uni.request` 和 `uni.setStorageSync`。
-- **统一领奖调用（仅微信小程序）**：分享、激励视频、每日12点活动统一调用 `POST /pun/reward/claim`，按 `type` 区分逻辑；激励视频仍要求完整观看后再领奖。广告位 `adUnitId` 配置在 `pun-game/src/constants/rewardedVideoAd.js`。
+- **统一领奖调用（仅微信小程序）**：分享、激励视频、每日任务（`daily_noon_hint_5`）统一调用 `POST /pun/reward/claim`，按 `type` 区分逻辑；激励视频仍要求完整观看后再领奖。广告位 `adUnitId` 配置在 `pun-game/src/constants/rewardedVideoAd.js`。
 - **中级与小红书关卡逻辑**：`mid` 与 `xhs` 关卡 `level` 均可能不连续，不能用 ID 大小判断进度，必须依赖接口 `/pun/level/progress` 返回的 `currentLevel`、`passedLevels`、`totalLevels` 渲染锁定/解锁状态。
 - **首页更新弹窗**：进入首页请求 `/pun/changelog/latest`，与本地 `pun_changelog_seen_version`（`version_code`）比对，未读则弹窗；点「知道了」写入本地已读。
 - **微信小程序转发/朋友圈**：官方 `app.json` / 页面 `*.json` **不包含** `enableShareAppMessage`、`enableShareTimeline`（写入会被开发者工具标为无效字段）；需在页面实现 `onShareAppMessage` / `onShareTimeline`，并在 `App.vue` 的 `onLaunch`/`onShow`（及 `useWechatPageShare` 等）中调用 `uni.showShareMenu({ menus: ['shareAppMessage','shareTimeline'] })` 打开右上角菜单能力。
@@ -132,7 +132,7 @@
 - **passedLevels 顺序约定**：`/pun/level/progress` 返回的 `passedLevels` 按题库关卡定义顺序返回（而非答题时间顺序），避免出现如 `222` 后才出现 `7` 的展示问题。
 - **xhs 当前关选择规则**：`/pun/level/progress?gameTier=xhs` 的 `currentLevel` 按关卡号升序计算，返回“最小的未通过且存在的关卡号”；例如已通过 7/8/9 时优先返回 10，若 10 不存在则返回 11（依此类推）。
 - **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；**揭字剩余次数**存于 **`pun_user_hint_quota`**（按用户一行）。对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
-- **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发「每日领奖提醒」（过滤条件：已订阅 accept、今日未登录且未领取）。
+- **定时任务**：依赖宿主机或 Docker 的 crontab 执行 `curl http://localhost/cron/send-remind` 以派发「每日领奖提醒」（过滤条件：已订阅 accept、今日未登录且未领取）。下发文案受微信 **`thing` 类型约 20 字上限** 约束，勿在 `CronService` 中写超长 `thing*`。
 - **统一响应封装**：所有接口均需返回 `{ "code": 200, "message": "...", "data": {...} }` 格式。
 
 ### 3. 运维扩展（可选）

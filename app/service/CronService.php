@@ -43,10 +43,11 @@ class CronService
             ->select();
 
         foreach ($users as $user) {
+            // 订阅消息 thing* 单字段最多约 20 字，超长会报 data.thingN.value invalid
             $messageData = [
-                'thing1'  => ['value' => '奖励领取'],
+                'thing1'  => ['value' => '每日上线可领查看答案次数'],
                 'thing4'  => ['value' => '请尽快领取，每日限一次'],
-                'thing5'  => ['value' => '每日12点可领取5次查看答案次数，分享也可领取次数'],
+                'thing5'  => ['value' => '如果您已经领取奖励请忽略此消息'],
                 'time8'   => ['value' => $timeStr],
             ];
 

@@ -56,8 +56,8 @@
         <view class="cell-daily-head">
           <text class="cell-icon">🎁</text>
           <view class="cell-main">
-            <text class="cell-text">每日12点领5次答案</text>
-            <text class="cell-sub">需授权订阅通知，今日限领一次</text>
+            <text class="cell-text">每日领5次答案</text>
+            <text class="cell-sub">需授权订阅通知，每日限领一次</text>
           </view>
         </view>
         <button
