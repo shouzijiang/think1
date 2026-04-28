@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page page--mid">
     <view class="bg-wrap">
       <view class="bg-gradient" />

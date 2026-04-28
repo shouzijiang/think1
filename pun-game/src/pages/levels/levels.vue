@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page" @touchstart="onTouchStart" @touchend="onTouchEnd">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -501,3 +501,4 @@ function back() {
   text-align: center;
 }
 </style>
+

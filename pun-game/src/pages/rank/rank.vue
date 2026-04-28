@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page" @touchstart="onTouchStart" @touchend="onTouchEnd">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -375,3 +375,4 @@ function onTouchEnd(e) {
   opacity: 0.9;
 }
 </style>
+

@@ -19,6 +19,7 @@
 
     <view class="card">
       <view class="card-inner">
+        <PunGlobalWatermark />
         <image
           v-if="puzzle.imageUrl"
           class="puzzle-img"
@@ -522,3 +523,4 @@ onShareTimeline(() => {
   border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 </style>
+

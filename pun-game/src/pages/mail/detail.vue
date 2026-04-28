@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -139,4 +139,5 @@ onLoad((opts = {}) => {
   line-height: 1.6;
 }
 </style>
+
 

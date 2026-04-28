@@ -28,6 +28,7 @@
         <text class="author-text">作者：{{ puzzle.author }}</text>
       </view>
       <view class="card-inner">
+        <PunGlobalWatermark />
         <image
           v-if="puzzle.imageUrlTop"
           class="main-img"
@@ -572,3 +573,4 @@ onShareTimeline(() => {
   }
 }
 </style>
+

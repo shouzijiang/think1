@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -974,3 +974,4 @@ function startGame() {
 }
 
 </style>
+

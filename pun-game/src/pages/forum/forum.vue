@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -686,3 +686,4 @@ onShow(async () => {
   text-shadow: 0 1rpx 2rpx rgba(0, 0, 0, 0.16);
 }
 </style>
+

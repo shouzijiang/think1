@@ -33,6 +33,7 @@
       </view>
 
       <view class="card-inner card-inner--stack">
+        <PunGlobalWatermark />
         <view class="stack-block">
           <image
             v-if="puzzle.imageUrlTop"
@@ -713,4 +714,5 @@ onShareTimeline(() => {
   }
 }
 </style>
+
 
