@@ -6,6 +6,7 @@ use app\BaseController;
 use app\common\ResponseHelper;
 use app\service\PunService;
 use think\Request;
+use think\facade\Log;
 
 /**
  * 谐音梗图游戏 - 接口
@@ -66,32 +67,18 @@ class Pun extends BaseController
         if (!is_array($userAnswer)) {
             $userAnswer = [];
         }
-        $mode = $request->post('gameTier', 'beginner');
-        $modeNorm = is_string($mode) ? strtolower(trim($mode)) : '';
-        $isIntermediate = in_array($modeNorm, ['issue2', 'intermediate', 'mid', 'middle', '2', '中级', '中級'], true);
-        $isXhs = in_array($modeNorm, ['xhs', 'issue3', 'xiaohongshu', '小红书'], true);
-        $isBattle = ($modeNorm === 'battle');
-        
-        if ($isBattle) {
-            $levels = \think\facade\Config::get('pun_levels_issue2', []);
-            if (!isset($levels[$level])) {
-                return ResponseHelper::badRequest('关卡不存在');
-            }
-        } elseif ($isIntermediate) {
-            $levels = \think\facade\Config::get('pun_levels_issue2', []);
-            if (!isset($levels[$level])) {
-                return ResponseHelper::badRequest('关卡不存在');
-            }
-        } elseif ($isXhs) {
-            $levels = \think\facade\Config::get('pun_levels_issue3', []);
-            if (!isset($levels[$level])) {
-                return ResponseHelper::badRequest('关卡不存在');
-            }
-        } else {
-            $levels = \think\facade\Config::get('pun_levels', []);
-            if (!isset($levels[$level])) {
-                return ResponseHelper::badRequest('关卡不存在');
-            }
+        $mode = (string) $request->post('gameTier', 'beginner');
+        $modeNorm = \app\service\PunService::normalizeMode($mode);
+
+        $levelConfigMap = [
+            'intermediate' => 'pun_levels_issue2',
+            'battle'       => 'pun_levels_issue3',
+            'xhs'          => 'pun_levels_issue3',
+            'beginner'     => 'pun_levels',
+        ];
+        $levels = \think\facade\Config::get($levelConfigMap[$modeNorm] ?? 'pun_levels', []);
+        if (!isset($levels[$level])) {
+            return ResponseHelper::badRequest('关卡不存在');
         }
         try {
             $result = $this->punService->submitAnswer($userId, $level, $userAnswer, (string) $mode);
@@ -134,6 +121,34 @@ class Pun extends BaseController
             \think\facade\Log::error('pun/level/reveal-hint 异常: ' . $e->getMessage());
 
             return ResponseHelper::error('获取提示失败', 500);
+        }
+    }
+
+    /**
+     * 跳关（扣除查看答案次数，标记24小时）
+     * POST /pun/level/skip
+     * Body: { "level": 1, "gameTier": "mid"|"xhs"|"beginner" }
+     */
+    public function skipLevel(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+        $level = (int) $request->post('level', 0);
+        $mode = (string) $request->post('gameTier', 'beginner');
+        if ($level <= 0) {
+            return ResponseHelper::badRequest('关卡参数错误');
+        }
+
+        try {
+            $result = $this->punService->skipLevel((int) $userId, $level, $mode);
+            return ResponseHelper::success($result);
+        } catch (\InvalidArgumentException $e) {
+            return ResponseHelper::badRequest($e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('pun/level/skip 异常: ' . $e->getMessage());
+            return ResponseHelper::error('跳关失败', 500);
         }
     }
 

@@ -18,17 +18,48 @@ use think\facade\Db;
  */
 class PunService
 {
+    /** 领取类型：分享奖励（基础 +1，可按入参 delta 增量） */
     public const REWARD_TYPE_SHARE = 'share';
+
+    /** 领取类型：激励视频奖励（基础 +1，可按入参 delta 增量） */
     public const REWARD_TYPE_VIDEO = 'reward_video';
-    public const REWARD_TYPE_DAILY_NOON = 'daily_noon_hint_5';
-    public const REWARD_TYPE_DAILY_AD_TASK = 'daily_watch_ad_hint_1';
-    public const REWARD_TYPE_DAILY_BATTLE_TASK = 'daily_battle_3_hint_3';
-    public const DAILY_NOON_REWARD_ADD = 5;
-    public const DAILY_NOON_MIN_ANSWER_COUNT = 20;
-    public const DAILY_AD_TASK_REWARD_ADD = 1;
-    public const DAILY_BATTLE_TASK_REWARD_ADD = 3;
-    public const DAILY_BATTLE_TASK_REQUIRED = 3;
-    public const DAILY_NOON_TEMPLATE_ID = 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE';
+
+    /**
+     * 每日任务配置（按任务类型分组）
+     * 键名: noon（答题任务）| ad（看广告任务）| battle（1V1 对战任务）
+     */
+    public const DAILY_TASKS = [
+        'noon' => [
+            'type'        => 'daily_noon_hint_5',    // 领取类型标识
+            'reward_add'  => 5,                       // 单次发放次数
+            'min_count'   => 20,                      // 达标门槛（当日答题数）
+            'template_id' => 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE', // 订阅模板 ID（个人小程序场景不强依赖）
+        ],
+        'ad' => [
+            'type'       => 'daily_watch_ad_hint_1', // 领取类型标识
+            'reward_add' => 1,                        // 单次发放次数
+        ],
+        'battle' => [
+            'type'       => 'daily_battle_3_hint_3', // 领取类型标识
+            'reward_add' => 3,                        // 单次发放次数
+            'min_count'  => 3,                        // 达标门槛（当日对战局数）
+        ],
+    ];
+
+    /**
+     * 永久任务配置（全生命周期仅可领取一次）
+     * 键名: avatar（设置头像）| nickname（设置昵称）
+     */
+    public const PERMANENT_TASKS = [
+        'avatar' => [
+            'type'       => 'permanent_set_avatar',  // 领取类型标识
+            'reward_add' => 3,                        // 单次发放次数
+        ],
+        'nickname' => [
+            'type'       => 'permanent_set_nickname', // 领取类型标识
+            'reward_add' => 3,                         // 单次发放次数
+        ],
+    ];
 
     /** 分享领奖最小间隔（秒） */
     private const SHARE_REWARD_MIN_INTERVAL_SEC = 60;
@@ -36,26 +67,118 @@ class PunService
     /** 分享领奖单日上限（自然日，Asia/Shanghai） */
     private const SHARE_REWARD_DAILY_MAX = 5;
 
+    /** 跳关一次扣除查看答案次数 */
+    private const SKIP_LEVEL_HINT_COST = 2;
+
+    /** 跳关标记有效期（48小时） */
+    private const SKIP_LEVEL_TTL_SEC = 172800;
+
     /**
      * 玩法模式归一化
+     *
+     * 前端统一传 'mid' / 'xhs' / 'battle' / 'beginner'。
+     * 保留少量历史别名兼容旧客户端缓存。
+     *
      * @return string beginner|intermediate|xhs|battle
      */
-    private function normalizeMode($mode): string
+    public static function normalizeMode($mode): string
     {
         if (!is_string($mode)) {
             return 'beginner';
         }
         $m = strtolower(trim($mode));
-        if (in_array($m, ['issue2', 'intermediate', 'mid', 'middle', '2', '中级', '中級'], true)) {
+        // 'mid' 是前端当前统一值；其余为历史别名
+        if (in_array($m, ['mid', 'intermediate', 'issue2'], true)) {
             return 'intermediate';
         }
-        if (in_array($m, ['xhs', 'issue3', 'xiaohongshu', '小红书'], true)) {
+        if (in_array($m, ['xhs', 'issue3'], true)) {
             return 'xhs';
         }
         if ($m === 'battle') {
             return 'battle';
         }
         return 'beginner';
+    }
+
+    /**
+     * 将模式映射到跳关缓存分桶
+     */
+    private function skipBucketByMode(string $mode): string
+    {
+        if ($mode === 'intermediate') {
+            return 'mid';
+        }
+        if ($mode === 'xhs') {
+            return 'xhs';
+        }
+        return 'beg';
+    }
+
+    private function skipCacheKey(int $userId, string $mode): string
+    {
+        return 'pun_skip:' . $userId . ':' . $this->skipBucketByMode($mode);
+    }
+
+    /**
+     * 读取跳关标记（自动按当前题库过滤无效关卡）
+     *
+     * @param array<int|string, array> $answersRaw
+     * @return int[]
+     */
+    private function getSkipLevels(int $userId, string $mode, array $answersRaw): array
+    {
+        $key = $this->skipCacheKey($userId, $mode);
+        $raw = Cache::get($key, []);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($raw)) {
+            $raw = [];
+        }
+
+        $set = [];
+        foreach ($raw as $lv) {
+            $id = (int) $lv;
+            if (isset($answersRaw[$id])) {
+                $set[$id] = true;
+            }
+        }
+
+        $result = array_map('intval', array_keys($set));
+        sort($result, SORT_NUMERIC);
+
+        return $result;
+    }
+
+    /**
+     * 写入跳关标记（24小时过期）
+     *
+     * @param int[] $levels
+     */
+    private function putSkipLevels(int $userId, string $mode, array $levels): void
+    {
+        $set = [];
+        foreach ($levels as $lv) {
+            $id = (int) $lv;
+            if ($id > 0) {
+                $set[$id] = true;
+            }
+        }
+        $result = array_map('intval', array_keys($set));
+        sort($result, SORT_NUMERIC);
+        Cache::set($this->skipCacheKey($userId, $mode), $result, self::SKIP_LEVEL_TTL_SEC);
+    }
+
+    private function removeSkipLevel(int $userId, string $mode, int $level, array $answersRaw): void
+    {
+        $levels = $this->getSkipLevels($userId, $mode, $answersRaw);
+        $target = (int) $level;
+        if (!in_array($target, $levels, true)) {
+            return;
+        }
+        $next = array_values(array_filter($levels, fn ($n) => (int) $n !== $target));
+        $this->putSkipLevels($userId, $mode, $next);
     }
 
     /**
@@ -234,9 +357,11 @@ class PunService
         if (!in_array($type, [
             self::REWARD_TYPE_SHARE,
             self::REWARD_TYPE_VIDEO,
-            self::REWARD_TYPE_DAILY_NOON,
-            self::REWARD_TYPE_DAILY_AD_TASK,
-            self::REWARD_TYPE_DAILY_BATTLE_TASK,
+            self::DAILY_TASKS['noon']['type'],
+            self::DAILY_TASKS['ad']['type'],
+            self::DAILY_TASKS['battle']['type'],
+            self::PERMANENT_TASKS['avatar']['type'],
+            self::PERMANENT_TASKS['nickname']['type'],
         ], true)) {
             throw new \InvalidArgumentException('不支持的领取类型');
         }
@@ -250,10 +375,14 @@ class PunService
                 $result = $this->claimByShare($userId, $delta);
             } elseif ($type === self::REWARD_TYPE_VIDEO) {
                 $result = $this->claimByRewardVideo($userId, $delta);
-            } elseif ($type === self::REWARD_TYPE_DAILY_NOON) {
+            } elseif ($type === self::DAILY_TASKS['noon']['type']) {
                 $result = $this->claimByDailyNoon($userId, $extra);
-            } elseif ($type === self::REWARD_TYPE_DAILY_AD_TASK) {
+            } elseif ($type === self::DAILY_TASKS['ad']['type']) {
                 $result = $this->claimByDailyAdTask($userId);
+            } elseif ($type === self::PERMANENT_TASKS['avatar']['type']) {
+                $result = $this->claimByPermanentAvatar($userId);
+            } elseif ($type === self::PERMANENT_TASKS['nickname']['type']) {
+                $result = $this->claimByPermanentNickname($userId);
             } else {
                 $result = $this->claimByDailyBattleTask($userId);
             }
@@ -407,16 +536,67 @@ class PunService
     }
 
     /**
+     * 永久任务：修改头像领取 +3（全生命周期仅可领取一次）
+     */
+    private function claimByPermanentAvatar(int $userId): array
+    {
+        $already = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::PERMANENT_TASKS['avatar']['type'])
+            ->where('status', 'success')
+            ->find();
+        if ($already) {
+            throw new \InvalidArgumentException('头像奖励已领取过');
+        }
+        $user = Db::name('users')->where('id', $userId)->field('avatar')->find();
+        if (empty($user['avatar'])) {
+            throw new \InvalidArgumentException('请先设置头像后再领取');
+        }
+        $newQuota = $this->increaseHintQuota($userId, self::PERMANENT_TASKS['avatar']['reward_add']);
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => self::PERMANENT_TASKS['avatar']['reward_add'],
+            'type' => self::PERMANENT_TASKS['avatar']['type'],
+        ];
+    }
+
+    /**
+     * 永久任务：修改昵称领取 +3（全生命周期仅可领取一次）
+     */
+    private function claimByPermanentNickname(int $userId): array
+    {
+        $already = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::PERMANENT_TASKS['nickname']['type'])
+            ->where('status', 'success')
+            ->find();
+        if ($already) {
+            throw new \InvalidArgumentException('昵称奖励已领取过');
+        }
+        $user = Db::name('users')->where('id', $userId)->field('nickname')->find();
+        $nickname = trim((string) ($user['nickname'] ?? ''));
+        if ($nickname === '' || in_array($nickname, ['微信用户', '用户'], true)) {
+            throw new \InvalidArgumentException('请先设置昵称后再领取');
+        }
+        $newQuota = $this->increaseHintQuota($userId, self::PERMANENT_TASKS['nickname']['reward_add']);
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => self::PERMANENT_TASKS['nickname']['reward_add'],
+            'type' => self::PERMANENT_TASKS['nickname']['type'],
+        ];
+    }
+
+    /**
      * 看广告任务：每次完整观看后领 +1（不做每日次数上限）
      * @return array{hintAnswerQuota:int,added:int,type:string}
      */
     private function claimByDailyAdTask(int $userId): array
     {
-        $newQuota = $this->increaseHintQuota($userId, self::DAILY_AD_TASK_REWARD_ADD);
+        $newQuota = $this->increaseHintQuota($userId, self::DAILY_TASKS['ad']['reward_add']);
         return [
             'hintAnswerQuota' => $newQuota,
-            'added' => self::DAILY_AD_TASK_REWARD_ADD,
-            'type' => self::REWARD_TYPE_DAILY_AD_TASK,
+            'added' => self::DAILY_TASKS['ad']['reward_add'],
+            'type' => self::DAILY_TASKS['ad']['type'],
         ];
     }
 
@@ -429,7 +609,7 @@ class PunService
         $today = $this->todayShanghai();
         $already = Db::name('pun_reward_claim_record')
             ->where('user_id', $userId)
-            ->where('claim_type', self::REWARD_TYPE_DAILY_BATTLE_TASK)
+            ->where('claim_type', self::DAILY_TASKS['battle']['type'])
             ->where('claim_date', $today)
             ->where('status', 'success')
             ->find();
@@ -438,17 +618,17 @@ class PunService
         }
 
         $battleCount = $this->getTodayBattleFinishedCount($userId);
-        if ($battleCount < self::DAILY_BATTLE_TASK_REQUIRED) {
+        if ($battleCount < self::DAILY_TASKS['battle']['min_count']) {
             throw new \InvalidArgumentException(
-                '今日1V1已完成' . $battleCount . '/' . self::DAILY_BATTLE_TASK_REQUIRED . '局，达标后可领取'
+                '今日1V1已完成' . $battleCount . '/' . self::DAILY_TASKS['battle']['min_count'] . '局，达标后可领取'
             );
         }
 
-        $newQuota = $this->increaseHintQuota($userId, self::DAILY_BATTLE_TASK_REWARD_ADD);
+        $newQuota = $this->increaseHintQuota($userId, self::DAILY_TASKS['battle']['reward_add']);
         return [
             'hintAnswerQuota' => $newQuota,
-            'added' => self::DAILY_BATTLE_TASK_REWARD_ADD,
-            'type' => self::REWARD_TYPE_DAILY_BATTLE_TASK,
+            'added' => self::DAILY_TASKS['battle']['reward_add'],
+            'type' => self::DAILY_TASKS['battle']['type'],
         ];
     }
 
@@ -461,16 +641,16 @@ class PunService
     {
         // 个人小程序不支持长期订阅消息模板：每日登录奖励不依赖 subscribeStatus/templateId
         $dailyAnswerCount = $this->getDailyAnswerCount($userId);
-        if ($dailyAnswerCount < self::DAILY_NOON_MIN_ANSWER_COUNT) {
+        if ($dailyAnswerCount < self::DAILY_TASKS['noon']['min_count']) {
             throw new \InvalidArgumentException(
-                '今日已答' . $dailyAnswerCount . '/' . self::DAILY_NOON_MIN_ANSWER_COUNT . '题，答满后可领取'
+                '今日已答' . $dailyAnswerCount . '/' . self::DAILY_TASKS['noon']['min_count'] . '题，答满后可领取'
             );
         }
 
         $today = $this->todayShanghai();
         $already = Db::name('pun_reward_claim_record')
             ->where('user_id', $userId)
-            ->where('claim_type', self::REWARD_TYPE_DAILY_NOON)
+            ->where('claim_type', self::DAILY_TASKS['noon']['type'])
             ->where('claim_date', $today)
             ->where('status', 'success')
             ->find();
@@ -478,7 +658,7 @@ class PunService
             throw new \InvalidArgumentException('今日已领取，请明天再来');
         }
 
-        $delta = self::DAILY_NOON_REWARD_ADD;
+        $delta = self::DAILY_TASKS['noon']['reward_add'];
         $this->getOrCreateHintAnswerQuota($userId);
 
         $newQuota = 0;
@@ -495,7 +675,7 @@ class PunService
         return [
             'hintAnswerQuota' => $newQuota,
             'added' => $delta,
-            'type' => self::REWARD_TYPE_DAILY_NOON,
+            'type' => self::DAILY_TASKS['noon']['type'],
         ];
     }
 
@@ -523,10 +703,10 @@ class PunService
             throw new \InvalidArgumentException('关卡参数无效');
         }
 
-        if ($mode === 'intermediate' || $mode === 'battle') {
+        if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
-        } elseif ($mode === 'xhs') {
+        } elseif ($mode === 'xhs' || $mode === 'battle') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
@@ -590,6 +770,78 @@ class PunService
             'maxSteps'          => $n,
             'isComplete'        => $isComplete,
             'hintAnswerQuota'   => $remainingQuota,
+        ];
+    }
+
+    /**
+     * 跳关：扣除查看答案次数并记录 24 小时跳关标记，返回下一关。
+     *
+     * @return array{nextLevel:?int,hintAnswerQuota:int,cost:int,skipTtlSeconds:int,skippedLevels:int[]}
+     */
+    public function skipLevel(int $userId, int $level, string $mode = 'beginner'): array
+    {
+        $mode = $this->normalizeMode($mode);
+        if ($mode === 'battle') {
+            throw new \InvalidArgumentException('对战模式不支持跳关');
+        }
+
+        if ($mode === 'intermediate') {
+            $answersRaw = Config::get('pun_levels_issue2', []);
+        } elseif ($mode === 'xhs') {
+            $answersRaw = Config::get('pun_levels_issue3', []);
+        } else {
+            $answersRaw = Config::get('pun_levels', []);
+        }
+        if (!isset($answersRaw[$level])) {
+            throw new \InvalidArgumentException('关卡不存在');
+        }
+
+        $this->getOrCreateHintAnswerQuota($userId);
+        $remainingQuota = 0;
+        Db::transaction(function () use ($userId, &$remainingQuota) {
+            $row = Db::name('pun_user_hint_quota')->where('user_id', $userId)->lock(true)->find();
+            if (!$row) {
+                throw new \RuntimeException('揭字配额数据异常');
+            }
+            $quota = (int) ($row['quota'] ?? 0);
+            if ($quota < self::SKIP_LEVEL_HINT_COST) {
+                throw new \InvalidArgumentException('查看答案次数不足，无法跳关');
+            }
+            $totalUsed = (int) ($row['total_used'] ?? 0);
+            $remainingQuota = $quota - self::SKIP_LEVEL_HINT_COST;
+            Db::name('pun_user_hint_quota')->where('user_id', $userId)->update([
+                'quota' => $remainingQuota,
+                'total_used' => $totalUsed + self::SKIP_LEVEL_HINT_COST,
+            ]);
+        });
+
+        $skippedLevels = $this->getSkipLevels($userId, $mode, $answersRaw);
+        if (!in_array($level, $skippedLevels, true)) {
+            $skippedLevels[] = (int) $level;
+        }
+        $this->putSkipLevels($userId, $mode, $skippedLevels);
+
+        $allKeys = array_keys($answersRaw);
+        if ($mode === 'xhs' || $mode === 'beginner') {
+            sort($allKeys, SORT_NUMERIC);
+        }
+        $idx = $this->indexOfLevelIdInOrderedKeys($allKeys, $level);
+        $skipSet = array_fill_keys($skippedLevels, true);
+        $nextLevel = null;
+        for ($i = max(0, $idx + 1); $i < count($allKeys); $i++) {
+            $candidate = (int) $allKeys[$i];
+            if (!isset($skipSet[$candidate])) {
+                $nextLevel = $candidate;
+                break;
+            }
+        }
+
+        return [
+            'nextLevel' => $nextLevel,
+            'hintAnswerQuota' => $remainingQuota,
+            'cost' => self::SKIP_LEVEL_HINT_COST,
+            'skipTtlSeconds' => self::SKIP_LEVEL_TTL_SEC,
+            'skippedLevels' => array_values(array_unique(array_map('intval', $skippedLevels))),
         ];
     }
 
@@ -714,10 +966,10 @@ class PunService
     {
         $this->incrementDailyAnswerCount($userId);
         $mode = $this->normalizeMode($mode);
-        if ($mode === 'intermediate' || $mode === 'battle') {
+        if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
-        } elseif ($mode === 'xhs') {
+        } elseif ($mode === 'xhs' || $mode === 'battle') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
@@ -746,6 +998,7 @@ class PunService
             $allCorrect = false;
         }
         if ($allCorrect) {
+            $this->removeSkipLevel($userId, $mode, $level, $mode === 'intermediate' ? $answersRaw : ($mode === 'xhs' || $mode === 'battle' ? $answersRaw : $answers));
             if ($mode === 'intermediate') {
                 $this->updateMidProgress($userId, $level, $answersRaw);
             } else if ($mode === 'xhs') {
@@ -1128,53 +1381,91 @@ class PunService
         $hintAnswerTotalUsed = $hintRow ? (int) ($hintRow['total_used'] ?? 0) : 0;
         $hintAnswerShareDailyClaimed = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_SHARE);
         $dailyAnswerCount = $this->getDailyAnswerCount($userId);
-        $dailyNoonTaskClaimed = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_DAILY_NOON) > 0 ? 1 : 0;
-        $dailyAdTaskCount = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_DAILY_AD_TASK);
+        $dailyNoonTaskClaimed = $this->getTodayRewardAddedCount($userId, self::DAILY_TASKS['noon']['type']) > 0 ? 1 : 0;
+        $dailyAdTaskCount = $this->getTodayRewardAddedCount($userId, self::DAILY_TASKS['ad']['type']);
         $dailyBattleCount = $this->getTodayBattleFinishedCount($userId);
-        $dailyBattleTaskClaimed = $this->getTodayRewardAddedCount($userId, self::REWARD_TYPE_DAILY_BATTLE_TASK) > 0 ? 1 : 0;
+        $dailyBattleTaskClaimed = $this->getTodayRewardAddedCount($userId, self::DAILY_TASKS['battle']['type']) > 0 ? 1 : 0;
+        $avatarTaskClaimed = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::PERMANENT_TASKS['avatar']['type'])
+            ->where('status', 'success')
+            ->count() > 0 ? 1 : 0;
+        $nicknameTaskClaimed = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::PERMANENT_TASKS['nickname']['type'])
+            ->where('status', 'success')
+            ->count() > 0 ? 1 : 0;
         $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
         $mode = $this->normalizeMode($mode);
 
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $state = $this->buildMidTierProgressState($userId, $answersRaw, $progress);
+            $skippedLevels = $this->getSkipLevels($userId, $mode, $answersRaw);
+            $passedSet = array_fill_keys(array_map('intval', $state['passedLevels']), true);
+            $skipSet = array_fill_keys(array_map('intval', $skippedLevels), true);
+            $currentLevel = null;
+            foreach ($state['allKeys'] as $k) {
+                $kid = (int) $k;
+                if (!isset($passedSet[$kid]) && !isset($skipSet[$kid])) {
+                    $currentLevel = $kid;
+                    break;
+                }
+            }
 
             return [
-                'currentLevel'     => $state['currentLevel'],
+                'currentLevel'     => $currentLevel,
                 'passedLevels'     => array_map('intval', $state['passedLevels']),
+                'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $state['totalLevels'],
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
                 'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
                 'dailyAnswerCount' => $dailyAnswerCount,
-                'dailyAnswerRequired' => self::DAILY_NOON_MIN_ANSWER_COUNT,
+                'dailyAnswerRequired' => self::DAILY_TASKS['noon']['min_count'],
                 'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
                 'dailyAdTaskCount' => $dailyAdTaskCount,
                 'dailyBattleCount' => $dailyBattleCount,
-                'dailyBattleRequired' => self::DAILY_BATTLE_TASK_REQUIRED,
+                'dailyBattleRequired' => self::DAILY_TASKS['battle']['min_count'],
                 'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
+                'avatarTaskClaimed' => $avatarTaskClaimed,
+                'nicknameTaskClaimed' => $nicknameTaskClaimed,
             ];
         }
         if ($mode === 'xhs') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $state = $this->buildXhsProgressState($userId, $answersRaw, $progress);
+            $skippedLevels = $this->getSkipLevels($userId, $mode, $answersRaw);
+            $passedSet = array_fill_keys(array_map('intval', $state['passedLevels']), true);
+            $skipSet = array_fill_keys(array_map('intval', $skippedLevels), true);
+            $currentLevel = null;
+            foreach ($state['allKeys'] as $k) {
+                $kid = (int) $k;
+                if (!isset($passedSet[$kid]) && !isset($skipSet[$kid])) {
+                    $currentLevel = $kid;
+                    break;
+                }
+            }
 
             return [
-                'currentLevel'     => $state['currentLevel'],
+                'currentLevel'     => $currentLevel,
                 'passedLevels'     => array_map('intval', $state['passedLevels']),
+                'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $state['totalLevels'],
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
                 'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
                 'dailyAnswerCount' => $dailyAnswerCount,
-                'dailyAnswerRequired' => self::DAILY_NOON_MIN_ANSWER_COUNT,
+                'dailyAnswerRequired' => self::DAILY_TASKS['noon']['min_count'],
                 'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
                 'dailyAdTaskCount' => $dailyAdTaskCount,
                 'dailyBattleCount' => $dailyBattleCount,
-                'dailyBattleRequired' => self::DAILY_BATTLE_TASK_REQUIRED,
+                'dailyBattleRequired' => self::DAILY_TASKS['battle']['min_count'],
                 'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
+                'avatarTaskClaimed' => $avatarTaskClaimed,
+                'nicknameTaskClaimed' => $nicknameTaskClaimed,
             ];
         } else {
             $answersRaw = Config::get('pun_levels', []);
@@ -1184,36 +1475,44 @@ class PunService
             $lastLevel = empty($allKeys) ? -1 : end($allKeys);
             reset($allKeys);
             $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels'] : null);
+            $skippedLevels = $this->getSkipLevels($userId, $mode, $answersRaw);
             // 确保进度里只保留配置中确实存在的题目ID
             $passedLevels = array_values(array_filter($passedLevels, fn($n) => $n >= 1 && isset($answersRaw[$n])));
+            $skipSet = array_fill_keys(array_map('intval', $skippedLevels), true);
 
             $maxPassed = empty($passedLevels) ? 0 : max($passedLevels);
-            $currentLevel = $allKeys[0] ?? 1;
+            $currentLevel = null;
             foreach ($allKeys as $k) {
-                if (!in_array($k, $passedLevels, true)) {
+                if (!in_array($k, $passedLevels, true) && !isset($skipSet[(int) $k])) {
                     $currentLevel = $k;
                     break;
                 }
             }
-            if ($currentLevel === ($allKeys[0] ?? 1) && $maxPassed >= $lastLevel && in_array($lastLevel, $passedLevels, true)) {
+            if ($currentLevel === null && $maxPassed >= $lastLevel && in_array($lastLevel, $passedLevels, true)) {
                 $currentLevel = $maxPassed; // 初级原逻辑：全部通关后停留在最后一关
+            }
+            if ($currentLevel === null) {
+                $currentLevel = $allKeys[0] ?? 1;
             }
 
             return [
                 'currentLevel'     => $currentLevel,
                 'passedLevels'     => $passedLevels,
+                'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $totalLevels,
                 'hintAnswerQuota'  => $hintAnswerQuota,
                 'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
                 'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
                 'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
                 'dailyAnswerCount' => $dailyAnswerCount,
-                'dailyAnswerRequired' => self::DAILY_NOON_MIN_ANSWER_COUNT,
+                'dailyAnswerRequired' => self::DAILY_TASKS['noon']['min_count'],
                 'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
                 'dailyAdTaskCount' => $dailyAdTaskCount,
                 'dailyBattleCount' => $dailyBattleCount,
-                'dailyBattleRequired' => self::DAILY_BATTLE_TASK_REQUIRED,
+                'dailyBattleRequired' => self::DAILY_TASKS['battle']['min_count'],
                 'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
+                'avatarTaskClaimed' => $avatarTaskClaimed,
+                'nicknameTaskClaimed' => $nicknameTaskClaimed,
             ];
         }
     }

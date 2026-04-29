@@ -15,7 +15,8 @@ class BattleService extends \think\Service
      */
     private function getRandomLevels(int $count = 5): array
     {
-        $allLevels = \think\facade\Config::get('pun_levels_issue2', []);
+        // 1V1 对战题库切换为 issue3（与前端 battlePlay 保持一致）
+        $allLevels = \think\facade\Config::get('pun_levels_issue3', []);
         $keys = array_keys($allLevels);
         shuffle($keys);
         return array_slice($keys, 0, $count);

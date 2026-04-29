@@ -29,7 +29,7 @@ class CronService
         $tz = new \DateTimeZone('Asia/Shanghai');
         $today = (new \DateTime('now', $tz))->format('Y-m-d');
         $timeStr = (new \DateTime('now', $tz))->format('Y年m月d日 H:i');
-        $templateId = PunService::DAILY_NOON_TEMPLATE_ID;
+        $templateId = PunService::DAILY_TASKS['noon']['template_id'];
 
         $query = User::alias('u')
             ->join('user_subscribes s', 'u.id = s.user_id')
