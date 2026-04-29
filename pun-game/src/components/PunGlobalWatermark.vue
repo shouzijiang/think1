@@ -2,7 +2,7 @@
   <view class="pun-wm">
     <view class="pun-wm-inner">
       <view v-for="row in ROWS" :key="row" class="pun-wm-row">
-        <text v-for="col in COLS" :key="`${row}-${col}`" class="pun-wm-text">微信谐音梗猜一猜</text>
+        <text v-for="col in COLS" :key="`${row}-${col}`" class="pun-wm-text">谐音梗猜一猜</text>
       </view>
     </view>
   </view>
@@ -52,10 +52,10 @@ const COLS = 2
 }
 
 .pun-wm-text {
-  font-size: 22rpx;
+  font-size: 30rpx;
   line-height: 1.3;
-  color: rgba(255, 255, 255, 0.18);
-  text-shadow: 0 0 3rpx rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.1);
+  text-shadow: 0 0 1rpx rgba(0, 0, 0, 0.2);
   white-space: nowrap;
 }
 </style>

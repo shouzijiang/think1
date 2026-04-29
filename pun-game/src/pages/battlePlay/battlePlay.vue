@@ -79,7 +79,10 @@
           >{{ puzzle.topCaption }}</text>
         </view>
 
-        <view class="stack-block">
+        <view
+          v-if="puzzle.imageUrlBottom || loading"
+          class="stack-block"
+        >
           <image
             v-if="puzzle.imageUrlBottom"
             class="stack-img"
@@ -192,7 +195,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
-import { getMidLevelPuzzle, prefetchBattleMidImages } from '../../data/levels'
+import { getXhsLevelPuzzle, prefetchBattleXhsImages } from '../../data/levels'
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
@@ -444,15 +447,15 @@ function loadCurrentQuestion() {
   const lv = levels.value[currentQuestionIndex.value]
   loading.value = true
 
-  getMidLevelPuzzle(lv)
+  getXhsLevelPuzzle(lv)
     .then((data) => {
       answerLen.value = data.answerLength || 3
       puzzle.value = {
-        imageUrlTop: data.imageUrlTop || '',
-        imageUrlBottom: data.imageUrlBottom || '',
+        imageUrlTop: data.imageUrlTop || data.imageUrl || '',
+        imageUrlBottom: '',
         topCaption: data.topCaption || '',
         bottomCaption: data.bottomCaption || '',
-        keywordHint: data.keywordHint || ''
+        keywordHint: data.keywordHint || '小红书专辑'
       }
       answerChars.value = []
       feedback.value = []
@@ -518,7 +521,7 @@ onLoad((opts) => {
     } catch (e) {}
   }
   if (Array.isArray(levels.value) && levels.value.length > 0) {
-    prefetchBattleMidImages(levels.value)
+    prefetchBattleXhsImages(levels.value)
   }
   if (opts.myName) myName.value = decodeURIComponent(opts.myName)
   if (opts.opponentName)

@@ -538,8 +538,8 @@ function startGame() {
     box-shadow:
       0 20rpx 30rpx rgba(102, 222, 209, 0.42),
       0 12rpx 0 rgba(38, 156, 144, 0.3),
-      inset 0 2rpx 0 rgba(255, 255, 255, 0.36),
-      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.14);
+      inset 0 2rpx 0 rgba(255, 255, 255, 0.2),
+      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
   }
 
   &.btn-start-xhs {
@@ -554,8 +554,8 @@ function startGame() {
     box-shadow:
       0 20rpx 30rpx rgba(245, 137, 163, 0.36),
       0 12rpx 0 rgba(189, 90, 126, 0.26),
-      inset 0 2rpx 0 rgba(255, 255, 255, 0.35),
-      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.14);
+      inset 0 2rpx 0 rgba(255, 255, 255, 0.2),
+      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
 
     .btn-icon-img {
       width: 40rpx;
@@ -564,6 +564,7 @@ function startGame() {
 
     .btn-text {
       text-shadow: 0 2rpx 8rpx rgba(120, 48, 78, 0.28);
+      // color: #ff2442;
     }
   }
 }
@@ -586,7 +587,7 @@ function startGame() {
     0 4rpx 14rpx rgba(247, 46, 119, 0.38),
     inset 0 1rpx 0 rgba(87, 54, 54, 0.28);
   transform-origin: 50% 50%;
-  animation: xhsBadgeFloat 2.4s ease-in-out infinite;
+  animation: xhsBadgeFloat .8s ease-in-out infinite;
 
 }
 
@@ -606,7 +607,7 @@ function startGame() {
     transform: translateY(0) scale(1);
   }
   50% {
-    transform: translateY(5rpx) scale(1.04);
+    transform: translateY(5rpx) scale(1.2);
   }
 }
 
@@ -851,7 +852,7 @@ function startGame() {
 
 .toolbar-item--asset-highlight {
   position: relative;
-  border-radius: 24rpx;
+  border-radius: 6rpx;
   background: rgba(255, 255, 255, 0.55);
   box-shadow: 0 0 0 0 rgba(245, 196, 73, 0.35);
   animation: assetPulse 2.1s ease-in-out infinite;

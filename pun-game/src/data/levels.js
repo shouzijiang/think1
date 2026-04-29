@@ -53,10 +53,13 @@ const LEVEL_DATA_BASE = 'https://sofun.online/static/punGame/issue'
 const MID_ISSUE_URL = 'https://sofun.online/static/punGame/issue2.json'
 /** 中级题目图片：w{level}-1 为上图，w{level}-2 为下图 */
 const MID_IMAGE_BASE = 'https://sofun.online/static/punGame/img2'
+const MID_IMAGE_BASE2 = 'https://static-cos.sofun.online/img2'
 /** 小红书专辑题库 */
 const XHS_ISSUE_URL = 'https://sofun.online/static/punGame/issue3.json'
 /** 小红书专辑题目图片：{level}.webp */
 const XHS_IMAGE_BASE = 'https://static2.sofun.online'
+const XHS_IMAGE_BASE2 = 'https://static-cos.sofun.online'
+// 直接请求cos，不走stati2 cdn . 因为cos流量买多了
 
 const FALLBACK_PUZZLE = {
   hintText: '题库加载失败，请稍后重试',
@@ -241,15 +244,15 @@ export function getMidLevelImageUrls(levelNum) {
   // issue2 首关可能为 level=0，对应 w0-1 / w0-2
   if (!Number.isFinite(lv) || lv < 0) return null
   return {
-    imageUrlTop: `${MID_IMAGE_BASE}/w${lv}-1.png`,
-    imageUrlBottom: `${MID_IMAGE_BASE}/w${lv}-2.png`,
+    imageUrlTop: `${MID_IMAGE_BASE2}/w${lv}-1.png`,
+    imageUrlBottom: `${MID_IMAGE_BASE2}/w${lv}-2.png`,
   }
 }
 
 export function getXhsLevelImageUrl(levelNum) {
   const lv = parseInt(levelNum, 10)
   if (!Number.isFinite(lv) || lv <= 0) return ''
-  return `${XHS_IMAGE_BASE}/${lv}.webp`
+  return `${XHS_IMAGE_BASE2}/${lv}.webp`
 }
 
 /**
@@ -313,17 +316,15 @@ export function prefetchNextXhsLevelImage(currentLevelNum) {
 }
 
 /**
- * 1V1 对战：根据本局 levels 预取 5 关共 10 张图
+ * 1V1 对战（issue3）：根据本局 levels 预取 5 关单图
  * @param {number[]} levelIds
  */
-export function prefetchBattleMidImages(levelIds) {
+export function prefetchBattleXhsImages(levelIds) {
   const ids = Array.isArray(levelIds) ? levelIds : []
   const urls = []
   for (const id of ids) {
-    const imgs = getMidLevelImageUrls(id)
-    if (imgs) {
-      urls.push(imgs.imageUrlTop, imgs.imageUrlBottom)
-    }
+    const img = getXhsLevelImageUrl(id)
+    if (img) urls.push(img)
   }
   return prefetchImageUrls(urls, 4)
 }

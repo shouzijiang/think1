@@ -28,6 +28,7 @@
         />
         <view v-else-if="loading" class="puzzle-loading">加载中...</view>
         <text class="puzzle-hint">{{ puzzle.hintText }}</text>
+        <view class="skip-entry" @click="onSkipLevel">跳关</view>
         <view class="report-entry" @click="goFeedback">报错</view>
       </view>
     </view>
@@ -104,6 +105,7 @@ import PunHintOverlay from '../../components/PunHintOverlay.vue'
 import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
 import { usePunShareReward } from '../../composables/usePunShareReward'
 import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHint'
+import { usePunSkipLevel } from '../../composables/usePunSkipLevel'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
 import {
   punGetCachedHint,
@@ -111,6 +113,7 @@ import {
   punScheduleWrongAnswerReset,
   punRevealHintWithModal,
   punToastRevealHintAfterError,
+  SHARE_SUCCESS_THRESHOLD_MS,
 } from '../../utils/punPlayShared'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -130,6 +133,7 @@ const feedback = ref([])
 const slotShake = ref(false)
 const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
+const skipLoading = ref(false)
 /** 揭字剩余次数（/pun/level/progress 与 reveal-hint 返回） */
 const hintAnswerQuota = ref(0)
 const hintOverlayVisible = ref(false)
@@ -139,7 +143,7 @@ const hintOverlayMaxSteps = ref(0)
 const hintOverlayComplete = ref(false)
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
   mode: 'heuristic',
-  shareSuccessThresholdMs: 3000,
+  shareSuccessThresholdMs: SHARE_SUCCESS_THRESHOLD_MS,
   showCancelToast: true,
 })
 const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
@@ -334,6 +338,16 @@ function goFeedback() {
   uni.navigateTo({ url: `/pages/feedback/feedback?${query}` })
 }
 
+const { onSkipLevel } = usePunSkipLevel({
+  mode: 'beginner',
+  levelRef: level,
+  hintAnswerQuotaRef: hintAnswerQuota,
+  skipLoadingRef: skipLoading,
+  loadingRefs: [loading, submitting, hintLoading],
+  isValidNextLevel: (n) => Number.isFinite(n) && n > 0,
+  toNextUrl: (n) => `/pages/play/play?level=${n}`,
+})
+
 // 非微信端点击「求助」时提示（微信端由 open-type="share" 唤起分享）
 function help() {
   // #ifndef MP-WEIXIN
@@ -416,6 +430,18 @@ onShareTimeline(() => {
 .report-entry {
   position: absolute;
   right: 20rpx;
+  bottom: 16rpx;
+  z-index: 3;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #7d8fa0;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
+}
+.skip-entry {
+  position: absolute;
+  right: 148rpx;
   bottom: 16rpx;
   z-index: 3;
   padding: 8rpx 20rpx;

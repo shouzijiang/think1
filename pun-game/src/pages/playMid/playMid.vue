@@ -77,6 +77,11 @@
           >{{ puzzle.bottomCaption }}</text>
         </view>
         <view
+          v-if="level !== 0"
+          class="skip-entry"
+          @click="onSkipLevel"
+        >跳关</view>
+        <view
           class="report-entry"
           @click="goFeedback"
         >报错</view>
@@ -174,13 +179,15 @@ import { usePunPassSuccess } from '../../composables/usePunPassSuccess'
 import { usePunShareReward } from '../../composables/usePunShareReward'
 import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHint'
 import { usePunHanAnswerInput } from '../../composables/usePunHanAnswerInput'
+import { usePunSkipLevel } from '../../composables/usePunSkipLevel'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
 import {
   punGetCachedHint,
   punIsSlotError,
   punScheduleWrongAnswerReset,
   punRevealHintWithModal,
-  punToastRevealHintAfterError
+  punToastRevealHintAfterError,
+  SHARE_SUCCESS_THRESHOLD_MS,
 } from '../../utils/punPlayShared'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -202,6 +209,7 @@ const feedback = ref([])
 const slotShake = ref(false)
 const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
+const skipLoading = ref(false)
 const hintAnswerQuota = ref(0)
 const hintOverlayVisible = ref(false)
 const hintOverlayText = ref('')
@@ -210,7 +218,7 @@ const hintOverlayMaxSteps = ref(0)
 const hintOverlayComplete = ref(false)
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
   mode: 'heuristic',
-  shareSuccessThresholdMs: 3000,
+  shareSuccessThresholdMs: SHARE_SUCCESS_THRESHOLD_MS,
   showCancelToast: true,
 })
 const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
@@ -310,6 +318,17 @@ function goFeedback() {
   )}&content=${encodeURIComponent(title)}&contentFocus=1`
   uni.navigateTo({ url: `/pages/feedback/feedback?${query}` })
 }
+
+const { onSkipLevel } = usePunSkipLevel({
+  mode: 'mid',
+  levelRef: level,
+  hintAnswerQuotaRef: hintAnswerQuota,
+  skipLoadingRef: skipLoading,
+  loadingRefs: [loading, submitting, hintLoading],
+  canSkip: () => level.value !== 0,
+  isValidNextLevel: (n) => Number.isFinite(n) && n >= 0,
+  toNextUrl: (n) => `/pages/playMid/playMid?level=${n}`,
+})
 
 async function onRevealHint() {
   if (hintLoading.value || loading.value) return
@@ -563,6 +582,18 @@ onShareTimeline(() => {
 .report-entry {
   position: absolute;
   right: 20rpx;
+  bottom: 16rpx;
+  z-index: 3;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #7d8fa0;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
+}
+.skip-entry {
+  position: absolute;
+  right: 148rpx;
   bottom: 16rpx;
   z-index: 3;
   padding: 8rpx 20rpx;

@@ -125,6 +125,7 @@
 - **API 规范**：遵循 `uniapp-apis.mdc` 规范，禁止使用原生的 `fetch` 或 `window`，必须统一使用 `uni.request` 和 `uni.setStorageSync`。
 - **统一领奖调用（仅微信小程序）**：分享、激励视频、每日任务（`daily_noon_hint_5` / `daily_watch_ad_hint_1` / `daily_battle_3_hint_3`）统一调用 `POST /pun/reward/claim`，按 `type` 区分逻辑；激励视频仍要求完整观看后再领奖。广告位 `adUnitId` 配置在 `pun-game/src/constants/rewardedVideoAd.js`。
 - **中级与小红书关卡逻辑**：`mid` 与 `xhs` 关卡 `level` 均可能不连续，不能用 ID 大小判断进度，必须依赖接口 `/pun/level/progress` 返回的 `currentLevel`、`passedLevels`、`totalLevels` 渲染锁定/解锁状态。
+- **1V1 对战题库**：`battle` 模式题目来源已与小红书专辑一致（`issue3` / `pun_levels_issue3`），前后端需保持同一题库来源，避免房间下发关卡与校验答案不一致。
 - **首页更新弹窗**：进入首页请求 `/pun/changelog/latest`，与本地 `pun_changelog_seen_version`（`version_code`）比对，未读则弹窗；点「知道了」写入本地已读。
 - **微信小程序转发/朋友圈**：官方 `app.json` / 页面 `*.json` **不包含** `enableShareAppMessage`、`enableShareTimeline`（写入会被开发者工具标为无效字段）；需在页面实现 `onShareAppMessage` / `onShareTimeline`，并在 `App.vue` 的 `onLaunch`/`onShow`（及 `useWechatPageShare` 等）中调用 `uni.showShareMenu({ menus: ['shareAppMessage','shareTimeline'] })` 打开右上角菜单能力。
 

@@ -176,6 +176,18 @@ export const api = {
   },
 
   /**
+   * 跳关（扣除 2 次查看答案次数，跳关标记 24 小时）
+   * @param {{level:number,gameTier?:'beginner'|'mid'|'xhs'}} data
+   */
+  skipLevel(data) {
+    return request({
+      url: '/pun/level/skip',
+      method: 'POST',
+      data: data || {},
+    })
+  },
+
+  /**
    * 统一领取接口：按 type 领取次数
    * @param {{type: 'share'|'reward_video'|'daily_noon_hint_5'|'daily_watch_ad_hint_1'|'daily_battle_3_hint_3', add?: number, subscribeStatus?: 'accept'|'reject', templateId?: string}} payload
    */

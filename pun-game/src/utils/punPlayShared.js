@@ -1,6 +1,9 @@
 import { api } from './api'
 import { playErrorOnce } from './gameAudio'
 
+/** 分享后判定「分享成功」所需的最短后台停留时长（ms） */
+export const SHARE_SUCCESS_THRESHOLD_MS = 2000
+
 /** @type {Map<string, { hintText: string, step: number, maxSteps: number, isComplete: boolean }>} */
 const punHintCache = new Map()
 
@@ -110,4 +113,19 @@ export async function punRevealHintWithModal(payload) {
 export function punGetCachedHint(payload) {
   const cacheKey = getPunHintCacheKey(payload)
   return punHintCache.get(cacheKey) || null
+}
+
+/**
+ * 跳关统一确认弹窗
+ * @param {number} cost
+ * @returns {Promise<boolean>}
+ */
+export async function punConfirmSkipLevel(cost = 2) {
+  const modal = await uni.showModal({
+    title: '确认跳关',
+    content: `为了防止恶意跳关，跳关将扣除${cost}次查看答案次数，是否继续？(可反馈问题，采纳后返还次数)`,
+    confirmText: '确认跳关',
+    cancelText: '取消',
+  })
+  return !!modal.confirm
 }

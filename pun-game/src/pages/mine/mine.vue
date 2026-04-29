@@ -183,6 +183,7 @@ import UserProfileNav from '../../components/UserProfileNav.vue'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { useNavBar } from '../../composables/useNavBar'
 import { usePunShareReward } from '../../composables/usePunShareReward'
+import { SHARE_SUCCESS_THRESHOLD_MS } from '../../utils/punPlayShared'
 import { api } from '../../utils/api'
 import { REWARDED_VIDEO_AD_UNIT_ID } from '../../constants/rewardedVideoAd'
 
@@ -227,7 +228,7 @@ let shareLoadingTimer = null
 // #ifdef MP-WEIXIN
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
   mode: 'heuristic',
-  shareSuccessThresholdMs: 3000,
+  shareSuccessThresholdMs: SHARE_SUCCESS_THRESHOLD_MS,
   showCancelToast: true,
   onClaimSuccess(payload) {
     if (shareLoadingTimer) {
@@ -501,7 +502,7 @@ function onShareTaskIntent() {
     shareLoadingTimer = null
     shareClaimLoading.value = false
   }, 6000)
-  // 记录分享意图；实际领奖由 usePunShareReward 按“后台停留 >= 3000ms”判定
+  // 记录分享意图；实际领奖由 usePunShareReward 按“后台停留 >= 2000ms”判定
   markShareIntent()
   // #endif
   // #ifndef MP-WEIXIN
