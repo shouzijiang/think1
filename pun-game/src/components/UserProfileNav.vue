@@ -10,7 +10,7 @@
       <image
         v-if="userInfo?.avatar"
         class="user-avatar"
-        :src="userInfo.avatar"
+        :src="userInfo.avatar + (userInfo.avatar.includes('?') ? '&' : '?') + '_t=' + avatarTs"
         mode="aspectFill"
       />
       <view v-else class="user-avatar user-avatar-placeholder">👤</view>
@@ -32,7 +32,7 @@
       <image
         v-if="userInfo?.avatar"
         class="user-avatar"
-        :src="userInfo.avatar"
+        :src="userInfo.avatar + (userInfo.avatar.includes('?') ? '&' : '?') + '_t=' + avatarTs"
         mode="aspectFill"
       />
       <view v-else class="user-avatar user-avatar-placeholder">👤</view>
@@ -55,6 +55,7 @@ const {
   onChooseAvatar,
   handleNicknameBlur,
   handleNicknameConfirm,
+  avatarTs,
 } = useUserProfileNav()
 
 defineExpose({ loadUserInfo })

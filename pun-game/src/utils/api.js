@@ -220,8 +220,39 @@ export const api = {
   },
 
   /**
+   * 上传用户头像到 COS，返回 { url } 
+   * @param {string} filePath 本地临时文件路径（chooseAvatar 返回的 avatarUrl）
+   */
+  uploadAvatar(filePath) {
+    return new Promise((resolve, reject) => {
+      const token = uni.getStorageSync('token') || ''
+      uni.uploadFile({
+        url: BASE_URL + '/upload/avatar',
+        filePath,
+        name: 'file',
+        header: token ? { Authorization: 'Bearer ' + token } : {},
+        success(res) {
+          try {
+            const json = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+            if (json && json.code === 200 && json.data && json.data.url) {
+              resolve(json.data)
+            } else {
+              reject(new Error((json && json.message) || '上传失败'))
+            }
+          } catch {
+            reject(new Error('响应解析失败'))
+          }
+        },
+        fail(err) {
+          reject(new Error((err && err.errMsg) || '上传失败'))
+        },
+      })
+    })
+  },
+
+  /**
    * 更新用户信息（头像/昵称），需登录
-   * @param {Object} data - { nickname?, avatar? } avatar 可为 base64 或 URL，与后端约定
+   * @param {Object} data - { nickname?, avatar? } avatar 为 COS URL
    */
   updateUserInfo(data) {
     return request({
