@@ -38,6 +38,17 @@ class ExceptionHandle extends Handle
     {
         // 使用内置的方式记录异常日志
         parent::report($exception);
+        // 附加堆栈信息，便于定位 DivisionByZeroError 等隐藏来源
+        if (!($exception instanceof HttpException)
+            && !($exception instanceof HttpResponseException)
+            && !($exception instanceof ValidateException)
+        ) {
+            \think\facade\Log::error(
+                '[trace] ' . get_class($exception)
+                . ' in ' . $exception->getFile() . ':' . $exception->getLine()
+                . ' | ' . substr($exception->getTraceAsString(), 0, 800)
+            );
+        }
     }
 
     /**

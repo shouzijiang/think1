@@ -37,8 +37,8 @@ class PunBattle
     public function history(Request $request)
     {
         $userId = (int) $request->user_id;
-        $page = (int) $request->param('page', 1);
-        $pageSize = (int) $request->param('page_size', 20);
+        $page = max(1, (int) $request->param('page', 1));
+        $pageSize = max(1, min(100, (int) $request->param('page_size', 20)));
         
         $data = $this->battleService->getHistory($userId, $page, $pageSize);
         return ResponseHelper::success($data, 'success');
@@ -49,8 +49,8 @@ class PunBattle
      */
     public function battleRank(Request $request)
     {
-        $page = (int) $request->param('page', 1);
-        $pageSize = (int) $request->param('page_size', 20);
+        $page = max(1, (int) $request->param('page', 1));
+        $pageSize = max(1, min(100, (int) $request->param('page_size', 20)));
 
         try {
             $data = $this->battleService->getBattleRankList($page, $pageSize);
