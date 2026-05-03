@@ -56,16 +56,33 @@ class Auth extends BaseController
             return ResponseHelper::unauthorized();
         }
         
+        $rawNickname = $request->post('nickname', '');
+        $rawAvatar   = $request->post('avatar', '');
+
+        // 昵称长度校验
+        if ($rawNickname !== '' && mb_strlen($rawNickname, 'UTF-8') > 50) {
+            return ResponseHelper::badRequest('昵称不能超过50字');
+        }
+
+        // 头像格式校验：只允许 https URL 或 base64 data URL
+        if ($rawAvatar !== '') {
+            $isHttps    = preg_match('#^https?://[^\s]{10,}#i', $rawAvatar);
+            $isDataUrl  = preg_match('#^data:image/(jpeg|png|gif|webp);base64,[A-Za-z0-9+/=]+$#', $rawAvatar);
+            if (!$isHttps && !$isDataUrl) {
+                return ResponseHelper::badRequest('头像格式非法');
+            }
+        }
+
         $data = [
-            'nickname' => $request->post('nickname', ''),
-            'avatar' => $request->post('avatar', ''),
+            'nickname' => $rawNickname,
+            'avatar'   => $rawAvatar,
         ];
-        
+
         // 过滤空值
         $data = array_filter($data, function($value) {
             return $value !== '';
         });
-        
+
         if (empty($data)) {
             return ResponseHelper::badRequest('没有需要更新的数据');
         }

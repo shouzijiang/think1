@@ -98,6 +98,12 @@ class AuthService
             if (mb_strlen($avatar, 'UTF-8') > self::AVATAR_MAX_LENGTH) {
                 throw new \InvalidArgumentException('头像数据过长，请压缩后重试');
             }
+            // 格式兜底校验：只允许 http/https URL 或 base64 data URL
+            $isHttps   = preg_match('#^https?://[^\s]{10,}#i', $avatar);
+            $isDataUrl = preg_match('#^data:image/(jpeg|png|gif|webp);base64,[A-Za-z0-9+/=]+$#', $avatar);
+            if (!$isHttps && !$isDataUrl) {
+                throw new \InvalidArgumentException('头像格式非法');
+            }
             $updateData['avatar'] = $avatar;
         }
 
