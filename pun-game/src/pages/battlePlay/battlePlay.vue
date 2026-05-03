@@ -79,29 +79,6 @@
           >{{ puzzle.topCaption }}</text>
         </view>
 
-        <view
-          v-if="puzzle.imageUrlBottom || loading"
-          class="stack-block"
-        >
-          <image
-            v-if="puzzle.imageUrlBottom"
-            class="stack-img"
-            :src="puzzle.imageUrlBottom"
-            mode="aspectFill"
-          />
-          <view
-            v-else-if="loading"
-            class="stack-placeholder"
-          >加载中...</view>
-          <view
-            v-else
-            class="stack-placeholder"
-          >暂无下图</view>
-          <text
-            v-if="puzzle.bottomCaption"
-            class="stack-caption"
-          >{{ puzzle.bottomCaption }}</text>
-        </view>
       </view>
     </view>
 
@@ -263,9 +240,7 @@ const answerLen = ref(3)
 const answerChars = ref([])
 const puzzle = ref({
   imageUrlTop: '',
-  imageUrlBottom: '',
   topCaption: '',
-  bottomCaption: '',
   keywordHint: ''
 })
 const loading = ref(true)
@@ -452,9 +427,7 @@ function loadCurrentQuestion() {
       answerLen.value = data.answerLength || 3
       puzzle.value = {
         imageUrlTop: data.imageUrlTop || data.imageUrl || '',
-        imageUrlBottom: '',
         topCaption: data.topCaption || '',
-        bottomCaption: data.bottomCaption || '',
         keywordHint: data.keywordHint || '小红书专辑'
       }
       answerChars.value = []
@@ -792,10 +765,11 @@ async function syncBattleStateForWake() {
   width: 100%;
   border-radius: 20rpx;
   background: #f0f4f8;
+  height: 846rpx;
 }
 .stack-placeholder {
   width: 100%;
-  height: 220rpx;
+  height: 846rpx;
   border-radius: 20rpx;
   background: rgba(240, 244, 248, 0.95);
   display: flex;
