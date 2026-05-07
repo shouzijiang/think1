@@ -26,21 +26,45 @@ class Auth extends BaseController
      */
     public function wechatLogin(Request $request)
     {
+        return $this->handleMiniProgramLogin($request, 'weixin');
+    }
+
+    /**
+     * 抖音登录
+     */
+    public function douyinLogin(Request $request)
+    {
+        return $this->handleMiniProgramLogin($request, 'douyin');
+    }
+
+    /**
+     * 小程序统一登录处理（微信/抖音共用）
+     * @param Request $request
+     * @param string $provider weixin|douyin
+     */
+    private function handleMiniProgramLogin(Request $request, string $provider)
+    {
         $code = $request->param('code', '');
         if (empty($code)) {
             return ResponseHelper::badRequest('参数错误：code不能为空');
         }
         
         try {
-            $result = $this->authService->wechatLogin($code);
+            $result = $provider === 'douyin'
+                ? $this->authService->douyinLogin($code)
+                : $this->authService->wechatLogin($code);
             if (!$result) {
-                return ResponseHelper::error('微信登录失败', 402);
+                return ResponseHelper::error(($provider === 'douyin' ? '抖音' : '微信') . '登录失败', 402);
             }
-            // 只打印 user_id和token 和openid
-            Log::info('微信登录成功 result=' . json_encode(['user_id' => $result['user_id'], 'token' => $result['token'], 'openid' => $result['openid']]));
+            // 仅记录关键字段，避免日志泄露隐私
+            Log::info(($provider === 'douyin' ? '抖音' : '微信') . '登录成功 result=' . json_encode([
+                'user_id' => $result['user_id'],
+                'token' => $result['token'],
+                'openid' => $result['openid']
+            ]));
             return ResponseHelper::success($result, '登录成功');
         } catch (\Exception $e) {
-            \think\facade\Log::error('微信登录异常 error=' . $e->getMessage() . ' trace=' . str_replace(["\r\n", "\n"], ' ', $e->getTraceAsString()));
+            \think\facade\Log::error(($provider === 'douyin' ? '抖音' : '微信') . '登录异常 error=' . $e->getMessage() . ' trace=' . str_replace(["\r\n", "\n"], ' ', $e->getTraceAsString()));
             return ResponseHelper::error('登录异常：' . $e->getMessage(), 500);
         }
     }

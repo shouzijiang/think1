@@ -4,7 +4,7 @@
 - **前端**：基于 UniApp 开发，兼容微信小程序等多端 (代码位于 `pun-game/` 目录)
 - **后端**：基于 ThinkPHP 8 框架提供 API 服务 (代码位于根目录)
 - **数据库**：MySQL
-- **鉴权方式**：微信 `code` 登录换取 JWT Token，后续请求在 Header 中携带 `Authorization: Bearer <token>`。
+- **鉴权方式**：小程序 `code` 登录（微信/抖音）换取 JWT Token，后续请求在 Header 中携带 `Authorization: Bearer <token>`。
 
 本系统目前包含两套核心业务：**谐音梗图游戏** 和 **久坐提醒小程序**。
 
@@ -42,6 +42,7 @@
 | 接口路径 | 方法 | 说明 | 是否需 Token |
 | --- | --- | --- | --- |
 | `/auth/wechat/login` | POST | 微信 code 登录换取 Token | ❌ |
+| `/auth/douyin/login` | POST | 抖音 code 登录换取 Token | ❌ |
 | `/auth/user/update` | POST | 更新用户昵称和头像 | ✅ |
 
 ### 2. 谐音梗图游戏模块 (Pun Game)
@@ -130,6 +131,7 @@
 - **微信小程序转发/朋友圈**：官方 `app.json` / 页面 `*.json` **不包含** `enableShareAppMessage`、`enableShareTimeline`（写入会被开发者工具标为无效字段）；需在页面实现 `onShareAppMessage` / `onShareTimeline`，并在 `App.vue` 的 `onLaunch`/`onShow`（及 `useWechatPageShare` 等）中调用 `uni.showShareMenu({ menus: ['shareAppMessage','shareTimeline'] })` 打开右上角菜单能力。
 
 ### 2. 后端 (ThinkPHP 8) 注意事项
+- **小程序登录配置**：微信登录读取 `.env` 的 `WECHAT_APPID`、`WECHAT_SECRET`；抖音登录读取 `DOUYIN_APPID`、`DOUYIN_SECRET`。两端都通过 `code2Session` 交换 `openid/session_key`，并统一走 JWT 鉴权。
 - **全局访问审计与 IP 黑名单**：`app/middleware.php` 已注册 `AccessLogAndIpBlacklist`。配置见 `config/ip_guard.php`：`blacklist` 为拒绝访问的 IP 列表（支持 IPv4 前缀规则如 `192.168.1.*`），命中返回 HTTP 403（JSON `code=403`）；`access_log_enabled` 控制是否对**所有**请求记一条访问日志（JSON 单行，含解析后的客户端 IP、`X-Forwarded-For`/`X-Real-IP` 原文、方法、路径、UA、耗时、HTTP 状态等，**不记录** `Authorization` 内容，仅 `has_auth`）。日志通道为 `request_audit`，默认写入 `runtime/log/request_audit.log`（见 `config/log.php`）。**黑名单命中**无论是否开启访问日志都会记一条。若部署在反向代理后，请正确配置 ThinkPHP 对代理 IP 的信任策略，否则 `$request->ip()` 可能始终为代理机 IP。
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
 - **中级/小红书进度策略**：提交答案 `/pun/answer/submit` 时，`mid` 轨仍按题库顺序推进（仅当前可玩关通过才写进度）；`xhs` 轨支持回跳/跨关练习，只要题目存在且答对即可写入 `passed_levels_xhs` 并更新 `max_level_xhs`。

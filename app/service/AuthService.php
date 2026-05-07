@@ -3,6 +3,7 @@
 namespace app\service;
 
 use app\common\JwtHelper;
+use app\common\DouyinHelper;
 use app\common\WechatHelper;
 use app\model\PunUserHintQuota;
 use app\model\User;
@@ -20,31 +21,58 @@ class AuthService
      */
     public function wechatLogin(string $code)
     {
+        return $this->miniProgramLoginByProvider('weixin', $code);
+    }
+
+    /**
+     * 抖音登录
+     * @param string $code
+     * @return array|false
+     */
+    public function douyinLogin(string $code)
+    {
+        return $this->miniProgramLoginByProvider('douyin', $code);
+    }
+
+    /**
+     * 小程序统一登录入口（微信/抖音共用）
+     * 把共用流程（code 换 openid、查找或创建用户、签发 token）放在一处，避免两套逻辑分叉。
+     *
+     * @param 'weixin'|'douyin' $provider
+     * @param string $code
+     * @return array|false
+     */
+    private function miniProgramLoginByProvider(string $provider, string $code)
+    {
         if (empty($code)) {
-            \think\facade\Log::error('微信登录：code为空');
+            \think\facade\Log::error($provider . ' 登录：code为空');
             return false;
         }
-        
-        $wechatData = WechatHelper::code2Session($code);
-        if (!$wechatData) {
-            \think\facade\Log::error('微信登录：code2Session返回false code=' . substr($code, 0, 10) . '...');
+
+        $oauthData = $this->getSessionByProvider($provider, $code);
+        if (!$oauthData) {
+            \think\facade\Log::error($provider . ' 登录：code2Session返回false code=' . substr($code, 0, 10) . '...');
             return false;
         }
-        $openid = $wechatData['openid'] ?? '';
-        $sessionKey = $wechatData['session_key'] ?? '';
-        $unionid = $wechatData['unionid'] ?? '';
-        
-        if (empty($openid)) {
+
+        $rawOpenid = $oauthData['openid'] ?? '';
+        $unionid = $oauthData['unionid'] ?? '';
+        if (empty($rawOpenid)) {
             return false;
         }
-        
+
+        // users 表当前只有一个 openid 字段，抖音用前缀隔离，避免和微信 openid 产生冲突。
+        $storedOpenid = $provider === 'douyin' ? ('douyin:' . $rawOpenid) : $rawOpenid;
+        $storedUnionid = $provider === 'douyin'
+            ? (empty($unionid) ? null : ('douyin:' . $unionid))
+            : ($unionid ?: null);
+
         // 查询或创建用户
-        $user = User::where('openid', $openid)->find();
+        $user = User::where('openid', $storedOpenid)->find();
         if (!$user) {
-            // 创建新用户
             $user = User::create([
-                'openid' => $openid,
-                'unionid' => $unionid ?: null,
+                'openid' => $storedOpenid,
+                'unionid' => $storedUnionid,
             ]);
 
             PunUserHintQuota::create([
@@ -52,24 +80,40 @@ class AuthService
                 'quota'   => PunUserHintQuota::DEFAULT_QUOTA,
             ]);
         }
+
         $user->last_login_at = date('Y-m-d H:i:s');
         $user->save();
-        
-        // 生成 JWT token
+
+        // token 里放存储态 openid，保持鉴权层读取一致
         $token = JwtHelper::generate([
             'user_id' => $user->id,
-            'openid' => $openid
+            'openid' => $storedOpenid
         ]);
-        
+
         return [
             'token' => $token,
-            'openid' => $openid,
+            'openid' => $rawOpenid,
             'unionid' => $unionid,
             'user_id' => $user->id,
             'nickname' => $user->nickname,
             'avatar' => $user->avatar,
+            'provider' => $provider,
             'expires_in' => 7200
         ];
+    }
+
+    /**
+     * 按 provider 获取 code2Session 结果。
+     * @param 'weixin'|'douyin' $provider
+     * @param string $code
+     * @return array|false
+     */
+    private function getSessionByProvider(string $provider, string $code)
+    {
+        if ($provider === 'douyin') {
+            return DouyinHelper::code2Session($code);
+        }
+        return WechatHelper::code2Session($code);
     }
     
     /** 头像（URL 或 base64）最大长度，对应 MySQL MEDIUMTEXT 约 16MB */
