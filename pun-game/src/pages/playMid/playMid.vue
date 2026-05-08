@@ -29,7 +29,7 @@
         v-if="puzzle.keywordHint"
         class="keyword-tab"
       >
-        <text class="keyword-tab-text">{{ puzzle.keywordHint }}</text>
+        <text class="keyword-tab-text">提示：{{ puzzle.keywordHint }}</text>
       </view>
 
       <view class="card-inner card-inner--stack">
@@ -347,12 +347,14 @@ async function onRevealHint() {
   }
   let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
-    // #ifdef MP-WEIXIN
     afterRewardVideo = true
     hintLoading.value = true
     try {
       const ok = await tryWatchAdForHintQuota()
-      if (!ok) return
+      if (!ok) {
+        uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
+        return
+      }
     } finally {
       hintLoading.value = false
     }
@@ -360,11 +362,6 @@ async function onRevealHint() {
       uni.showToast({ title: '提示次数不足', icon: 'none' })
       return
     }
-    // #endif
-    // #ifndef MP-WEIXIN
-    uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
-    return
-    // #endif
   }
   hintLoading.value = true
   try {
@@ -385,9 +382,10 @@ async function onRevealHint() {
 }
 
 function help() {
-  // #ifndef MP-WEIXIN
-  uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
-  // #endif
+  const p = uni.getSystemInfoSync().uniPlatform || ''
+  if (!(p === 'mp-weixin' || p === 'mp-toutiao')) {
+    uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
+  }
 }
 
 onShow(() => {

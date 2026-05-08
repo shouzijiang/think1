@@ -112,6 +112,28 @@ export const api = {
     })
   },
 
+  // 抖音登录（不需要 token）
+  douyinLogin(code) {
+    return request({
+      url: '/auth/douyin/login',
+      method: 'POST',
+      data: { code },
+      skipAuth: true,
+    })
+  },
+
+  /**
+   * 小程序登录（按平台选择后端接口）
+   * @param {'weixin'|'douyin'} provider
+   * @param {string} code
+   */
+  miniProgramLogin(provider, code) {
+    if (provider === 'douyin') {
+      return this.douyinLogin(code)
+    }
+    return this.wechatLogin(code)
+  },
+
   /** 排行榜：page 从 1 开始 */
   getRankList(params = {}) {
     return request({
@@ -189,7 +211,7 @@ export const api = {
 
   /**
    * 统一领取接口：按 type 领取次数
-   * @param {{type: 'share'|'reward_video'|'daily_noon_hint_5'|'daily_watch_ad_hint_1'|'daily_battle_3_hint_3', add?: number, subscribeStatus?: 'accept'|'reject', templateId?: string}} payload
+   * @param {{type: 'share'|'reward_video'|'daily_noon_hint_5'|'daily_watch_ad_hint_1'|'daily_battle_3_hint_3'|'permanent_set_avatar'|'permanent_set_nickname'|'permanent_my_mini_program_hint_3', add?: number, subscribeStatus?: 'accept'|'reject', templateId?: string, launchScene?: string|number}} payload
    */
   claimReward(payload) {
     return request({
@@ -311,10 +333,22 @@ export const api = {
   /**
    * 1V1：创建对战房间
    */
-  createBattleRoom() {
+  createBattleRoom(questionBank = 'xhs') {
     return request({
       url: '/pun/battle/create',
-      method: 'POST'
+      method: 'POST',
+      data: { questionBank }
+    })
+  },
+
+  /**
+   * 1V1：更新房间题库
+   */
+  updateBattleRoomBank(roomId, questionBank) {
+    return request({
+      url: '/pun/battle/update-bank',
+      method: 'POST',
+      data: { roomId, questionBank }
     })
   },
 

@@ -5,15 +5,46 @@ import { api } from './api'
 let isLoggingIn = false
 let loginPromise = null
 
-// 检查登录状态
+/**
+ * 传给后端（如 auth 微信或抖音 login）的会话类型（与 JWT、users.mp_platform 等业务字段对应）。
+ * 抖音端返回 douyin，微信端返回 weixin。
+ */
+function getBackendLoginProvider() {
+  // #ifdef MP-WEIXIN
+  return 'weixin'
+  // #endif
+  // #ifdef MP-TOUTIAO
+  return 'douyin'
+  // #endif
+  return 'weixin'
+}
+
+/**
+ * uni.login 的 provider，与 getBackendLoginProvider 不同：
+ * 抖音/头条小程序在 uni-app 里必须使用 toutiao，传 douyin 会导致取码失败，本地无法写入 userInfo。
+ */
+function getUniLoginProvider() {
+  // #ifdef MP-WEIXIN
+  return 'weixin'
+  // #endif
+  // #ifdef MP-TOUTIAO
+  return 'toutiao'
+  // #endif
+  return 'weixin'
+}
+
+// 检查登录状态（须同时具备 token 与有效 user_id，避免仅有脏 token 跳过登录导致页面无 userInfo）
 export function checkLogin() {
   const token = uni.getStorageSync('token')
   const userInfo = uni.getStorageSync('userInfo')
-  return !!(token && userInfo)
+  if (!token || !userInfo) return false
+  const uid = userInfo.user_id
+  const n = Number(uid)
+  return n > 0
 }
 
-// 微信登录
-export async function wechatLogin(forceRefresh = false) {
+// 小程序统一登录（微信/抖音共用）
+export async function miniProgramLogin(forceRefresh = false) {
   // 如果正在登录中，返回同一个 Promise（除非强制刷新）
   if (isLoggingIn && loginPromise && !forceRefresh) {
     console.log('登录进行中，等待现有登录完成...')
@@ -27,31 +58,34 @@ export async function wechatLogin(forceRefresh = false) {
 
   // 设置登录锁
   isLoggingIn = true
+  const backendProvider = getBackendLoginProvider()
+  const sdkProvider = getUniLoginProvider()
 
   loginPromise = new Promise((resolve, reject) => {
     uni.login({
-      provider: 'weixin',
+      provider: sdkProvider,
       success: async (loginRes) => {
         if (loginRes.code) {
           try {
-            // 调用后端登录接口，传递 code
-            const result = await api.wechatLogin(loginRes.code)
+            // 调用后端统一平台登录接口，传递 code（与 sdkProvider 解耦，仍用 weixin/douyin 区分接口）
+            const result = await api.miniProgramLogin(backendProvider, loginRes.code)
 
             // 保存 token 和用户信息
             uni.setStorageSync('token', result.token)
-            uni.setStorageSync('userInfo', {
+            const stored = {
               user_id: result.user_id,
               openid: result.openid,
               nickname: result.nickname,
               avatar: result.avatar,
-            })
+            }
+            uni.setStorageSync('userInfo', stored)
 
             // 清除登录锁
             isLoggingIn = false
             loginPromise = null
-            resolve({ code: loginRes.code })
+            resolve(stored)
           } catch (error) {
-            console.error('登录失败:', error)
+            console.error(`${backendProvider} 登录失败:`, error)
             // 清除登录锁，允许重试
             isLoggingIn = false
             loginPromise = null
@@ -71,11 +105,11 @@ export async function wechatLogin(forceRefresh = false) {
         }
       },
       fail: (err) => {
-        console.error('登录失败:', err)
+        console.error(`${sdkProvider} uni.login 失败:`, err)
         // 清除登录锁
         isLoggingIn = false
         loginPromise = null
-        reject(new Error('登录失败: ' + (err.errMsg || '未知错误')))
+        reject(new Error(`${sdkProvider} 登录失败: ` + (err.errMsg || '未知错误')))
       },
     })
   })
@@ -89,7 +123,12 @@ export async function forceLogin() {
   uni.removeStorageSync('token')
   uni.removeStorageSync('userInfo')
   // 强制刷新登录
-  return wechatLogin(true)
+  return miniProgramLogin(true)
+}
+
+// 兼容旧调用：保留原函数名，内部复用统一登录逻辑
+export async function wechatLogin(forceRefresh = false) {
+  return miniProgramLogin(forceRefresh)
 }
 
 // 退出登录
@@ -101,9 +140,14 @@ export function logout() {
   })
 }
 
-// 获取用户信息
+// 获取用户信息（兼容历史缓存字段）
 export function getUserInfo() {
-  return uni.getStorageSync('userInfo') || null
+  const info = uni.getStorageSync('userInfo') || null
+  if (!info || typeof info !== 'object') return info
+  if (info.user_id == null && info.userId != null) {
+    return { ...info, user_id: info.userId }
+  }
+  return info
 }
 
 // 处理登录过期（401错误）

@@ -1,24 +1,30 @@
 <script>
 import { wechatLogin } from './utils/auth'
 
-/** 微信小程序：右上角菜单展示「转发」「分享到朋友圈」（需页面实现对应生命周期） */
-function enableWechatShareMenu() {
-  // #ifdef MP-WEIXIN
+/** 小程序端：右上角菜单展示「转发」相关入口（需页面实现对应生命周期） */
+function enableMiniProgramShareMenu() {
   if (typeof uni.showShareMenu !== 'function') return
+  let menus = ['shareAppMessage', 'shareTimeline']
+  try {
+    const platform = uni.getSystemInfoSync().uniPlatform || ''
+    // 抖音小程序仅支持 share / record / screenShot
+    if (platform === 'mp-toutiao') {
+      menus = ['share']
+    }
+  } catch {}
   uni.showShareMenu({
     withShareTicket: true,
-    menus: ['shareAppMessage', 'shareTimeline'],
+    menus,
     fail(err) {
       console.warn('[showShareMenu]', err)
     },
   })
-  // #endif
 }
 
 export default {
   onLaunch: async function () {
     console.log('App Launch')
-    // 微信登录
+    // 小程序登录（微信/抖音）
     await wechatLogin()
 
     // 小程序更新检测
@@ -51,11 +57,11 @@ export default {
         }
       })
     }
-    enableWechatShareMenu()
+    enableMiniProgramShareMenu()
   },
   onShow: function () {
     console.log('App Show')
-    enableWechatShareMenu()
+    enableMiniProgramShareMenu()
   },
   onHide: function () {
     console.log('App Hide')

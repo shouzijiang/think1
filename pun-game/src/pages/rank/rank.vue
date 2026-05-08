@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="page" @touchstart="onTouchStart" @touchend="onTouchEnd">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -81,9 +81,7 @@ import { useWechatPageShare } from '../../composables/useWechatPageShare'
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 const shareRewardQuotaRef = ref(0)
-// #ifdef MP-WEIXIN
 useWechatPageShare('排行榜 · 谐音梗图', shareRewardQuotaRef)
-// #endif
 
 const list = ref([])
 const loading = ref(false)

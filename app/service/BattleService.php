@@ -10,13 +10,17 @@ use think\facade\Db;
 
 class BattleService extends \think\Service
 {
+    /** 允许的对战题库标识 */
+    public const ALLOWED_BANKS = ['xhs', 'mid'];
+
     /**
      * 随机获取5道题目
+     * @param string $bank 题库标识：xhs=小红书专辑, mid=经典
      */
-    private function getRandomLevels(int $count = 5): array
+    private function getRandomLevels(string $bank = 'xhs', int $count = 5): array
     {
-        // 1V1 对战题库切换为 issue3（与前端 battlePlay 保持一致）
-        $allLevels = \think\facade\Config::get('pun_levels_issue3', []);
+        $configKey = $bank === 'mid' ? 'pun_levels_issue2' : 'pun_levels_issue3';
+        $allLevels = \think\facade\Config::get($configKey, []);
         $keys = array_keys($allLevels);
         shuffle($keys);
         return array_slice($keys, 0, $count);
@@ -24,21 +28,27 @@ class BattleService extends \think\Service
 
     /**
      * 创建房间
+     * @param string $questionBank 题库：xhs | mid
      */
-    public function createRoom(int $userId): array
+    public function createRoom(int $userId, string $questionBank = 'xhs'): array
     {
+        if (!in_array($questionBank, self::ALLOWED_BANKS, true)) {
+            $questionBank = 'xhs';
+        }
+
         // 生成6位不重复的房间号
         do {
             $roomId = mt_rand(100000, 999999) . '';
             $exists = PunGameBattleRecord::where('room_id', $roomId)->find();
         } while ($exists);
 
-        $levels = $this->getRandomLevels();
+        $levels = $this->getRandomLevels($questionBank);
 
         $record = PunGameBattleRecord::create([
             'room_id' => $roomId,
             'creator_id' => $userId,
             'levels_json' => $levels,
+            'question_bank' => $questionBank,
             'status' => 0, // 等待中
         ]);
 
@@ -51,6 +61,29 @@ class BattleService extends \think\Service
             'recordId' => $record->id,
             'levels' => $levels
         ];
+    }
+
+    /**
+     * 更新房间题库
+     */
+    public function updateBank(int $userId, string $roomId, string $questionBank): void
+    {
+        if (!in_array($questionBank, self::ALLOWED_BANKS, true)) {
+            throw new \Exception('不支持的题库');
+        }
+        $record = PunGameBattleRecord::where('room_id', $roomId)
+            ->where('creator_id', $userId)
+            ->where('status', 0)
+            ->find();
+        if (!$record) {
+            throw new \Exception('房间不存在或无权操作');
+        }
+        // 重新抽题
+        $levels = $this->getRandomLevels($questionBank);
+        $record->save([
+            'question_bank' => $questionBank,
+            'levels_json' => json_encode($levels),
+        ]);
     }
 
     /**

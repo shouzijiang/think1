@@ -40,13 +40,18 @@ export function usePunHanAnswerInput({ answerLen, answerChars, answerInputValue,
     // 不对原始输入做 maxlength 截断，否则拼音输入法会在字母长度达到 answerLen 时卡住
     answerInputValue.value = raw
 
-    const hasHan = /[\u4e00-\u9fff]/.test(raw)
-    if (!hasHan) {
+    // 提取有效字符：汉字 + 英文字母（忽略数字、标点、拼音中间态的纯字母串中的组合状态）
+    const validChars = Array.from(raw).filter(ch => /[\u4e00-\u9fffa-zA-Z]/.test(ch))
+
+    if (validChars.length === 0) {
       answerChars.value = []
       return
     }
 
-    const parts = Array.from(raw).slice(0, answerLen.value)
+    // 英文字母统一转大写展示，汉字保持原样
+    const parts = validChars.slice(0, answerLen.value).map(ch =>
+      /[a-zA-Z]/.test(ch) ? ch.toUpperCase() : ch
+    )
     answerChars.value = parts
     if (parts.length === answerLen.value) onFilled()
   }

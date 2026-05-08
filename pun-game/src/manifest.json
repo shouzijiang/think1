@@ -100,7 +100,16 @@
         "usingComponents" : true
     },
     "mp-toutiao" : {
-        "usingComponents" : true
+        "usingComponents" : true,
+        "appid": "ttd2c8a4754ca9159501",
+        "permission" : {
+            "scope.album" : {
+                "desc" : "用于从相册选择头像"
+            },
+            "scope.camera" : {
+                "desc" : "用于拍照设置头像"
+            }
+        }
     },
     "uniStatistics": {  
         "enable": false

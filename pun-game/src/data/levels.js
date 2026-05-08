@@ -329,6 +329,19 @@ export function prefetchBattleXhsImages(levelIds) {
   return prefetchImageUrls(urls, 4)
 }
 
+export function prefetchBattleMidImages(levelIds) {
+  const ids = Array.isArray(levelIds) ? levelIds : []
+  const urls = []
+  for (const id of ids) {
+    const imgs = getMidLevelImageUrls(id)
+    if (imgs) {
+      if (imgs.imageUrlTop) urls.push(imgs.imageUrlTop)
+      if (imgs.imageUrlBottom) urls.push(imgs.imageUrlBottom)
+    }
+  }
+  return prefetchImageUrls(urls, 4)
+}
+
 /**
  * 中级：从 issue2.json 中找到 level 对应条目，并拼出上下两张图
  */
@@ -372,11 +385,12 @@ export function getXhsLevelPuzzle(levelNum) {
 
     const answerLength = Math.max(1, parseInt(item.answerLength, 10) || 3)
     const imageUrl = getXhsLevelImageUrl(lv)
+    console.log(item)
     return normalizePuzzle({
       hintText: '',
       topCaption: '',
       bottomCaption: '',
-      keywordHint: '',
+      keywordHint: item.answerType || '',
       wordArray: [],
       answerLength,
       imageUrl,

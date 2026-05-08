@@ -26,7 +26,7 @@
             <text class="task-section-icon">🏆</text>
             <text class="task-section-title">永久任务</text>
           </view>
-          <text class="task-section-badge">完成一次永久有效</text>
+          <text class="task-section-badge">限领一次</text>
         </view>
         <view class="task-row">
           <view class="task-row-info">
@@ -61,6 +61,29 @@
             @click.stop="claimNicknameTask"
           >
             {{ nicknameTaskClaimed ? '✓ 已领取' : (nicknameTaskClaimLoading ? '领取中…' : '领取') }}
+          </button>
+        </view>
+        <view class="task-divider" />
+        <view class="task-row">
+          <view class="task-row-info">
+            <text class="task-row-icon">⭐</text>
+            <view class="task-row-main">
+              <text class="task-row-name">收藏到我的小程序</text>
+              <text class="task-row-sub">
+                添加到微信「我的小程序」或抖音「我的收藏」后，<text class="task-row-reward">从该入口进入</text> 可领 <text class="task-row-reward">+3次</text>
+                <template v-if="!myMiniProgramTaskClaimed && !launchFromMyMiniOrCollect">
+                  · 请关闭小程序后从上述入口重新打开
+                </template>
+              </text>
+            </view>
+          </view>
+          <button
+            class="task-btn"
+            :class="myMiniProgramTaskClaimed ? 'task-btn--done' : (launchFromMyMiniOrCollect ? 'task-btn--permanent' : 'task-btn--goto')"
+            :disabled="myMiniProgramTaskClaimed || myMiniProgramTaskLoading"
+            @click.stop="claimMyMiniProgramTask"
+          >
+            {{ myMiniProgramTaskClaimed ? '✓ 已领取' : (myMiniProgramTaskLoading ? '领取中…' : '领取') }}
           </button>
         </view>
       </view>
@@ -119,7 +142,19 @@
             {{ shareTaskClaimedAll ? '✓ 已完成' : (shareClaimLoading ? '领取中…' : (shareDailyClaimed > 0 ? '再次分享' : '去分享')) }}
           </button>
           <!-- #endif -->
+          <!-- #ifdef MP-TOUTIAO -->
+          <button
+            class="task-btn"
+            :class="shareTaskClaimedAll ? 'task-btn--done' : 'task-btn--share'"
+            :disabled="shareTaskClaimedAll || shareClaimLoading"
+            open-type="share"
+            @click="onShareTaskIntent"
+          >
+            {{ shareTaskClaimedAll ? '✓ 已完成' : (shareClaimLoading ? '领取中…' : (shareDailyClaimed > 0 ? '再次分享' : '去分享')) }}
+          </button>
+          <!-- #endif -->
           <!-- #ifndef MP-WEIXIN -->
+          <!-- #ifndef MP-TOUTIAO -->
           <button
             class="task-btn"
             :class="shareTaskClaimedAll ? 'task-btn--done' : 'task-btn--share'"
@@ -128,6 +163,7 @@
           >
             {{ shareTaskClaimedAll ? '✓ 已完成' : (shareClaimLoading ? '领取中…' : (shareDailyClaimed > 0 ? '再次分享' : '去分享')) }}
           </button>
+          <!-- #endif -->
           <!-- #endif -->
         </view>
         <view class="task-divider" />
@@ -265,8 +301,11 @@ const dailyBattleRequired = ref(3)
 const dailyBattleTaskClaimed = ref(false)
 const avatarTaskClaimed = ref(false)
 const nicknameTaskClaimed = ref(false)
+const myMiniProgramTaskClaimed = ref(false)
 const avatarTaskClaimLoading = ref(false)
 const nicknameTaskClaimLoading = ref(false)
+const myMiniProgramTaskLoading = ref(false)
+const launchFromMyMiniOrCollect = ref(false)
 const hintQuotaTipVisible = ref(false)
 const dailyClaimLoading = ref(false)
 const dailyAdTaskLoading = ref(false)
@@ -290,8 +329,15 @@ const canClaimDailyBattleTask = computed(
 let mineDailyVideoAd = null
 let mineDailyVideoBusy = false
 let shareLoadingTimer = null
+const platform = (() => {
+  try {
+    return uni.getSystemInfoSync().uniPlatform || ''
+  } catch {
+    return ''
+  }
+})()
+const isMiniProgram = platform.startsWith('mp-')
 
-// #ifdef MP-WEIXIN
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
   mode: 'heuristic',
   shareSuccessThresholdMs: SHARE_SUCCESS_THRESHOLD_MS,
@@ -317,13 +363,12 @@ onShareAppMessage(() => withShareReward({
 onShareTimeline(() => withShareReward({
   title: '我的 · 谐音梗图',
 }))
-// #endif
 
 onShow(async () => {
+  updateLaunchEntryFlags()
   // 先读 storage，立即展示最新头像/昵称，不等待登录网络请求
   userProfileRef.value?.loadUserInfo?.()
   refreshHintAnswerQuota()
-  // #ifdef MP-WEIXIN
   try {
     await wechatLogin()
   } catch (e) {
@@ -331,7 +376,6 @@ onShow(async () => {
   }
   // 登录完成后再刷一次，确保与服务端同步（如多端修改过昵称等）
   userProfileRef.value?.loadUserInfo?.()
-  // #endif
 })
 
 function goFeedback() {
@@ -354,16 +398,43 @@ function dismissHintQuotaTip() {
   hintQuotaTipVisible.value = false
 }
 
-// #ifdef MP-WEIXIN
+/** 当前冷启动场景是否为微信「我的小程序」或抖音「我的-收藏」入口（与后端校验一致） */
+function updateLaunchEntryFlags() {
+  launchFromMyMiniOrCollect.value = isLaunchFromMyMiniOrCollectScene()
+}
+
+function isLaunchFromMyMiniOrCollectScene() {
+  try {
+    const sync = typeof uni.getLaunchOptionsSync === 'function' ? uni.getLaunchOptionsSync() : null
+    const scene = sync && sync.scene
+    if (scene === undefined || scene === null) {
+      return false
+    }
+    const n = Number(scene)
+    if (!Number.isNaN(n) && (n === 1103 || n === 1104 || n === 21003)) {
+      return true
+    }
+    const s = String(scene)
+    return s === '021003' || s === '21003'
+  } catch {
+    return false
+  }
+}
+
 function ensureMineDailyVideoAd() {
   if (mineDailyVideoAd) {
     return mineDailyVideoAd
   }
-  if (typeof wx === 'undefined' || typeof wx.createRewardedVideoAd !== 'function') {
+  const creator = typeof wx !== 'undefined' && typeof wx.createRewardedVideoAd === 'function'
+    ? wx.createRewardedVideoAd
+    : (typeof tt !== 'undefined' && typeof tt.createRewardedVideoAd === 'function'
+      ? tt.createRewardedVideoAd
+      : null)
+  if (!creator) {
     return null
   }
   try {
-    mineDailyVideoAd = wx.createRewardedVideoAd({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
+    mineDailyVideoAd = creator({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
     mineDailyVideoAd.onError(() => {
       // 广告加载失败静默处理，避免 DevTools 报 timeout
     })
@@ -420,7 +491,6 @@ function watchDailyTaskAd() {
       })
   })
 }
-// #endif
 
 async function refreshHintAnswerQuota() {
   try {
@@ -465,6 +535,9 @@ async function refreshHintAnswerQuota() {
     if (data && typeof data.nicknameTaskClaimed !== 'undefined') {
       nicknameTaskClaimed.value = Number(data.nicknameTaskClaimed) > 0
     }
+    if (data && typeof data.myMiniProgramTaskClaimed !== 'undefined') {
+      myMiniProgramTaskClaimed.value = Number(data.myMiniProgramTaskClaimed) > 0
+    }
   } catch {
     // 忽略未登录场景
   }
@@ -502,12 +575,14 @@ function onDailyRewardAction() {
 
 async function claimDailyAdTask() {
   if (dailyAdTaskLoading.value) return
-  // #ifndef MP-WEIXIN
-  uni.showToast({ title: '仅微信小程序支持看广告领取', icon: 'none' })
+  if (!isMiniProgram) {
+    uni.showToast({ title: '仅小程序支持看广告领取', icon: 'none' })
+    return
+  }
+  if (!ensureMineDailyVideoAd()) {
+    uni.showToast({ title: '当前平台暂不支持激励视频', icon: 'none' })
   return
-  // #endif
-
-  // #ifdef MP-WEIXIN
+  }
   dailyAdTaskLoading.value = true
   try {
     const watched = await watchDailyTaskAd()
@@ -531,7 +606,6 @@ async function claimDailyAdTask() {
   } finally {
     dailyAdTaskLoading.value = false
   }
-  // #endif
 }
 
 async function claimDailyBattleTask() {
@@ -581,6 +655,41 @@ async function claimAvatarTask() {
   }
 }
 
+async function claimMyMiniProgramTask() {
+  if (myMiniProgramTaskLoading.value || myMiniProgramTaskClaimed.value) return
+  updateLaunchEntryFlags()
+  if (!launchFromMyMiniOrCollect.value) {
+    uni.showToast({
+      title: '请先添加到「我的小程序/收藏」，关闭后从该入口重新进入',
+      icon: 'none',
+    })
+    return
+  }
+  myMiniProgramTaskLoading.value = true
+  try {
+    let launchScene
+    try {
+      launchScene = uni.getLaunchOptionsSync().scene
+    } catch {
+      launchScene = undefined
+    }
+    const data = await api.claimReward({
+      type: 'permanent_my_mini_program_hint_3',
+      launchScene,
+    })
+    if (typeof data.hintAnswerQuota === 'number') {
+      hintAnswerQuota.value = data.hintAnswerQuota
+    }
+    myMiniProgramTaskClaimed.value = true
+    uni.showToast({ title: `领取成功 +${data.added || 3}`, icon: 'none' })
+    refreshHintAnswerQuota()
+  } catch (e) {
+    uni.showToast({ title: e.message || '领取失败', icon: 'none' })
+  } finally {
+    myMiniProgramTaskLoading.value = false
+  }
+}
+
 async function claimNicknameTask() {
   if (nicknameTaskClaimLoading.value || nicknameTaskClaimed.value) return
   nicknameTaskClaimLoading.value = true
@@ -599,7 +708,10 @@ async function claimNicknameTask() {
 }
 
 function onShareTaskIntent() {
-  // #ifdef MP-WEIXIN
+  if (!isMiniProgram) {
+    uni.showToast({ title: '仅小程序支持分享领奖', icon: 'none' })
+    return
+  }
   if (shareTaskClaimedAll.value) return
   shareClaimLoading.value = true
   if (shareLoadingTimer) {
@@ -613,10 +725,6 @@ function onShareTaskIntent() {
   }, 6000)
   // 记录分享意图；实际领奖由 usePunShareReward 按“后台停留 >= 2000ms”判定
   markShareIntent()
-  // #endif
-  // #ifndef MP-WEIXIN
-  uni.showToast({ title: '仅微信小程序支持分享领奖', icon: 'none' })
-  // #endif
 }
 
 onBeforeUnmount(() => {
@@ -625,7 +733,6 @@ onBeforeUnmount(() => {
     shareLoadingTimer = null
   }
   shareClaimLoading.value = false
-  // #ifdef MP-WEIXIN
   if (mineDailyVideoAd && typeof mineDailyVideoAd.destroy === 'function') {
     try {
       mineDailyVideoAd.destroy()
@@ -633,7 +740,6 @@ onBeforeUnmount(() => {
   }
   mineDailyVideoAd = null
   mineDailyVideoBusy = false
-  // #endif
 })
 </script>
 

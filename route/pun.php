@@ -34,6 +34,7 @@ Route::group('pun', function () {
 
         // 1V1 对战房间
         Route::post('battle/create', 'PunBattle/createRoom');
+        Route::post('battle/update-bank', 'PunBattle/updateBank');
         Route::get('battle/history', 'PunBattle/history');
     })->middleware(\app\middleware\Auth::class);
 });

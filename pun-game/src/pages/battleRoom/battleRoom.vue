@@ -45,6 +45,32 @@
           </view>
         </view>
 
+        <!-- 题库选择（仅房主、未准备时可切换） -->
+        <view v-if="isCreator && !amIReady" class="bank-selector">
+          <text class="bank-label">选择题库</text>
+          <view class="bank-options">
+            <view
+              class="bank-option"
+              :class="{ 'bank-option--active': questionBank === 'xhs' }"
+              @click="onBankChange('xhs')"
+            >
+              <text class="bank-option-icon">📕</text>
+              <text class="bank-option-text">小红书专辑</text>
+            </view>
+            <view
+              class="bank-option"
+              :class="{ 'bank-option--active': questionBank === 'mid' }"
+              @click="onBankChange('mid')"
+            >
+              <text class="bank-option-icon">📘</text>
+              <text class="bank-option-text">经典题库</text>
+            </view>
+          </view>
+        </view>
+        <view v-else-if="!isCreator" class="bank-hint">
+          <text class="bank-hint-text">题库：{{ questionBank === 'mid' ? '📘 经典题库' : '📕 小红书专辑' }}</text>
+        </view>
+
         <view class="action-area">
           <view v-if="isMyTurn" class="ready-block">
             <button
@@ -143,6 +169,7 @@ const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 
 const roomId = ref('')
+const questionBank = ref('xhs')
 const creating = ref(false)
 const joining = ref(false)
 /** 手动输入的房间号（仅数字，最多6位） */
@@ -286,6 +313,7 @@ function setupWsListeners() {
     challenger.value = data.challenger
     creatorReady.value = data.creatorReady
     challengerReady.value = data.challengerReady
+    if (data.questionBank) questionBank.value = data.questionBank
     if (showJoinOk) {
       uni.showToast({ title: '加入成功', icon: 'none' })
     }
@@ -301,7 +329,7 @@ function setupWsListeners() {
     setTimeout(() => {
       // 保留房间连接，跳转到游戏页
       uni.redirectTo({
-        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&myUserId=${myUserId.value}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}`
+        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&myUserId=${myUserId.value}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}&questionBank=${data.questionBank || questionBank.value}`
       })
     }, 1000)
   })
@@ -315,7 +343,7 @@ function setupWsListeners() {
     keepWsAliveForBattle = true
     setTimeout(() => {
       uni.redirectTo({
-        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&resume=1&myUserId=${myUserId.value}&myProgress=${data.myProgress}&opponentProgress=${data.opponentProgress}&timePassed=${data.timePassed}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}`
+        url: `/pages/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&resume=1&myUserId=${myUserId.value}&myProgress=${data.myProgress}&opponentProgress=${data.opponentProgress}&timePassed=${data.timePassed}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}&questionBank=${data.questionBank || questionBank.value}`
       })
     }, 500)
   })
@@ -401,6 +429,17 @@ async function joinByInput() {
   }
 }
 
+async function onBankChange(bank) {
+  if (bank === questionBank.value) return
+  questionBank.value = bank
+  if (!roomId.value) return
+  try {
+    await api.updateBattleRoomBank(roomId.value, bank)
+  } catch (e) {
+    uni.showToast({ title: '切换题库失败', icon: 'none' })
+  }
+}
+
 async function createRoom() {
   if (creating.value) return
   creating.value = true
@@ -417,7 +456,7 @@ async function createRoom() {
     roomCreatorId.value = uid
     roomChallengerId.value = null
 
-    const res = await api.createBattleRoom()
+    const res = await api.createBattleRoom(questionBank.value)
     roomId.value = res.roomId
     joinRoom(res.roomId)
   } catch (err) {
@@ -617,6 +656,52 @@ function goHistory() {
   margin-bottom: 40rpx;
   line-height: 1.5;
   width: 80%;
+}
+.bank-selector {
+  width: 80%;
+  margin-bottom: 36rpx;
+}
+.bank-label {
+  font-size: 26rpx;
+  color: #94a3b8;
+  margin-bottom: 16rpx;
+  display: block;
+}
+.bank-options {
+  display: flex;
+  gap: 20rpx;
+}
+.bank-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  padding: 20rpx 0;
+  border-radius: 16rpx;
+  background: rgba(255,255,255,0.6);
+  border: 3rpx solid #e2e8f0;
+  transition: all 0.2s;
+}
+.bank-option--active {
+  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3rpx rgba(129,140,248,0.15);
+}
+.bank-option-icon {
+  font-size: 36rpx;
+}
+.bank-option-text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #334155;
+}
+.bank-hint {
+  margin: 16rpx 0 8rpx;
+}
+.bank-hint-text {
+  font-size: 26rpx;
+  color: #64748b;
 }
 .join-by-id {
   width: 100%;

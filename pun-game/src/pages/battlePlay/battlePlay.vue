@@ -54,7 +54,7 @@
         v-if="puzzle.keywordHint"
         class="keyword-tab"
       >
-        <text class="keyword-tab-text">{{ puzzle.keywordHint }}</text>
+        <text class="keyword-tab-text">提示：{{ puzzle.keywordHint }}</text>
       </view>
 
       <view class="card-inner card-inner--stack">
@@ -172,7 +172,7 @@
 <script setup>
 import { ref, computed, onUnmounted } from 'vue'
 import { onLoad, onShow, onHide } from '@dcloudio/uni-app'
-import { getXhsLevelPuzzle, prefetchBattleXhsImages } from '../../data/levels'
+import { getXhsLevelPuzzle, getMidLevelPuzzle, prefetchBattleXhsImages, prefetchBattleMidImages } from '../../data/levels'
 import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
@@ -197,9 +197,7 @@ import { useWechatPageShare } from '../../composables/useWechatPageShare'
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 const shareRewardQuotaRef = ref(0)
-// #ifdef MP-WEIXIN
 useWechatPageShare('1V1 对战中 · 谐音梗图', shareRewardQuotaRef)
-// #endif
 
 const roomId = ref('')
 const levels = ref([])
@@ -299,12 +297,14 @@ async function onRevealHint() {
   }
   let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
-    // #ifdef MP-WEIXIN
     afterRewardVideo = true
     hintLoading.value = true
     try {
       const ok = await tryWatchAdForHintQuota()
-      if (!ok) return
+      if (!ok) {
+        uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
+        return
+      }
     } finally {
       hintLoading.value = false
     }
@@ -312,11 +312,6 @@ async function onRevealHint() {
       uni.showToast({ title: '提示次数不足', icon: 'none' })
       return
     }
-    // #endif
-    // #ifndef MP-WEIXIN
-    uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
-    return
-    // #endif
   }
   hintLoading.value = true
   try {
@@ -365,7 +360,8 @@ async function checkAnswer() {
     )
     // 使用 battle mode，不更新个人关卡进度
     const data = await api.submitAnswer(currentLevelId, userAnswer, {
-      gameTier: 'battle'
+      gameTier: 'battle',
+      questionBank: questionBank.value
     })
     // 修改这行：因为 submitAnswer 返回的结果结构有可能是 { isCorrect: true } 或者是原格式，根据实际情况适配
     if (data && data.isCorrect) {
@@ -422,13 +418,14 @@ function loadCurrentQuestion() {
   const lv = levels.value[currentQuestionIndex.value]
   loading.value = true
 
-  getXhsLevelPuzzle(lv)
+  const puzzleLoader = questionBank.value === 'mid' ? getMidLevelPuzzle : getXhsLevelPuzzle
+  puzzleLoader(lv)
     .then((data) => {
       answerLen.value = data.answerLength || 3
       puzzle.value = {
         imageUrlTop: data.imageUrlTop || data.imageUrl || '',
         topCaption: data.topCaption || '',
-        keywordHint: data.keywordHint || '小红书专辑'
+        keywordHint: data.keywordHint || (questionBank.value === 'mid' ? '经典题库' : '小红书专辑')
       }
       answerChars.value = []
       feedback.value = []
@@ -483,18 +480,25 @@ onUnmounted(() => {
   }
 })
 
+const questionBank = ref('xhs')
+
 onLoad((opts) => {
   if (opts.roomId) roomId.value = opts.roomId
   if (opts.myUserId) {
     myUserId.value = Number(opts.myUserId || 0)
   }
+  if (opts.questionBank) questionBank.value = opts.questionBank
   if (opts.levels) {
     try {
       levels.value = JSON.parse(opts.levels)
     } catch (e) {}
   }
   if (Array.isArray(levels.value) && levels.value.length > 0) {
-    prefetchBattleXhsImages(levels.value)
+    if (questionBank.value === 'mid') {
+      prefetchBattleMidImages(levels.value)
+    } else {
+      prefetchBattleXhsImages(levels.value)
+    }
   }
   if (opts.myName) myName.value = decodeURIComponent(opts.myName)
   if (opts.opponentName)

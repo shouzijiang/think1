@@ -20,7 +20,34 @@
         type="nickname"
         class="nickname-input"
         placeholder="点击设置昵称"
-        :value="userInfo?.nickname || ''"
+        v-model="nicknameDraft"
+        @blur="handleNicknameBlur"
+        @confirm="handleNicknameConfirm"
+      />
+      <text class="edit-hint">点击昵称/头像即可修改</text>
+    </view>
+    <!-- #endif -->
+    <!-- #ifdef MP-TOUTIAO -->
+    <button
+      class="avatar-btn avatar-btn--card"
+      :style="navBtnSizeStyle"
+      @click="chooseAvatarByImagePicker"
+    >
+      <image
+        v-if="userInfo?.avatar"
+        class="user-avatar"
+        :src="userInfo.avatar + (userInfo.avatar.includes('?') ? '&' : '?') + '_t=' + avatarTs"
+        mode="aspectFill"
+      />
+      <view v-else class="user-avatar user-avatar-placeholder">👤</view>
+    </button>
+    <view class="nickname-wrapper">
+      <input
+        type="text"
+        class="nickname-input"
+        placeholder="点击设置昵称"
+        :value="nicknameDraft"
+        @input="onNicknameDraftInput"
         @blur="handleNicknameBlur"
         @confirm="handleNicknameConfirm"
       />
@@ -28,6 +55,7 @@
     </view>
     <!-- #endif -->
     <!-- #ifndef MP-WEIXIN -->
+    <!-- #ifndef MP-TOUTIAO -->
     <view class="avatar-fallback" :style="navBtnSizeStyle">
       <image
         v-if="userInfo?.avatar"
@@ -39,8 +67,9 @@
     </view>
     <view class="nickname-wrapper">
       <text class="user-nickname">{{ userInfo?.nickname || '用户' }}</text>
-      <text class="edit-hint">昵称与头像仅微信端可编辑</text>
+      <text class="edit-hint">昵称与头像仅小程序端可编辑</text>
     </view>
+    <!-- #endif -->
     <!-- #endif -->
   </view>
 </template>
@@ -50,9 +79,12 @@ import { useUserProfileNav } from '../composables/useUserProfileNav'
 
 const {
   userInfo,
+  nicknameDraft,
   navBtnSizeStyle,
   loadUserInfo,
   onChooseAvatar,
+  chooseAvatarByImagePicker,
+  onNicknameDraftInput,
   handleNicknameBlur,
   handleNicknameConfirm,
   avatarTs,

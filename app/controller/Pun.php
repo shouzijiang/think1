@@ -70,18 +70,24 @@ class Pun extends BaseController
         $mode = (string) $request->post('gameTier', 'beginner');
         $modeNorm = \app\service\PunService::normalizeMode($mode);
 
+        // 对战模式：题库由房间决定，前端传 questionBank 参数
+        $questionBank = (string) $request->post('questionBank', '');
         $levelConfigMap = [
             'intermediate' => 'pun_levels_issue2',
-            'battle'       => 'pun_levels_issue3',
             'xhs'          => 'pun_levels_issue3',
             'beginner'     => 'pun_levels',
         ];
-        $levels = \think\facade\Config::get($levelConfigMap[$modeNorm] ?? 'pun_levels', []);
+        if ($modeNorm === 'battle') {
+            $battleConfig = in_array($questionBank, ['mid', 'intermediate'], true) ? 'pun_levels_issue2' : 'pun_levels_issue3';
+            $levels = \think\facade\Config::get($battleConfig, []);
+        } else {
+            $levels = \think\facade\Config::get($levelConfigMap[$modeNorm] ?? 'pun_levels', []);
+        }
         if (!isset($levels[$level])) {
             return ResponseHelper::badRequest('关卡不存在');
         }
         try {
-            $result = $this->punService->submitAnswer($userId, $level, $userAnswer, (string) $mode);
+            $result = $this->punService->submitAnswer($userId, $level, $userAnswer, (string) $mode, $questionBank);
             return ResponseHelper::success($result);
         } catch (\Throwable $e) {
             \think\facade\Log::error('pun/answer/submit 异常: ' . $e->getMessage() . ' trace: ' . $e->getTraceAsString());

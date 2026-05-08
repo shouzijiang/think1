@@ -193,6 +193,7 @@ class WebSocket extends Command
             $connection->send(json_encode([
                 'action' => 'resume_game',
                 'levels' => $record->levels_json,
+                'questionBank' => $record->question_bank ?? 'xhs',
                 'myProgress' => $room[$myRole . '_progress'] ?? 0,
                 'opponentProgress' => $room[$opponentRole . '_progress'] ?? 0,
                 'timePassed' => max(0, (int)$timePassed),
@@ -230,10 +231,12 @@ class WebSocket extends Command
             $record->save();
 
             // 发送开始游戏和题目数据（按接收方区分 myName/opponentName）
+            $questionBank = $record->question_bank ?? 'xhs';
             if ($room['creator']) {
                 $room['creator']->send(json_encode([
                     'action' => 'start_game',
                     'levels' => $record->levels_json,
+                    'questionBank' => $questionBank,
                     'myName' => $room['creator']->userInfo['nickname'] ?? '我',
                     'opponentName' => ($room['challenger'] && isset($room['challenger']->userInfo['nickname']))
                         ? $room['challenger']->userInfo['nickname']
@@ -244,6 +247,7 @@ class WebSocket extends Command
                 $room['challenger']->send(json_encode([
                     'action' => 'start_game',
                     'levels' => $record->levels_json,
+                    'questionBank' => $questionBank,
                     'myName' => $room['challenger']->userInfo['nickname'] ?? '我',
                     'opponentName' => ($room['creator'] && isset($room['creator']->userInfo['nickname']))
                         ? $room['creator']->userInfo['nickname']
@@ -380,6 +384,7 @@ class WebSocket extends Command
             'action' => 'room_info',
             'creatorId' => $creatorId,
             'challengerId' => $challengerId,
+            'questionBank' => $record ? ($record->question_bank ?? 'xhs') : 'xhs',
             'creator' => $room['creator'] ? $room['creator']->userInfo : null,
             'creatorReady' => $room['creator_ready'] ?? false,
             'challenger' => $room['challenger'] ? $room['challenger']->userInfo : null,

@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -75,9 +75,7 @@ import { useWechatPageShare } from '../../composables/useWechatPageShare'
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 const shareRewardQuotaRef = ref(0)
-// #ifdef MP-WEIXIN
 useWechatPageShare('对战记录 · 谐音梗图', shareRewardQuotaRef)
-// #endif
 const userInfo = ref(getUserInfo())
 const listHeight = ref(0)
 

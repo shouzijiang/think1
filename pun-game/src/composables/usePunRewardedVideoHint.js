@@ -3,8 +3,8 @@ import { api } from '../utils/api'
 import { REWARDED_VIDEO_AD_UNIT_ID } from '../constants/rewardedVideoAd'
 
 /**
- * 揭字次数为 0 时：拉起微信激励视频，完整观看后调用后端发放 +1 次答案次数。
- * 仅微信小程序端有效；其它端请走分享等既有逻辑。
+ * 揭字次数为 0 时：拉起激励视频（微信/抖音小程序），完整观看后调用后端发放 +1 次答案次数。
+ * 非小程序端返回 false，请走分享等既有逻辑。
  *
  * @param {{ value: number }} hintAnswerQuotaRef
  */
@@ -12,15 +12,19 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
   let videoAd = null
   let adBusy = false
 
-  // #ifdef MP-WEIXIN
   function ensureVideoAd() {
     if (videoAd) {
       return videoAd
     }
-    if (typeof wx === 'undefined' || typeof wx.createRewardedVideoAd !== 'function') {
+    const creator = typeof wx !== 'undefined' && typeof wx.createRewardedVideoAd === 'function'
+      ? wx.createRewardedVideoAd
+      : (typeof tt !== 'undefined' && typeof tt.createRewardedVideoAd === 'function'
+        ? tt.createRewardedVideoAd
+        : null)
+    if (!creator) {
       return null
     }
-    const ad = wx.createRewardedVideoAd({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
+    const ad = creator({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
     ad.onLoad(() => {})
     ad.onError((err) => {
       console.error('激励视频广告', err)
@@ -28,17 +32,11 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
     videoAd = ad
     return videoAd
   }
-  // #endif
 
   /**
    * 展示激励视频；完整观看并成功领奖后返回 true。
    */
   async function tryWatchAdForHintQuota() {
-    // #ifndef MP-WEIXIN
-    return false
-    // #endif
-
-    // #ifdef MP-WEIXIN
     if (adBusy) {
       return false
     }
@@ -106,11 +104,9 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
 
       showAd()
     })
-    // #endif
   }
 
   onBeforeUnmount(() => {
-    // #ifdef MP-WEIXIN
     if (videoAd && typeof videoAd.destroy === 'function') {
       try {
         videoAd.destroy()
@@ -118,7 +114,6 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
       videoAd = null
     }
     adBusy = false
-    // #endif
   })
 
   return {

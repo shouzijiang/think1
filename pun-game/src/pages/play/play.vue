@@ -291,12 +291,14 @@ async function onRevealHint() {
   }
   let afterRewardVideo = false
   if (hintAnswerQuota.value <= 0) {
-    // #ifdef MP-WEIXIN
     afterRewardVideo = true
     hintLoading.value = true
     try {
       const ok = await tryWatchAdForHintQuota()
-      if (!ok) return
+      if (!ok) {
+        uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
+        return
+      }
     } finally {
       hintLoading.value = false
     }
@@ -304,11 +306,6 @@ async function onRevealHint() {
       uni.showToast({ title: '提示次数不足', icon: 'none' })
       return
     }
-    // #endif
-    // #ifndef MP-WEIXIN
-    uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
-    return
-    // #endif
   }
   hintLoading.value = true
   try {
@@ -348,11 +345,12 @@ const { onSkipLevel } = usePunSkipLevel({
   toNextUrl: (n) => `/pages/play/play?level=${n}`,
 })
 
-// 非微信端点击「求助」时提示（微信端由 open-type="share" 唤起分享）
+// 非小程序端点击「求助」时提示（小程序端由 open-type="share" 唤起分享）
 function help() {
-  // #ifndef MP-WEIXIN
-  uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
-  // #endif
+  const p = uni.getSystemInfoSync().uniPlatform || ''
+  if (!(p === 'mp-weixin' || p === 'mp-toutiao')) {
+    uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
+  }
 }
 
 // 微信小程序分享：好友打开后进入当前关卡

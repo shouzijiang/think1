@@ -1,8 +1,7 @@
 /**
- * 微信小程序：未单独写分享的页面，使用当前路径 + query 作为转发/朋友圈落地页。
+ * 小程序分享（微信/抖音）：未单独写分享的页面，使用当前路径 + query 作为转发落地页。
  * 传入 hintAnswerQuotaRef 时，右上角「转发」也会走分享领奖（与 usePunShareReward 一致）。
  */
-// #ifdef MP-WEIXIN
 import { ref } from 'vue'
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { usePunShareReward } from './usePunShareReward'
@@ -33,9 +32,17 @@ function currentTimelineQuery() {
 /** 与 App.onShow 互补：进入使用本 composable 的页面时再开一次菜单（自定义导航页易丢转发入口） */
 function ensureMpShareMenu() {
   if (typeof uni.showShareMenu !== 'function') return
+  let menus = ['shareAppMessage', 'shareTimeline']
+  try {
+    const platform = uni.getSystemInfoSync().uniPlatform || ''
+    // 抖音小程序菜单字段与微信不同
+    if (platform === 'mp-toutiao') {
+      menus = ['share']
+    }
+  } catch {}
   uni.showShareMenu({
     withShareTicket: true,
-    menus: ['shareAppMessage', 'shareTimeline'],
+    menus,
     fail(err) {
       console.warn('[showShareMenu]', err)
     },
@@ -50,7 +57,7 @@ function ensureMpShareMenu() {
 export function useWechatPageShare(titleOrFn, hintAnswerQuotaRef = null, options = {}) {
   ensureMpShareMenu()
 
-  const getTitle = typeof titleOrFn === 'function' ? titleOrFn : () => titleOrFn || '谐音梗图'
+  const getTitle = typeof titleOrFn === 'function' ? titleOrFn : () => titleOrFn || '谐音梗图1'
 
   const noopQuotaRef = ref(0)
   const quotaRef = hintAnswerQuotaRef ?? noopQuotaRef
@@ -69,7 +76,3 @@ export function useWechatPageShare(titleOrFn, hintAnswerQuotaRef = null, options
     query: currentTimelineQuery(),
   }))
 }
-// #endif
-// #ifndef MP-WEIXIN
-export function useWechatPageShare() {}
-// #endif

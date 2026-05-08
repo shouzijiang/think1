@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <view class="page">
     <view class="bg-wrap">
       <view class="bg-gradient" />
@@ -222,7 +222,6 @@ function toggleSfx() {
 }
 
 onShow(async () => {
-  // #ifdef MP-WEIXIN
   try {
     // 确保登录完成后再读取本地 userInfo，避免 onShow 过早读取
     await wechatLogin()
@@ -230,7 +229,6 @@ onShow(async () => {
     // 登录失败也不阻断页面展示
     console.warn('wechatLogin 失败', e)
   }
-  // #endif
   bgmOn.value = isBgmEnabled()
   sfxOn.value = isSfxEnabled()
   if (bgmOn.value) {
@@ -248,7 +246,6 @@ onHide(() => {
   stopBgm()
 })
 
-// #ifdef MP-WEIXIN
 onShareAppMessage(() => withShareReward({
   title: '谐音梗猜一猜，看图填词挑战脑洞！',
   path: '/pages/index/index',
@@ -257,7 +254,6 @@ onShareTimeline(() => ({
   title: '谐音梗猜一猜 · 看图填词',
   query: '',
 }))
-// #endif
 
 function goRank() {
   uni.navigateTo({ url: '/pages/rank/rank' })

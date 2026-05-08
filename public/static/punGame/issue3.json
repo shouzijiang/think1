@@ -20,6 +20,12 @@
     {
         "level": 4,
         "answerLength": 2,
+        "answerType": "大写英文",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 5,
+        "answerLength": 9,
         "answerType": "",
         "author": "许老师的段子铺"
     },
@@ -60,6 +66,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 12,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 13,
         "answerLength": 2,
         "answerType": "",
@@ -91,6 +103,12 @@
     },
     {
         "level": 18,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 19,
         "answerLength": 3,
         "answerType": "",
         "author": "许老师的段子铺"
@@ -132,6 +150,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 26,
+        "answerLength": 2,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 27,
         "answerLength": 2,
         "answerType": "",
@@ -151,6 +175,12 @@
     },
     {
         "level": 30,
+        "answerLength": 2,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 31,
         "answerLength": 2,
         "answerType": "",
         "author": "许老师的段子铺"
@@ -186,6 +216,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 37,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 38,
         "answerLength": 3,
         "answerType": "",
@@ -205,6 +241,12 @@
     },
     {
         "level": 41,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 42,
         "answerLength": 3,
         "answerType": "",
         "author": "许老师的段子铺"
@@ -241,6 +283,12 @@
     },
     {
         "level": 48,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 49,
         "answerLength": 3,
         "answerType": "",
         "author": "许老师的段子铺"
@@ -288,6 +336,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 57,
+        "answerLength": 4,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 58,
         "answerLength": 3,
         "answerType": "",
@@ -308,6 +362,12 @@
     {
         "level": 61,
         "answerLength": 2,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 62,
+        "answerLength": 3,
         "answerType": "",
         "author": "许老师的段子铺"
     },
@@ -348,6 +408,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 69,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 70,
         "answerLength": 2,
         "answerType": "",
@@ -380,6 +446,12 @@
     {
         "level": 75,
         "answerLength": 4,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 76,
+        "answerLength": 5,
         "answerType": "",
         "author": "许老师的段子铺"
     },
@@ -420,6 +492,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 83,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 84,
         "answerLength": 2,
         "answerType": "",
@@ -446,6 +524,12 @@
     {
         "level": 88,
         "answerLength": 2,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 89,
+        "answerLength": 3,
         "answerType": "",
         "author": "许老师的段子铺"
     },
@@ -510,6 +594,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 100,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 101,
         "answerLength": 3,
         "answerType": "",
@@ -554,6 +644,12 @@
     {
         "level": 108,
         "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 109,
+        "answerLength": 2,
         "answerType": "",
         "author": "许老师的段子铺"
     },
@@ -606,6 +702,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 119,
+        "answerLength": 4,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 120,
         "answerLength": 3,
         "answerType": "",
@@ -626,6 +728,12 @@
     {
         "level": 124,
         "answerLength": 4,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 125,
+        "answerLength": 2,
         "answerType": "",
         "author": "许老师的段子铺"
     },
@@ -661,6 +769,12 @@
     },
     {
         "level": 131,
+        "answerLength": 2,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 132,
         "answerLength": 2,
         "answerType": "",
         "author": "许老师的段子铺"
@@ -702,6 +816,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 139,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 140,
         "answerLength": 3,
         "answerType": "",
@@ -733,6 +853,12 @@
     },
     {
         "level": 145,
+        "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 146,
         "answerLength": 3,
         "answerType": "",
         "author": "许老师的段子铺"
@@ -774,6 +900,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 153,
+        "answerLength": 4,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 154,
         "answerLength": 4,
         "answerType": "",
@@ -810,6 +942,12 @@
         "author": "许老师的段子铺"
     },
     {
+        "level": 160,
+        "answerLength": 2,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
         "level": 161,
         "answerLength": 3,
         "answerType": "",
@@ -836,6 +974,12 @@
     {
         "level": 165,
         "answerLength": 3,
+        "answerType": "",
+        "author": "许老师的段子铺"
+    },
+    {
+        "level": 166,
+        "answerLength": 4,
         "answerType": "",
         "author": "许老师的段子铺"
     },
@@ -1288,6 +1432,18 @@
         "answerLength": 4,
         "answerType": "",
         "author": "许老师的段子铺"
+    },
+    {
+        "level": 500,
+        "answerLength": 4,
+        "answerType": "",
+        "author": "胜吴老蔡"
+    },
+    {
+        "level": 501,
+        "answerLength": 4,
+        "answerType": "",
+        "author": "胜吴老蔡"
     },
     {
         "level": 504,
@@ -3457,7 +3613,7 @@
     },
     {
         "level": 1002,
-        "answerLength": 2,
+        "answerLength": 3,
         "answerType": "",
         "author": "谐音梗游戏库"
     },
@@ -4153,7 +4309,7 @@
     },
     {
         "level": 1150,
-        "answerLength": 4,
+        "answerLength": 5,
         "answerType": "",
         "author": "谐音梗游戏库"
     },

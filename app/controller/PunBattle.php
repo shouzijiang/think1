@@ -22,12 +22,29 @@ class PunBattle
     public function createRoom(Request $request)
     {
         $userId = (int) $request->user_id; // 来源于 Auth 中间件
+        $questionBank = $request->post('questionBank', 'xhs');
         
         try {
-            $roomInfo = $this->battleService->createRoom($userId);
+            $roomInfo = $this->battleService->createRoom($userId, (string) $questionBank);
             return ResponseHelper::success($roomInfo, '创建房间成功');
         } catch (\Exception $e) {
             return ResponseHelper::error('创建房间失败: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 更新房间题库
+     */
+    public function updateBank(Request $request)
+    {
+        $userId = (int) $request->user_id;
+        $roomId = (string) $request->post('roomId', '');
+        $questionBank = (string) $request->post('questionBank', 'xhs');
+        try {
+            $this->battleService->updateBank($userId, $roomId, $questionBank);
+            return ResponseHelper::success([], '题库已更新');
+        } catch (\Exception $e) {
+            return ResponseHelper::error($e->getMessage());
         }
     }
 

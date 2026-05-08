@@ -75,9 +75,7 @@ import { useWechatPageShare } from '../../composables/useWechatPageShare'
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 const shareRewardQuotaRef = ref(0)
-// #ifdef MP-WEIXIN
 useWechatPageShare('意见反馈 · 谐音梗图', shareRewardQuotaRef)
-// #endif
 
 const typeOptions = [
   { value: '', label: '请选择' },

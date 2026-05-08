@@ -68,20 +68,21 @@ const hintQuotaNum = computed(() => {
 const hasHintQuota = computed(() => hintQuotaNum.value > 0)
 const hintNoQuota = computed(() => hintQuotaNum.value <= 0)
 
-/** 微信小程序且无次数：角标在按钮内，整钮可点走激励视频；其它端无次数仍禁用 */
-const isMpWeixin = computed(() => {
+/** 小程序（微信/抖音）且无次数：角标在按钮内，整钮可点走激励视频；其它端无次数仍禁用 */
+const isMiniProgramWithRewardAd = computed(() => {
   try {
-    return uni.getSystemInfoSync().uniPlatform === 'mp-weixin'
+    const p = uni.getSystemInfoSync().uniPlatform
+    return p === 'mp-weixin' || p === 'mp-toutiao'
   } catch {
     return false
   }
 })
 
-const showHintVideoBadge = computed(() => isMpWeixin.value && hintNoQuota.value)
+const showHintVideoBadge = computed(() => isMiniProgramWithRewardAd.value && hintNoQuota.value)
 
 const hintBtnDisabled = computed(() => {
   const busy = props.hintLoading || props.hintLocked
-  if (isMpWeixin.value && hintNoQuota.value) {
+  if (isMiniProgramWithRewardAd.value && hintNoQuota.value) {
     return busy
   }
   return busy || hintNoQuota.value

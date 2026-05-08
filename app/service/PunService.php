@@ -774,7 +774,19 @@ class PunService
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
-        } elseif ($mode === 'xhs' || $mode === 'battle') {
+        } elseif ($mode === 'battle') {
+            // 对战模式：根据房间题库决定用哪个配置
+            $battleBank = 'xhs';
+            if ($roomId) {
+                $rec = PunGameBattleRecord::where('room_id', $roomId)->find();
+                if ($rec && in_array($rec->question_bank ?? '', ['mid', 'intermediate'], true)) {
+                    $battleBank = 'mid';
+                }
+            }
+            $configKey = $battleBank === 'mid' ? 'pun_levels_issue2' : 'pun_levels_issue3';
+            $answersRaw = Config::get($configKey, []);
+            $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
+        } elseif ($mode === 'xhs') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
@@ -1030,14 +1042,19 @@ class PunService
      * @param string $mode beginner=初级 | intermediate=中级
      * @return array ['isCorrect' => bool, 'feedback' => [['position'=>int,'isCorrect'=>bool], ...]]
      */
-    public function submitAnswer(int $userId, int $level, array $userAnswer, string $mode = 'beginner'): array
+    public function submitAnswer(int $userId, int $level, array $userAnswer, string $mode = 'beginner', string $questionBank = ''): array
     {
         $this->incrementDailyAnswerCount($userId);
         $mode = $this->normalizeMode($mode);
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
-        } elseif ($mode === 'xhs' || $mode === 'battle') {
+        } elseif ($mode === 'battle') {
+            // 对战模式：根据房间题库决定用哪个配置
+            $configKey = in_array($questionBank, ['mid', 'intermediate'], true) ? 'pun_levels_issue2' : 'pun_levels_issue3';
+            $answersRaw = Config::get($configKey, []);
+            $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
+        } elseif ($mode === 'xhs') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
