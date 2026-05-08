@@ -5,7 +5,8 @@
 -- 1. 用户表
 CREATE TABLE `users` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '用户ID',
-  `openid` varchar(100) NOT NULL COMMENT '微信openid',
+  `openid` varchar(100) NOT NULL COMMENT '小程序侧用户标识（抖音为 douyin: 前缀 + openid）',
+  `mp_platform` varchar(20) NOT NULL DEFAULT 'weixin' COMMENT '小程序来源：weixin-微信 douyin-抖音',
   `unionid` varchar(100) DEFAULT NULL COMMENT '微信unionid',
   `nickname` varchar(100) DEFAULT NULL COMMENT '用户昵称',
   `avatar` mediumtext DEFAULT NULL COMMENT '用户头像URL或 base64 data URL',
@@ -14,8 +15,11 @@ CREATE TABLE `users` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_openid` (`openid`),
-  KEY `idx_unionid` (`unionid`)
+  KEY `idx_unionid` (`unionid`),
+  KEY `idx_mp_platform` (`mp_platform`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+
+-- 若线上 users 表已存在且缺少 mp_platform，请执行 docs/migrations/add_users_mp_platform.sql
 
 -- 若线上 users 表已存在且需支持 base64 头像，可执行：
 -- ALTER TABLE `users` MODIFY COLUMN `avatar` mediumtext DEFAULT NULL COMMENT '用户头像URL或 base64 data URL';
@@ -246,11 +250,11 @@ VALUES ('user', 635, NULL, '奖励说明', '感谢您的反馈，已处理，奖
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
 VALUES ('user', 635, NULL, 'bug反馈回复', '感谢您的反馈。梗图填词 · 第1关 答案为蛋包饭，并非为蛋炒饭哦~。', 1);
 
--- 14. 谐音梗图统一领奖记录（所有领取类型都落此表：分享/激励视频/daily_noon_hint_5 每日任务）
+-- 14. 谐音梗图统一领奖记录（所有领取类型都落此表：分享/激励视频/daily_* / permanent_* 等）
 CREATE TABLE `pun_reward_claim_record` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int(11) unsigned NOT NULL COMMENT '用户ID',
-  `claim_type` varchar(50) NOT NULL COMMENT '领取类型：share/reward_video/daily_noon_hint_5',
+  `claim_type` varchar(50) NOT NULL COMMENT '领取类型：如 share、reward_video、daily_noon_hint_5、permanent_my_mini_program_hint_3 等',
   `claim_date` date NOT NULL COMMENT '领取日期（Asia/Shanghai，自然日）',
   `add_quota` int(11) NOT NULL DEFAULT '0' COMMENT '本次增加次数，失败/拒绝为0',
   `status` varchar(20) NOT NULL COMMENT '结果：success/rejected/failed',

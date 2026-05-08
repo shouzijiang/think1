@@ -48,7 +48,7 @@ class PunService
 
     /**
      * 永久任务配置（全生命周期仅可领取一次）
-     * 键名: avatar（设置头像）| nickname（设置昵称）
+     * 键名: avatar（设置头像）| nickname（设置昵称）| my_mini_program（我的小程序/收藏入口）
      */
     public const PERMANENT_TASKS = [
         'avatar' => [
@@ -58,6 +58,10 @@ class PunService
         'nickname' => [
             'type'       => 'permanent_set_nickname', // 领取类型标识
             'reward_add' => 3,                         // 单次发放次数
+        ],
+        'my_mini_program' => [
+            'type'       => 'permanent_my_mini_program_hint_3',
+            'reward_add' => 3,
         ],
     ];
 
@@ -354,6 +358,10 @@ class PunService
     public function claimReward(int $userId, string $type, int $delta = 1, array $extra = []): array
     {
         $type = strtolower(trim((string) $type));
+        // 历史客户端仍传 permanent_my_mini_program_hint_5，与 hint_3 为同一永久任务
+        if ($type === 'permanent_my_mini_program_hint_5') {
+            $type = self::PERMANENT_TASKS['my_mini_program']['type'];
+        }
         if (!in_array($type, [
             self::REWARD_TYPE_SHARE,
             self::REWARD_TYPE_VIDEO,
@@ -362,6 +370,7 @@ class PunService
             self::DAILY_TASKS['battle']['type'],
             self::PERMANENT_TASKS['avatar']['type'],
             self::PERMANENT_TASKS['nickname']['type'],
+            self::PERMANENT_TASKS['my_mini_program']['type'],
         ], true)) {
             throw new \InvalidArgumentException('不支持的领取类型');
         }
@@ -383,6 +392,8 @@ class PunService
                 $result = $this->claimByPermanentAvatar($userId);
             } elseif ($type === self::PERMANENT_TASKS['nickname']['type']) {
                 $result = $this->claimByPermanentNickname($userId);
+            } elseif ($type === self::PERMANENT_TASKS['my_mini_program']['type']) {
+                $result = $this->claimByPermanentMyMiniProgram($userId, $extra);
             } else {
                 $result = $this->claimByDailyBattleTask($userId);
             }
@@ -584,6 +595,63 @@ class PunService
             'added' => self::PERMANENT_TASKS['nickname']['reward_add'],
             'type' => self::PERMANENT_TASKS['nickname']['type'],
         ];
+    }
+
+    /**
+     * 永久任务：从微信「我的小程序」或抖音「我的-收藏」入口进入后可领 +3（全生命周期仅一次）
+     *
+     * @param array<string,mixed> $extra 需含客户端上报的 launchScene（与 uni.getLaunchOptionsSync().scene 一致）
+     */
+    private function claimByPermanentMyMiniProgram(int $userId, array $extra): array
+    {
+        $already = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::PERMANENT_TASKS['my_mini_program']['type'])
+            ->where('status', 'success')
+            ->find();
+        if ($already) {
+            throw new \InvalidArgumentException('该奖励已领取过');
+        }
+        $scene = $extra['launchScene'] ?? null;
+        if (!$this->isAllowedMyMiniProgramLaunchScene($scene)) {
+            throw new \InvalidArgumentException('请从微信「我的小程序」或抖音「我的收藏」进入小程序后再领取');
+        }
+        $newQuota = $this->increaseHintQuota($userId, self::PERMANENT_TASKS['my_mini_program']['reward_add']);
+
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => self::PERMANENT_TASKS['my_mini_program']['reward_add'],
+            'type' => self::PERMANENT_TASKS['my_mini_program']['type'],
+        ];
+    }
+
+    /**
+     * 校验启动场景是否为「我的小程序」或抖音收藏入口（供领奖与文档约定）
+     *
+     * @param mixed $scene uni.getLaunchOptionsSync().scene
+     */
+    public function isAllowedMyMiniProgramLaunchScene($scene): bool
+    {
+        if ($scene === null || $scene === '' || is_bool($scene)) {
+            return false;
+        }
+        $asString = trim((string) $scene);
+        if ($asString === '') {
+            return false;
+        }
+        // 抖音文档：021003 ——「我的-收藏」tab（字符串或数值 21003）
+        if ($asString === '021003' || $asString === '21003') {
+            return true;
+        }
+        // 微信：1103 发现页「我的小程序」列表；1104 下拉「我的小程序」栏（基础库 2.29.1+）
+        if (is_numeric($asString)) {
+            $n = (int) $asString;
+            if (in_array($n, [1103, 1104, 21003], true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -1395,6 +1463,11 @@ class PunService
             ->where('claim_type', self::PERMANENT_TASKS['nickname']['type'])
             ->where('status', 'success')
             ->count() > 0 ? 1 : 0;
+        $myMiniProgramTaskClaimed = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::PERMANENT_TASKS['my_mini_program']['type'])
+            ->where('status', 'success')
+            ->count() > 0 ? 1 : 0;
         $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
         $mode = $this->normalizeMode($mode);
 
@@ -1431,6 +1504,7 @@ class PunService
                 'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
                 'avatarTaskClaimed' => $avatarTaskClaimed,
                 'nicknameTaskClaimed' => $nicknameTaskClaimed,
+                'myMiniProgramTaskClaimed' => $myMiniProgramTaskClaimed,
             ];
         }
         if ($mode === 'xhs') {
@@ -1466,6 +1540,7 @@ class PunService
                 'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
                 'avatarTaskClaimed' => $avatarTaskClaimed,
                 'nicknameTaskClaimed' => $nicknameTaskClaimed,
+                'myMiniProgramTaskClaimed' => $myMiniProgramTaskClaimed,
             ];
         } else {
             $answersRaw = Config::get('pun_levels', []);
@@ -1513,6 +1588,7 @@ class PunService
                 'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
                 'avatarTaskClaimed' => $avatarTaskClaimed,
                 'nicknameTaskClaimed' => $nicknameTaskClaimed,
+                'myMiniProgramTaskClaimed' => $myMiniProgramTaskClaimed,
             ];
         }
     }

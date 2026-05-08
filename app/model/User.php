@@ -19,6 +19,7 @@ class User extends Model
     protected $schema = [
         'id'          => 'int',
         'openid'      => 'string',
+        'mp_platform' => 'string',
         'unionid'     => 'string',
         'nickname'    => 'string',
         'avatar'      => 'string',

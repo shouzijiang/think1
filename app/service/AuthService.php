@@ -68,11 +68,13 @@ class AuthService
             : ($unionid ?: null);
 
         // 查询或创建用户
+        $mpPlatform = $provider === 'douyin' ? 'douyin' : 'weixin';
         $user = User::where('openid', $storedOpenid)->find();
         if (!$user) {
             $user = User::create([
                 'openid' => $storedOpenid,
                 'unionid' => $storedUnionid,
+                'mp_platform' => $mpPlatform,
             ]);
 
             PunUserHintQuota::create([
@@ -82,6 +84,7 @@ class AuthService
         }
 
         $user->last_login_at = date('Y-m-d H:i:s');
+        $user->mp_platform = $mpPlatform;
         $user->save();
 
         // token 里放存储态 openid，保持鉴权层读取一致
