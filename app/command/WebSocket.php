@@ -96,6 +96,11 @@ class WebSocket extends Command
                 case 'finish':
                     $this->handleFinish($connection, (int)($data['totalTimeMs'] ?? 0));
                     break;
+                case 'refresh_room':
+                    if (isset($connection->roomId)) {
+                        $this->broadcastRoomInfo($connection->roomId);
+                    }
+                    break;
             }
         };
 

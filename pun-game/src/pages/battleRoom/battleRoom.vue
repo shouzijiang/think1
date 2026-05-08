@@ -431,11 +431,15 @@ async function joinByInput() {
 
 async function onBankChange(bank) {
   if (bank === questionBank.value) return
+  const oldBank = questionBank.value
   questionBank.value = bank
   if (!roomId.value) return
   try {
     await api.updateBattleRoomBank(roomId.value, bank)
+    // 通知 WebSocket 广播房间信息给对手
+    wsApi.send({ action: 'refresh_room' })
   } catch (e) {
+    questionBank.value = oldBank
     uni.showToast({ title: '切换题库失败', icon: 'none' })
   }
 }
