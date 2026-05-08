@@ -57,11 +57,16 @@
         <text class="keyword-tab-text">提示：{{ puzzle.keywordHint }}</text>
       </view>
 
+      <view v-if="puzzle.author" class="author-tag">
+        <text class="author-text">作者：{{ puzzle.author }}</text>
+      </view>
       <view class="card-inner card-inner--stack">
+        <PunGlobalWatermark />
         <view class="stack-block">
           <image
             v-if="puzzle.imageUrlTop"
             class="stack-img"
+            :class="{ 'stack-img--xhs': questionBank === 'xhs' }"
             :src="puzzle.imageUrlTop"
             mode="aspectFill"
           />
@@ -79,6 +84,17 @@
           >{{ puzzle.topCaption }}</text>
         </view>
 
+        <view v-if="questionBank === 'mid' && puzzle.imageUrlBottom" class="stack-block">
+          <image
+            class="stack-img"
+            :src="puzzle.imageUrlBottom"
+            mode="aspectFill"
+          />
+          <text
+            v-if="puzzle.bottomCaption"
+            class="stack-caption"
+          >{{ puzzle.bottomCaption }}</text>
+        </view>
       </view>
     </view>
 
@@ -177,6 +193,7 @@ import { api } from '../../utils/api'
 import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
+import PunGlobalWatermark from '../../components/PunGlobalWatermark.vue'
 import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
 import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
 import PunHintOverlay from '../../components/PunHintOverlay.vue'
@@ -238,8 +255,11 @@ const answerLen = ref(3)
 const answerChars = ref([])
 const puzzle = ref({
   imageUrlTop: '',
+  imageUrlBottom: '',
   topCaption: '',
-  keywordHint: ''
+  bottomCaption: '',
+  keywordHint: '',
+  author: ''
 })
 const loading = ref(true)
 const submitting = ref(false)
@@ -424,8 +444,11 @@ function loadCurrentQuestion() {
       answerLen.value = data.answerLength || 3
       puzzle.value = {
         imageUrlTop: data.imageUrlTop || data.imageUrl || '',
+        imageUrlBottom: data.imageUrlBottom || '',
         topCaption: data.topCaption || '',
-        keywordHint: data.keywordHint || (questionBank.value === 'mid' ? '经典题库' : '小红书专辑')
+        bottomCaption: data.bottomCaption || '',
+        keywordHint: data.keywordHint || '',
+        author: data.author || ''
       }
       answerChars.value = []
       feedback.value = []
@@ -754,6 +777,22 @@ async function syncBattleStateForWake() {
   color: #fff;
 }
 
+.author-tag {
+  position: absolute;
+  top: 26rpx;
+  left: 18rpx;
+  z-index: 4;
+  padding: 12rpx 16rpx;
+  background: rgba(255, 255, 255, 0.88);
+  border: 1rpx solid rgba(169, 201, 238, 0.45);
+  border-radius: 12rpx;
+}
+.author-text {
+  font-size: 22rpx;
+  color: #7d8fa0;
+  font-weight: 600;
+}
+
 .card-inner--stack {
   padding: 36rpx 28rpx 72rpx;
   gap: 28rpx;
@@ -769,11 +808,13 @@ async function syncBattleStateForWake() {
   width: 100%;
   border-radius: 20rpx;
   background: #f0f4f8;
+}
+.stack-img--xhs {
   height: 846rpx;
 }
 .stack-placeholder {
   width: 100%;
-  height: 846rpx;
+  height: 300rpx;
   border-radius: 20rpx;
   background: rgba(240, 244, 248, 0.95);
   display: flex;
