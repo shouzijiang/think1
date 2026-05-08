@@ -405,17 +405,20 @@ function updateLaunchEntryFlags() {
 
 function isLaunchFromMyMiniOrCollectScene() {
   try {
-    const sync = typeof uni.getLaunchOptionsSync === 'function' ? uni.getLaunchOptionsSync() : null
-    const scene = sync && sync.scene
-    if (scene === undefined || scene === null) {
-      return false
+    // getEnterOptionsSync 支持热启动场景，getLaunchOptionsSync 仅冷启动
+    const enterOpts = typeof uni.getEnterOptionsSync === 'function' ? uni.getEnterOptionsSync() : null
+    const launchOpts = typeof uni.getLaunchOptionsSync === 'function' ? uni.getLaunchOptionsSync() : null
+    const scenes = [enterOpts?.scene, launchOpts?.scene].filter(Boolean)
+    if (scenes.length === 0) return false
+    // 微信：1103（发现栏-我的小程序）、1104（聊天下拉-我的小程序）
+    // 抖音：21003 / 021003（我的收藏）
+    const validScenes = [1103, 1104, 21003]
+    for (const scene of scenes) {
+      const n = Number(scene)
+      if (!Number.isNaN(n) && validScenes.includes(n)) return true
+      if (String(scene) === '021003') return true
     }
-    const n = Number(scene)
-    if (!Number.isNaN(n) && (n === 1103 || n === 1104 || n === 21003)) {
-      return true
-    }
-    const s = String(scene)
-    return s === '021003' || s === '21003'
+    return false
   } catch {
     return false
   }
@@ -669,7 +672,9 @@ async function claimMyMiniProgramTask() {
   try {
     let launchScene
     try {
-      launchScene = uni.getLaunchOptionsSync().scene
+      // 优先取热启动场景值
+      const enter = typeof uni.getEnterOptionsSync === 'function' ? uni.getEnterOptionsSync() : null
+      launchScene = enter?.scene ?? uni.getLaunchOptionsSync()?.scene
     } catch {
       launchScene = undefined
     }

@@ -34,13 +34,9 @@
         <text class="btn-start-text">开始游戏</text>
       </view>
       <view class="start-sub-row">
-        <view class="btn-start btn-start-2" @click="startGame">
-          <text class="btn-icon">🌱</text>
-          <text class="btn-text">梗图填词</text>
-        </view>
         <view class="btn-start btn-start-xhs" @click="startGameXhs">
           <view class="xhs-new-badge">
-            <text class="xhs-new-text">上新</text>
+            <text class="xhs-new-text">新</text>
           </view>
           <image
             class="btn-icon btn-icon-img"
@@ -48,6 +44,10 @@
             mode="aspectFit"
           />
           <text class="btn-text">小红书专辑</text>
+        </view>
+        <view class="btn-start btn-start-2" @click="startGame">
+          <text class="btn-icon">🌱</text>
+          <text class="btn-text">梗图填词</text>
         </view>
       </view>
     </view>
@@ -572,7 +572,9 @@ function startGame() {
   right: -0;
   z-index: 44;
   padding: 6rpx 14rpx;
-  border-radius: 999rpx;
+  border-radius: 25rpx;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -583,15 +585,16 @@ function startGame() {
     0 4rpx 14rpx rgba(247, 46, 119, 0.38),
     inset 0 1rpx 0 rgba(87, 54, 54, 0.28);
   transform-origin: 50% 50%;
-  animation: xhsBadgeFloat .8s ease-in-out infinite;
+  animation: xhsBadgeFloat .4s ease-in infinite;
 
 }
 
 .xhs-new-text {
-  font-size: 18rpx;
+  font-size: 20rpx;
   line-height: 1.1;
   font-weight: 700;
   letter-spacing: 0.06em;
+  padding: 0 5rpx;
   color: #fff;
   text-shadow: 0 1rpx 2rpx rgba(40, 0, 20, 0.45);
   animation: xhsBadgeTextGlow 2.4s ease-in-out infinite;
