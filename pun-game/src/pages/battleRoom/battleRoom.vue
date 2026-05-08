@@ -45,30 +45,30 @@
           </view>
         </view>
 
-        <!-- 题库选择（仅房主、未准备时可切换） -->
-        <view v-if="isCreator && !amIReady" class="bank-selector">
-          <text class="bank-label">选择题库</text>
-          <view class="bank-options">
+        <!-- 题库信息 -->
+        <view class="bank-bar">
+          <text class="bank-bar-label">题库选择：</text>
+          <view v-if="isCreator && !amIReady" class="bank-toggle">
             <view
-              class="bank-option"
-              :class="{ 'bank-option--active': questionBank === 'xhs' }"
+              class="bank-tab"
+              :class="{ 'bank-tab--active': questionBank === 'xhs' }"
               @click="onBankChange('xhs')"
             >
-              <text class="bank-option-icon">📕</text>
-              <text class="bank-option-text">小红书专辑</text>
+              <text class="bank-tab-icon">📕</text>
+              <text class="bank-tab-text">小红书</text>
             </view>
             <view
-              class="bank-option"
-              :class="{ 'bank-option--active': questionBank === 'mid' }"
+              class="bank-tab"
+              :class="{ 'bank-tab--active': questionBank === 'mid' }"
               @click="onBankChange('mid')"
             >
-              <text class="bank-option-icon">📘</text>
-              <text class="bank-option-text">经典题库</text>
+              <text class="bank-tab-icon">📘</text>
+              <text class="bank-tab-text">经典</text>
             </view>
           </view>
-        </view>
-        <view v-else-if="!isCreator" class="bank-hint">
-          <text class="bank-hint-text">题库：{{ questionBank === 'mid' ? '📘 经典题库' : '📕 小红书专辑' }}</text>
+          <view v-else class="bank-readonly">
+            <text class="bank-readonly-text">{{ questionBank === 'mid' ? '📘 经典题库' : '📕 小红书专辑' }}</text>
+          </view>
         </view>
 
         <view class="action-area">
@@ -661,51 +661,57 @@ function goHistory() {
   line-height: 1.5;
   width: 80%;
 }
-.bank-selector {
-  width: 80%;
-  margin-bottom: 36rpx;
-}
-.bank-label {
-  font-size: 26rpx;
-  color: #94a3b8;
-  margin-bottom: 16rpx;
-  display: block;
-}
-.bank-options {
-  display: flex;
-  gap: 20rpx;
-}
-.bank-option {
-  flex: 1;
+.bank-bar {
+  margin-bottom: 32rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
-  padding: 20rpx 0;
-  border-radius: 16rpx;
-  background: rgba(255,255,255,0.6);
-  border: 3rpx solid #e2e8f0;
-  transition: all 0.2s;
+  gap: 16rpx;
 }
-.bank-option--active {
-  background: linear-gradient(135deg, #eef2ff, #e0e7ff);
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3rpx rgba(129,140,248,0.15);
-}
-.bank-option-icon {
-  font-size: 36rpx;
-}
-.bank-option-text {
+.bank-bar-label {
   font-size: 26rpx;
   font-weight: 600;
-  color: #334155;
+  color: #64748b;
+  white-space: nowrap;
 }
-.bank-hint {
-  margin: 16rpx 0 8rpx;
+.bank-toggle {
+  display: flex;
+  background: rgba(241, 245, 249, 0.9);
+  border-radius: 18rpx;
+  padding: 6rpx;
+  gap: 6rpx;
+  border: 2rpx solid rgba(203, 213, 225, 0.5);
 }
-.bank-hint-text {
+.bank-tab {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 14rpx 28rpx;
+  border-radius: 14rpx;
+  transition: all 0.25s ease;
+}
+.bank-tab--active {
+  background: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.08);
+}
+.bank-tab-icon {
+  font-size: 30rpx;
+}
+.bank-tab-text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #475569;
+}
+.bank-readonly {
+  padding: 12rpx 32rpx;
+  background: rgba(241, 245, 249, 0.8);
+  border-radius: 18rpx;
+  border: 2rpx solid rgba(203, 213, 225, 0.4);
+}
+.bank-readonly-text {
   font-size: 26rpx;
   color: #64748b;
+  font-weight: 500;
 }
 .join-by-id {
   width: 100%;
@@ -840,7 +846,7 @@ function goHistory() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 80rpx;
+  margin-bottom: 40rpx;
 }
 .player-box {
   display: flex;
