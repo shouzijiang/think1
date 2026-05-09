@@ -132,10 +132,6 @@
       />
     </view>
 
-    <!-- <view class="stuck-tip">
-      <text>若通过后没进入下一关，请点击左上角重新游戏</text>
-    </view> -->
-
     <PunPassSuccessOverlay
       :show="showSuccess"
       variant="rich"
@@ -574,8 +570,8 @@ onShareTimeline(() => {
 }
 .card-inner--stack {
   min-height: auto;
-  padding: 36rpx 28rpx 72rpx;
-  gap: 28rpx;
+  padding: 36rpx 28rpx 0;
+  gap: 0;
 }
 .report-entry {
   position: absolute;
@@ -607,6 +603,7 @@ onShareTimeline(() => {
   flex-direction: column;
   align-items: center;
   gap: 16rpx;
+  position: relative;
 }
 .stack-img {
   width: 100%;
@@ -629,9 +626,11 @@ onShareTimeline(() => {
   font-weight: 700;
   color: #2c3a4a;
   text-align: center;
-  line-height: 1.5;
   padding: 0 8rpx;
-  margin-top: -90rpx;
+  position: absolute;
+  bottom: 20rpx;
+  left: 50%;
+  transform: translate(-50%);
 }
 
 /* 答题区 + 底部操作条：同一卡片，操作条单独一行 */
