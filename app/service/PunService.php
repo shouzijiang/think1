@@ -1485,8 +1485,31 @@ class PunService
             ->where('claim_type', self::PERMANENT_TASKS['my_mini_program']['type'])
             ->where('status', 'success')
             ->count() > 0 ? 1 : 0;
+        $dailyReminderSubscribed = UserSubscribe::where('user_id', $userId)
+            ->where('template_id', self::DAILY_TASKS['noon']['template_id'])
+            ->where('subscribe_status', 'accept')
+            ->count() > 0 ? 1 : 0;
         $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
         $mode = $this->normalizeMode($mode);
+
+        // 公共字段（所有模式共享）
+        $common = [
+            'hintAnswerQuota'  => $hintAnswerQuota,
+            'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
+            'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
+            'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
+            'dailyAnswerCount' => $dailyAnswerCount,
+            'dailyAnswerRequired' => self::DAILY_TASKS['noon']['min_count'],
+            'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
+            'dailyAdTaskCount' => $dailyAdTaskCount,
+            'dailyBattleCount' => $dailyBattleCount,
+            'dailyBattleRequired' => self::DAILY_TASKS['battle']['min_count'],
+            'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
+            'avatarTaskClaimed' => $avatarTaskClaimed,
+            'nicknameTaskClaimed' => $nicknameTaskClaimed,
+            'myMiniProgramTaskClaimed' => $myMiniProgramTaskClaimed,
+            'dailyReminderSubscribed' => $dailyReminderSubscribed,
+        ];
 
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
@@ -1503,26 +1526,12 @@ class PunService
                 }
             }
 
-            return [
+            return array_merge($common, [
                 'currentLevel'     => $currentLevel,
                 'passedLevels'     => array_map('intval', $state['passedLevels']),
                 'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $state['totalLevels'],
-                'hintAnswerQuota'  => $hintAnswerQuota,
-                'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
-                'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
-                'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
-                'dailyAnswerCount' => $dailyAnswerCount,
-                'dailyAnswerRequired' => self::DAILY_TASKS['noon']['min_count'],
-                'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
-                'dailyAdTaskCount' => $dailyAdTaskCount,
-                'dailyBattleCount' => $dailyBattleCount,
-                'dailyBattleRequired' => self::DAILY_TASKS['battle']['min_count'],
-                'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
-                'avatarTaskClaimed' => $avatarTaskClaimed,
-                'nicknameTaskClaimed' => $nicknameTaskClaimed,
-                'myMiniProgramTaskClaimed' => $myMiniProgramTaskClaimed,
-            ];
+            ]);
         }
         if ($mode === 'xhs') {
             $answersRaw = Config::get('pun_levels_issue3', []);
@@ -1539,26 +1548,12 @@ class PunService
                 }
             }
 
-            return [
+            return array_merge($common, [
                 'currentLevel'     => $currentLevel,
                 'passedLevels'     => array_map('intval', $state['passedLevels']),
                 'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $state['totalLevels'],
-                'hintAnswerQuota'  => $hintAnswerQuota,
-                'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
-                'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
-                'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
-                'dailyAnswerCount' => $dailyAnswerCount,
-                'dailyAnswerRequired' => self::DAILY_TASKS['noon']['min_count'],
-                'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
-                'dailyAdTaskCount' => $dailyAdTaskCount,
-                'dailyBattleCount' => $dailyBattleCount,
-                'dailyBattleRequired' => self::DAILY_TASKS['battle']['min_count'],
-                'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
-                'avatarTaskClaimed' => $avatarTaskClaimed,
-                'nicknameTaskClaimed' => $nicknameTaskClaimed,
-                'myMiniProgramTaskClaimed' => $myMiniProgramTaskClaimed,
-            ];
+            ]);
         } else {
             $answersRaw = Config::get('pun_levels', []);
             $allKeys = array_keys($answersRaw);
@@ -1587,26 +1582,12 @@ class PunService
                 $currentLevel = $allKeys[0] ?? 1;
             }
 
-            return [
+            return array_merge($common, [
                 'currentLevel'     => $currentLevel,
                 'passedLevels'     => $passedLevels,
                 'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $totalLevels,
-                'hintAnswerQuota'  => $hintAnswerQuota,
-                'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
-                'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
-                'hintAnswerShareDailyClaimed' => $hintAnswerShareDailyClaimed,
-                'dailyAnswerCount' => $dailyAnswerCount,
-                'dailyAnswerRequired' => self::DAILY_TASKS['noon']['min_count'],
-                'dailyNoonTaskClaimed' => $dailyNoonTaskClaimed,
-                'dailyAdTaskCount' => $dailyAdTaskCount,
-                'dailyBattleCount' => $dailyBattleCount,
-                'dailyBattleRequired' => self::DAILY_TASKS['battle']['min_count'],
-                'dailyBattleTaskClaimed' => $dailyBattleTaskClaimed,
-                'avatarTaskClaimed' => $avatarTaskClaimed,
-                'nicknameTaskClaimed' => $nicknameTaskClaimed,
-                'myMiniProgramTaskClaimed' => $myMiniProgramTaskClaimed,
-            ];
+            ]);
         }
     }
 

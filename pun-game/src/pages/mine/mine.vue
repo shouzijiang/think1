@@ -212,6 +212,21 @@
       </view>
 
       <text class="section-title">游戏资产</text>
+      <!-- 每日提醒开关 -->
+      <view class="cell cell--reminder" @click="toggleDailyReminder">
+        <text class="cell-icon">🔔</text>
+        <view class="cell-main">
+          <text class="cell-text">每日领奖提醒</text>
+          <text class="cell-sub">开启后每日 12:00 收到微信提醒领取查看答案次数</text>
+        </view>
+        <switch
+          :checked="dailyReminderOn"
+          :disabled="dailyReminderLoading"
+          color="#10b981"
+          @change.stop="toggleDailyReminder"
+          style="transform: scale(0.8);"
+        />
+      </view>
       <view class="cell cell--quota" @click="showHintQuotaTip">
         <view class="cell-quota-head">
           <text class="cell-icon">🎯</text>
@@ -310,6 +325,9 @@ const hintQuotaTipVisible = ref(false)
 const dailyClaimLoading = ref(false)
 const dailyAdTaskLoading = ref(false)
 const dailyBattleTaskLoading = ref(false)
+const dailyReminderOn = ref(false)
+const dailyReminderLoading = ref(false)
+const DAILY_REMIND_TEMPLATE_ID = 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE'
 const canClaimDailyReward = computed(
   () => dailyAnswerCount.value >= dailyAnswerRequired.value
 )
@@ -541,6 +559,9 @@ async function refreshHintAnswerQuota() {
     if (data && typeof data.myMiniProgramTaskClaimed !== 'undefined') {
       myMiniProgramTaskClaimed.value = Number(data.myMiniProgramTaskClaimed) > 0
     }
+    if (data && typeof data.dailyReminderSubscribed !== 'undefined') {
+      dailyReminderOn.value = Number(data.dailyReminderSubscribed) > 0
+    }
   } catch {
     // 忽略未登录场景
   }
@@ -732,6 +753,67 @@ function onShareTaskIntent() {
   markShareIntent()
 }
 
+async function toggleDailyReminder() {
+  if (dailyReminderLoading.value) return
+  if (dailyReminderOn.value) {
+    // 关闭提醒
+    dailyReminderLoading.value = true
+    try {
+      await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, 'reject')
+      dailyReminderOn.value = false
+      uni.showToast({ title: '已关闭每日提醒', icon: 'none' })
+    } catch (e) {
+      uni.showToast({ title: e.message || '操作失败', icon: 'none' })
+    } finally {
+      dailyReminderLoading.value = false
+    }
+    return
+  }
+  // 开启提醒：先调用微信订阅消息授权
+  // #ifdef MP-WEIXIN
+  dailyReminderLoading.value = true
+  try {
+    const res = await new Promise((resolve, reject) => {
+      wx.requestSubscribeMessage({
+        tmplIds: [DAILY_REMIND_TEMPLATE_ID],
+        success: (r) => resolve(r),
+        fail: (err) => reject(err),
+      })
+    })
+    const status = res[DAILY_REMIND_TEMPLATE_ID]
+    if (status === 'accept') {
+      await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, 'accept')
+      dailyReminderOn.value = true
+      uni.showToast({ title: '已开启每日提醒', icon: 'none' })
+    } else {
+      uni.showToast({ title: '需要允许通知才能开启提醒', icon: 'none' })
+    }
+  } catch (e) {
+    // 用户点了取消或授权弹窗关闭
+    uni.showToast({ title: '请允许订阅消息以开启提醒', icon: 'none' })
+  } finally {
+    dailyReminderLoading.value = false
+  }
+  // #endif
+  // #ifdef MP-TOUTIAO
+  dailyReminderLoading.value = true
+  try {
+    await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, 'accept')
+    dailyReminderOn.value = true
+    uni.showToast({ title: '已开启每日提醒', icon: 'none' })
+  } catch (e) {
+    uni.showToast({ title: e.message || '操作失败', icon: 'none' })
+  } finally {
+    dailyReminderLoading.value = false
+  }
+  // #endif
+  // #ifndef MP-WEIXIN
+  // #ifndef MP-TOUTIAO
+  uni.showToast({ title: '仅小程序支持订阅提醒', icon: 'none' })
+  // #endif
+  // #endif
+}
+
 onBeforeUnmount(() => {
   if (shareLoadingTimer) {
     clearTimeout(shareLoadingTimer)
@@ -803,6 +885,10 @@ onBeforeUnmount(() => {
   gap: 20rpx;
   padding-top: 24rpx;
   padding-bottom: 22rpx;
+}
+
+.cell--reminder {
+  margin-bottom: 20rpx;
 }
 
 .cell--daily {

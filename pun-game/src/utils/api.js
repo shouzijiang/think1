@@ -353,6 +353,17 @@ export const api = {
   },
 
   /**
+   * 保存订阅消息状态
+   */
+  saveSubscribe(templateId, subscribeStatus) {
+    return request({
+      url: '/subscribe/save',
+      method: 'POST',
+      data: { template_id: templateId, subscribe_status: subscribeStatus }
+    })
+  },
+
+  /**
    * 1V1：获取历史对战记录
    * @param {Object} params - { page?: number, page_size?: number }
    */
