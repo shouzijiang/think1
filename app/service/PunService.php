@@ -399,6 +399,7 @@ class PunService
             }
 
             $this->createRewardClaimRecord($userId, $type, (int) $result['added'], 'success', '', $meta);
+            $this->invalidateLevelProgressCache($userId);
 
             // 买量渠道追踪
             try {
@@ -852,6 +853,7 @@ class PunService
         });
 
         Cache::set($cacheKey, $newStep, 7 * 86400);
+        $this->invalidateLevelProgressCache($userId);
 
         $hintText = $this->buildHintMask($correct, $newStep);
         $isComplete = $newStep >= $n;
@@ -912,6 +914,7 @@ class PunService
             $skippedLevels[] = (int) $level;
         }
         $this->putSkipLevels($userId, $mode, $skippedLevels);
+        $this->invalidateLevelProgressCache($userId);
 
         $allKeys = array_keys($answersRaw);
         if ($mode === 'xhs' || $mode === 'beginner') {
@@ -940,6 +943,18 @@ class PunService
     private function hintCacheKeySolo(int $userId, string $bucket, int $level): string
     {
         return 'pun_hint:' . $userId . ':' . $bucket . ':' . $level;
+    }
+
+    private function levelProgressCacheKey(int $userId, string $normalizedMode): string
+    {
+        return 'pun:lp:' . $userId . ':' . $normalizedMode;
+    }
+
+    private function invalidateLevelProgressCache(int $userId): void
+    {
+        foreach (['beginner', 'intermediate', 'xhs'] as $m) {
+            Cache::delete($this->levelProgressCacheKey($userId, $m));
+        }
     }
 
     private function hintCacheKeyBattle(int $userId, string $roomId, int $questionIndex, int $level): string
@@ -1472,6 +1487,13 @@ class PunService
      */
     public function getLevelProgress(int $userId, string $mode = 'beginner'): array
     {
+        $mode = $this->normalizeMode($mode);
+        $cacheKey = $this->levelProgressCacheKey($userId, $mode);
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
         $this->getOrCreateHintAnswerQuota($userId);
         $hintRow = Db::name('pun_user_hint_quota')->where('user_id', $userId)->find();
         $hintAnswerQuota = $hintRow ? (int) $hintRow['quota'] : PunUserHintQuota::DEFAULT_QUOTA;
@@ -1502,7 +1524,6 @@ class PunService
             ->where('subscribe_status', 'accept')
             ->count() > 0 ? 1 : 0;
         $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
-        $mode = $this->normalizeMode($mode);
 
         // 公共字段（所有模式共享）
         $common = [
@@ -1538,12 +1559,14 @@ class PunService
                 }
             }
 
-            return array_merge($common, [
+            $result = array_merge($common, [
                 'currentLevel'     => $currentLevel,
                 'passedLevels'     => array_map('intval', $state['passedLevels']),
                 'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $state['totalLevels'],
             ]);
+            Cache::set($cacheKey, $result, 60);
+            return $result;
         }
         if ($mode === 'xhs') {
             $answersRaw = Config::get('pun_levels_issue3', []);
@@ -1560,12 +1583,14 @@ class PunService
                 }
             }
 
-            return array_merge($common, [
+            $result = array_merge($common, [
                 'currentLevel'     => $currentLevel,
                 'passedLevels'     => array_map('intval', $state['passedLevels']),
                 'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $state['totalLevels'],
             ]);
+            Cache::set($cacheKey, $result, 60);
+            return $result;
         } else {
             $answersRaw = Config::get('pun_levels', []);
             $allKeys = array_keys($answersRaw);
@@ -1594,12 +1619,14 @@ class PunService
                 $currentLevel = $allKeys[0] ?? 1;
             }
 
-            return array_merge($common, [
+            $result = array_merge($common, [
                 'currentLevel'     => $currentLevel,
                 'passedLevels'     => $passedLevels,
                 'skippedLevels'    => array_map('intval', $skippedLevels),
                 'totalLevels'      => $totalLevels,
             ]);
+            Cache::set($cacheKey, $result, 60);
+            return $result;
         }
     }
 
