@@ -396,5 +396,17 @@ export const api = {
       url: `/pun/mail/detail${buildQueryString(params)}`,
       method: 'GET'
     })
-  }
+  },
+
+  /**
+   * 上报买量渠道（登录成功后调用一次）
+   * @param {string} channel 渠道标识，如 toutiao_0501
+   */
+  reportChannel(channel) {
+    return request({
+      url: '/channel/report',
+      method: 'POST',
+      data: { channel },
+    })
+  },
 }

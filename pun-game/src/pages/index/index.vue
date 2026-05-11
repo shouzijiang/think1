@@ -131,7 +131,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getCurrentLevel, loadMidLevelList, loadXhsLevelList, pickMidLevelFromProgress, pickXhsLevelFromProgress } from '../../data/levels'
 import { wechatLogin } from '../../utils/auth'
 import { api } from '../../utils/api'
@@ -153,6 +153,21 @@ const hintShareQuotaRef = ref(0)
 const { withShareReward } = usePunShareReward(hintShareQuotaRef)
 
 const CHANGELOG_SEEN_KEY = 'pun_changelog_seen_version'
+
+// 捕获买量渠道参数（?channel=xxx 或扫码 scene=xxx）
+onLoad((opts) => {
+  let channel = opts?.channel || ''
+  if (!channel && opts?.scene) {
+    try {
+      const decoded = decodeURIComponent(opts.scene)
+      const match = decoded.match(/channel=([^&]+)/)
+      if (match) channel = match[1]
+    } catch {}
+  }
+  if (channel && channel.length <= 64) {
+    uni.setStorageSync('pun_channel', channel)
+  }
+})
 
 const stats = ref({ players: 0, answers: 0 })
 const bgmOn = ref(isBgmEnabled())

@@ -80,6 +80,15 @@ export async function miniProgramLogin(forceRefresh = false) {
             }
             uni.setStorageSync('userInfo', stored)
 
+            // 上报买量渠道（首次登录后一次性上报）
+            try {
+              const channel = uni.getStorageSync('pun_channel')
+              if (channel) {
+                api.reportChannel(channel).catch(() => {})
+                uni.removeStorageSync('pun_channel')
+              }
+            } catch {}
+
             // 清除登录锁
             isLoggingIn = false
             loginPromise = null
