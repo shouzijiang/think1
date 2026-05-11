@@ -68,7 +68,7 @@ $pt-muted: #8eadcf;
   z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   margin-bottom: 32rpx;
 }
 
@@ -104,10 +104,12 @@ $pt-muted: #8eadcf;
 }
 
 .nav-center {
+  flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 10rpx;
+  padding-left: 88rpx;
 }
 
 .nav-title {

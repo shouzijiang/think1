@@ -10,7 +10,7 @@
       :status-bar-height="statusBarHeight"
       :nav-bar-height="navBarHeight"
       :menu-button-height="menuButtonHeight"
-      title="资产（我的）"
+      title="我的资产（个人中心）"
       @left-click="goHome"
     />
 
