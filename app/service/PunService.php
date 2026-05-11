@@ -405,7 +405,7 @@ class PunService
                 $channelService = new \app\service\ChannelService();
                 $channel = $channelService->getChannel($userId);
                 if ($channel) {
-                    $channelService->track($userId, $channel, 'claim_' . $type, [
+                    $channelService->track($userId, $channel, $type, [
                         'added' => (int) $result['added'],
                     ]);
                 }
