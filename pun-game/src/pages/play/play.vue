@@ -296,14 +296,14 @@ async function onRevealHint() {
     try {
       const ok = await tryWatchAdForHintQuota()
       if (!ok) {
-        uni.showToast({ title: '提示次数不足，请前往首页获取更多', icon: 'none' })
+        uni.showToast({ title: '次数不足，请前往首页获取更多', icon: 'none' })
         return
       }
     } finally {
       hintLoading.value = false
     }
     if (hintAnswerQuota.value <= 0) {
-      uni.showToast({ title: '提示次数不足', icon: 'none' })
+      uni.showToast({ title: '次数不足', icon: 'none' })
       return
     }
   }

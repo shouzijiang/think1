@@ -836,7 +836,7 @@ class PunService
             }
             $quota = (int) $row['quota'];
             if ($quota < 1) {
-                throw new \InvalidArgumentException('提示次数不足，请前往首页获取更多次数');
+                throw new \InvalidArgumentException('次数不足，请前往首页获取更多次数');
             }
             $hintsUsedBefore = (int) Cache::get($cacheKey, 0);
             if ($hintsUsedBefore >= $n) {

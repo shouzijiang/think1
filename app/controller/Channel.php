@@ -11,7 +11,10 @@ class Channel
 {
     public function report(Request $request): \think\Response
     {
-        $userId  = $request->userId;
+        $userId  = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::error('未登录', 401);
+        }
         $channel = trim($request->post('channel', ''));
 
         if (!$channel || strlen($channel) > 64) {
