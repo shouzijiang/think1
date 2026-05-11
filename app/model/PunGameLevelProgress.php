@@ -5,7 +5,7 @@ namespace app\model;
 use think\Model;
 
 /**
- * 谐音梗图游戏 - 用户关卡进度模型
+ * 谐音梗猜一猜游戏 - 用户关卡进度模型
  */
 class PunGameLevelProgress extends Model
 {

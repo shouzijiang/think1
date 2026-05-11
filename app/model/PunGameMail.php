@@ -5,7 +5,7 @@ namespace app\model;
 use think\Model;
 
 /**
- * 谐音梗图游戏 - 邮件主体（站内信）
+ * 谐音梗猜一猜游戏 - 邮件主体（站内信）
  */
 class PunGameMail extends Model
 {

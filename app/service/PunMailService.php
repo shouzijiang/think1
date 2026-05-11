@@ -8,7 +8,7 @@ use InvalidArgumentException;
 use think\facade\Db;
 
 /**
- * 谐音梗图游戏 - 邮件业务
+ * 谐音梗猜一猜游戏 - 邮件业务
  */
 class PunMailService
 {

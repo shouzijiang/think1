@@ -5,7 +5,7 @@ namespace app\model;
 use think\Model;
 
 /**
- * 谐音梗图 - 用户揭字提示剩余次数（独立表，不冗余在 users）
+ * 谐音梗猜一猜 - 用户揭字提示剩余次数（独立表，不冗余在 users）
  */
 class PunUserHintQuota extends Model
 {

@@ -5,7 +5,7 @@ namespace app\model;
 use think\Model;
 
 /**
- * 谐音梗图游戏 - 论坛回复模型
+ * 谐音梗猜一猜游戏 - 论坛回复模型
  */
 class PunForumReply extends Model
 {

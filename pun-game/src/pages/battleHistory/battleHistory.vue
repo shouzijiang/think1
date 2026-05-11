@@ -75,7 +75,7 @@ import { useWechatPageShare } from '../../composables/useWechatPageShare'
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
 const shareRewardQuotaRef = ref(0)
-useWechatPageShare('对战记录 · 谐音梗图', shareRewardQuotaRef)
+useWechatPageShare('对战记录 · 谐音梗猜一猜', shareRewardQuotaRef)
 const userInfo = ref(getUserInfo())
 const listHeight = ref(0)
 

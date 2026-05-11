@@ -57,7 +57,7 @@ function ensureMpShareMenu() {
 export function useWechatPageShare(titleOrFn, hintAnswerQuotaRef = null, options = {}) {
   ensureMpShareMenu()
 
-  const getTitle = typeof titleOrFn === 'function' ? titleOrFn : () => titleOrFn || '谐音梗图1'
+  const getTitle = typeof titleOrFn === 'function' ? titleOrFn : () => titleOrFn || '谐音梗猜一猜'
 
   const noopQuotaRef = ref(0)
   const quotaRef = hintAnswerQuotaRef ?? noopQuotaRef

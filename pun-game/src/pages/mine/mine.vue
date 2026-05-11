@@ -356,7 +356,7 @@ const platform = (() => {
 })()
 const isMiniProgram = platform.startsWith('mp-')
 
-const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
+const { markShareIntent: markShareIntentMine, withShareReward } = usePunShareReward(hintAnswerQuota, {
   mode: 'heuristic',
   shareSuccessThresholdMs: SHARE_SUCCESS_THRESHOLD_MS,
   showCancelToast: true,
@@ -374,12 +374,12 @@ const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, 
 })
 
 onShareAppMessage(() => withShareReward({
-  title: '我的 · 谐音梗图',
-  path: '/pages/mine/mine',
+  title: '我的 · 谐音梗猜一猜',
+  path: '/pages/index/index',
 }))
 
 onShareTimeline(() => withShareReward({
-  title: '我的 · 谐音梗图',
+  title: '我的 · 谐音梗猜一猜',
 }))
 
 onShow(async () => {
@@ -750,7 +750,7 @@ function onShareTaskIntent() {
     shareClaimLoading.value = false
   }, 6000)
   // 记录分享意图；实际领奖由 usePunShareReward 按“后台停留 >= 2000ms”判定
-  markShareIntent()
+  markShareIntentMine()
 }
 
 async function toggleDailyReminder() {

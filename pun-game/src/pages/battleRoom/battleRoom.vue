@@ -265,14 +265,14 @@ onUnload(() => {
 })
 
 onShareAppMessage(() => ({
-  title: '来和我1V1对战谐音梗图吧！',
+  title: '来和我1V1对战谐音梗猜一猜吧！',
   path: `/pages/battleRoom/battleRoom?roomId=${roomId.value}`,
 }))
 
 onShareTimeline(() => {
   const rid = roomId.value
   return {
-    title: '来和我1V1对战谐音梗图吧！',
+    title: '来和我1V1对战谐音梗猜一猜吧！',
     query: rid ? `roomId=${encodeURIComponent(rid)}` : '',
   }
 })

@@ -10,7 +10,7 @@ use think\facade\Log;
 use think\Request;
 
 /**
- * 谐音梗图游戏 - 邮件（站内信）
+ * 谐音梗猜一猜游戏 - 邮件（站内信）
  */
 class PunMail extends BaseController
 {

@@ -14,7 +14,7 @@ use think\facade\Config;
 use think\facade\Db;
 
 /**
- * 谐音梗图游戏 - 业务逻辑
+ * 谐音梗猜一猜游戏 - 业务逻辑
  */
 class PunService
 {

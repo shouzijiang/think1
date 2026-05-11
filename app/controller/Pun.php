@@ -9,7 +9,7 @@ use think\Request;
 use think\facade\Log;
 
 /**
- * 谐音梗图游戏 - 接口
+ * 谐音梗猜一猜游戏 - 接口
  */
 class Pun extends BaseController
 {

@@ -1,6 +1,6 @@
 <?php
 /**
- * 谐音梗图游戏 - 关卡正确答案（来源 all_answers.json 的 userAnswer 按字拆分）
+ * 谐音梗猜一猜游戏 - 关卡正确答案（来源 all_answers.json 的 userAnswer 按字拆分）
  */
 return [
     1 => ['蛋', '包', '饭'],

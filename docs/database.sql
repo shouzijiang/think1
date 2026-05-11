@@ -54,7 +54,7 @@ CREATE TABLE `message_logs` (
 -- 初始化数据（可选）
 -- 如果需要默认数据，可以在这里插入
 
--- ========== 谐音梗图游戏 pun ==========
+-- ========== 谐音梗猜一猜游戏 pun ==========
 -- 6. 排行榜表（按闯关最高关排序，一用户一条；昵称/头像从 users 表读，不冗余）
 CREATE TABLE `pun_game_rank` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
@@ -69,7 +69,7 @@ CREATE TABLE `pun_game_rank` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_id` (`user_id`),
   KEY `idx_max_level` (`max_level`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏排行榜';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜游戏排行榜';
 
 -- 7. 用户关卡进度表（每用户一行，已通过关卡存 JSON 数组）
 CREATE TABLE `pun_game_level_progress` (
@@ -82,7 +82,7 @@ CREATE TABLE `pun_game_level_progress` (
   `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏关卡进度';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜游戏关卡进度';
 
 -- 7b. 揭字提示剩余次数（每用户一行，与 users 解耦）
 CREATE TABLE `pun_user_hint_quota` (
@@ -95,7 +95,7 @@ CREATE TABLE `pun_user_hint_quota` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_id` (`user_id`),
   CONSTRAINT `fk_pun_hint_quota_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图揭字次数配额';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜揭字次数配额';
 
 -- 7c. 老库一次性给全员 +10 次揭字：见 `docs/migrations/add_hint_quota_10_all_users.sql`（勿重复执行）
 -- 7d. 揭字累计消耗：见 `docs/migrations/add_pun_user_hint_quota_total_used.sql`（勿重复执行）
@@ -135,7 +135,7 @@ CREATE TABLE `pun_game_feedback` (
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏意见反馈';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜游戏意见反馈';
 
 -- 9. 论坛帖子表
 CREATE TABLE `pun_forum_topic` (
@@ -151,7 +151,7 @@ CREATE TABLE `pun_forum_topic` (
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`),
   KEY `idx_status_updated` (`status`, `updated_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图论坛帖子表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜论坛帖子表';
 
 -- 10. 论坛回复表
 CREATE TABLE `pun_forum_reply` (
@@ -165,7 +165,7 @@ CREATE TABLE `pun_forum_reply` (
   PRIMARY KEY (`id`),
   KEY `idx_topic_id` (`topic_id`),
   KEY `idx_user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图论坛回复表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜论坛回复表';
 
 -- 11. 好友1V1对战房间与记录表
 CREATE TABLE `pun_game_battle_record` (
@@ -200,7 +200,7 @@ CREATE TABLE `pun_game_changelog` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_version_code` (`version_code`),
   KEY `idx_published_at` (`is_published`, `published_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏版本更新说明';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜游戏版本更新说明';
 
 INSERT INTO `pun_game_changelog` (`version_code`, `title`, `body`, `is_published`, `published_at`) VALUES
 ('2026.04.29', '最新更新',
@@ -223,7 +223,7 @@ CREATE TABLE `pun_game_mail` (
   PRIMARY KEY (`id`),
   KEY `idx_scope_target` (`scope`, `target_user_id`),
   KEY `idx_published_created` (`is_published`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏站内信邮件主体';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜游戏站内信邮件主体';
 
 CREATE TABLE `pun_game_mail_reads` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
@@ -234,7 +234,7 @@ CREATE TABLE `pun_game_mail_reads` (
   UNIQUE KEY `uk_mail_user` (`mail_id`, `user_id`),
   KEY `idx_user_id` (`user_id`, `read_at`),
   KEY `idx_mail_id` (`mail_id`, `read_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏站内信已读记录';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜游戏站内信已读记录';
 
 -- 站内信：向 pun_game_mail 插入邮件（与 PunMailService 约定一致）
 -- scope=all 全服可见，target_user_id 必须为 NULL；scope=user 仅指定用户可见，target_user_id = users.id
@@ -250,7 +250,7 @@ VALUES ('user', 635, NULL, '奖励说明', '感谢您的反馈，已处理，奖
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
 VALUES ('user', 635, NULL, 'bug反馈回复', '感谢您的反馈。梗图填词 · 第1关 答案为蛋包饭，并非为蛋炒饭哦~。', 1);
 
--- 14. 谐音梗图统一领奖记录（所有领取类型都落此表：分享/激励视频/daily_* / permanent_* 等）
+-- 14. 谐音梗猜一猜统一领奖记录（所有领取类型都落此表：分享/激励视频/daily_* / permanent_* 等）
 CREATE TABLE `pun_reward_claim_record` (
   `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int(11) unsigned NOT NULL COMMENT '用户ID',
@@ -264,7 +264,7 @@ CREATE TABLE `pun_reward_claim_record` (
   PRIMARY KEY (`id`),
   KEY `idx_user_type_date` (`user_id`, `claim_type`, `claim_date`),
   KEY `idx_status_created` (`status`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图领奖记录';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜领奖记录';
 
 -- 15. 每日答题次数统计（用于“答满20题可领登录奖励”）
 CREATE TABLE `pun_daily_answer_stat` (

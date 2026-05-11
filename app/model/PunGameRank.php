@@ -5,7 +5,7 @@ namespace app\model;
 use think\Model;
 
 /**
- * 谐音梗图游戏 - 排行榜模型
+ * 谐音梗猜一猜游戏 - 排行榜模型
  */
 class PunGameRank extends Model
 {

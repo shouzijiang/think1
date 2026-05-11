@@ -14,7 +14,7 @@ CREATE TABLE `pun_game_mail` (
   PRIMARY KEY (`id`),
   KEY `idx_scope_target` (`scope`, `target_user_id`),
   KEY `idx_published_created` (`is_published`, `created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏站内信邮件主体';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜游戏站内信邮件主体';
 
 -- 2) 邮件已读记录
 CREATE TABLE `pun_game_mail_reads` (
@@ -26,7 +26,7 @@ CREATE TABLE `pun_game_mail_reads` (
   UNIQUE KEY `uk_mail_user` (`mail_id`, `user_id`),
   KEY `idx_user_id` (`user_id`, `read_at`),
   KEY `idx_mail_id` (`mail_id`, `read_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗图游戏站内信已读记录';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜游戏站内信已读记录';
 
 -- 3) 运维入信示例（按需执行，勿照抄 ID）
 -- 全服：

@@ -101,7 +101,7 @@
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "谐音梗图",
+    "navigationBarTitleText": "谐音梗猜一猜",
     "navigationBarBackgroundColor": "#fff",
     "backgroundColor": "#f5f0e8"
   }

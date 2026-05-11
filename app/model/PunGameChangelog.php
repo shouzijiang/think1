@@ -5,7 +5,7 @@ namespace app\model;
 use think\Model;
 
 /**
- * 谐音梗图游戏 - 版本更新说明（首页弹窗）
+ * 谐音梗猜一猜游戏 - 版本更新说明（首页弹窗）
  */
 class PunGameChangelog extends Model
 {

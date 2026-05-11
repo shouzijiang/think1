@@ -5,7 +5,7 @@ namespace app\model;
 use think\Model;
 
 /**
- * 谐音梗图游戏 - 邮件已读记录
+ * 谐音梗猜一猜游戏 - 邮件已读记录
  */
 class PunGameMailRead extends Model
 {
