@@ -399,6 +399,18 @@ class PunService
             }
 
             $this->createRewardClaimRecord($userId, $type, (int) $result['added'], 'success', '', $meta);
+
+            // 买量渠道追踪
+            try {
+                $channelService = new \app\service\ChannelService();
+                $channel = $channelService->getChannel($userId);
+                if ($channel) {
+                    $channelService->track($userId, $channel, 'claim_' . $type, [
+                        'added' => (int) $result['added'],
+                    ]);
+                }
+            } catch (\Throwable $ignored) {}
+
             return $result;
         } catch (\InvalidArgumentException $e) {
             $this->createRewardClaimRecord($userId, $type, 0, 'rejected', $e->getMessage(), $meta);
