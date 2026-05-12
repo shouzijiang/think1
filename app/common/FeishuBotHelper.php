@@ -112,15 +112,40 @@ class FeishuBotHelper
         int $creatorId,
         int $challengerId,
         string $creatorNickname,
-        string $challengerNickname
+        string $challengerNickname,
+        string $questionBank = ''
     ): void {
+        $bankLabel = match ($questionBank) {
+            'mid', 'intermediate' => '经典题库',
+            'xhs'                 => '小红书题库',
+            default               => $questionBank !== '' ? $questionBank : '未知',
+        };
         $text = sprintf(
-            "[谐音对战] 对局开始\n房间号：%s\n房主 userId：%d\n挑战者 userId：%d\n房主：%s\n挑战者：%s",
+            "[谐音对战] 对局开始\n房间号：%s\n题库：%s\n房主 userId：%d\n挑战者 userId：%d\n房主：%s\n挑战者：%s",
             $roomId,
+            $bankLabel,
             $creatorId,
             $challengerId,
             $creatorNickname !== '' ? $creatorNickname : '(未知)',
             $challengerNickname !== '' ? $challengerNickname : '(未知)'
+        );
+        self::sendText($text);
+    }
+
+    public static function notifyFeedbackSubmitted(int $userId, string $type, string $content, string $contact): void
+    {
+        $typeLabel = match ($type) {
+            'bug'     => '🐛 Bug 反馈',
+            'suggest' => '💡 建议',
+            'other'   => '💬 其他',
+            default   => '💬 意见反馈',
+        };
+        $text = sprintf(
+            "[谐音梗] 收到新反馈\n类型：%s\nuserId：%d\n内容：%s%s",
+            $typeLabel,
+            $userId,
+            mb_substr($content, 0, 200, 'UTF-8') . (mb_strlen($content, 'UTF-8') > 200 ? '…' : ''),
+            $contact !== '' ? "\n联系方式：{$contact}" : ''
         );
         self::sendText($text);
     }

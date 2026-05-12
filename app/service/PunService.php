@@ -9,6 +9,7 @@ use app\model\PunGameFeedback;
 use app\model\PunGameChangelog;
 use app\model\PunUserHintQuota;
 use app\model\UserSubscribe;
+use app\common\FeishuBotHelper;
 use think\facade\Cache;
 use think\facade\Config;
 use think\facade\Db;
@@ -1172,6 +1173,7 @@ class PunService
                 ]);
             }
             Db::commit();
+            $this->invalidateLevelProgressCache($userId);
         } catch (\Throwable $e) {
             Db::rollback();
             throw $e;
@@ -1231,6 +1233,7 @@ class PunService
                 ]);
             }
             Db::commit();
+            $this->invalidateLevelProgressCache($userId);
         } catch (\Throwable $e) {
             Db::rollback();
             throw $e;
@@ -1299,6 +1302,7 @@ class PunService
                 ]);
             }
             Db::commit();
+            $this->invalidateLevelProgressCache($userId);
         } catch (\Throwable $e) {
             Db::rollback();
             throw $e;
@@ -1665,6 +1669,9 @@ class PunService
             'content' => $content,
             'contact' => $contact,
         ]);
+        try {
+            FeishuBotHelper::notifyFeedbackSubmitted($userId, $type, $content, $contact);
+        } catch (\Throwable $ignored) {}
         return [];
     }
 

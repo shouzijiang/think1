@@ -242,13 +242,10 @@ CREATE TABLE `pun_game_mail_reads` (
 
 -- 全服邮件示例
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
-VALUES ('all', NULL, NULL, '全服公告', '玩家（id563）反馈【小红书专辑 · 第750关，答案应该是四个字的，只给了两个格子】，问题已采纳，奖励查看答案次数5，奖励已发放。', 1);
+VALUES ('all', NULL, NULL, '全服公告', '玩家（id917 用好玩谐音）反馈【小红书专辑 · 第778关tomato无法识别】，等一系列问题已采纳，奖励查看答案次数15，奖励已发放。', 1);
 -- 指定用户邮件示例（将 123 替换为 users 表中的用户 id）
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
-VALUES ('user', 635, NULL, '奖励说明', '感谢您的反馈，已处理，奖励查看答案5次，已发放。', 1);
-
-INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
-VALUES ('user', 635, NULL, 'bug反馈回复', '感谢您的反馈。梗图填词 · 第1关 答案为蛋包饭，并非为蛋炒饭哦~。', 1);
+VALUES ('user', 917, NULL, 'bug反馈回复', '感谢您的反馈。【小红书专辑 · 第778关tomato无法识别】，等一系列问题已采纳。，奖励查看答案次数15，奖励已发放。', 1);
 
 -- 14. 谐音梗猜一猜统一领奖记录（所有领取类型都落此表：分享/激励视频/daily_* / permanent_* 等）
 CREATE TABLE `pun_reward_claim_record` (
