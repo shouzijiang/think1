@@ -66,39 +66,14 @@
           </view>
           <view class="stat-divider" />
           <view class="stat-item">
-            <text class="stat-num stat-num--green">{{ stats.todayUsers }}</text>
-            <text class="stat-label">今日新增</text>
+            <text class="stat-num stat-num--green">{{ stats.loginCount }}</text>
+            <text class="stat-label">累计登录次数</text>
           </view>
           <view class="stat-divider" />
           <view class="stat-item">
-            <text class="stat-num stat-num--blue">{{ loginUv }}</text>
-            <text class="stat-label">登录人次</text>
+            <text class="stat-num stat-num--blue">{{ stats.videoCount }}</text>
+            <text class="stat-label">累计看视频</text>
           </view>
-        </view>
-
-        <!-- 受邀用户列表 -->
-        <view v-if="stats.recentUsers && stats.recentUsers.length" class="user-list">
-          <text class="user-list-title">最近受邀用户</text>
-          <view
-            v-for="user in stats.recentUsers"
-            :key="user.user_id"
-            class="user-item"
-          >
-            <image
-              v-if="user.avatar"
-              class="user-avatar"
-              :src="user.avatar"
-              mode="aspectFill"
-            />
-            <view v-else class="user-avatar user-avatar--empty">👤</view>
-            <view class="user-info">
-              <text class="user-name">{{ user.nickname || '用户' }}</text>
-              <text class="user-time">{{ formatTime(user.channel_at) }}</text>
-            </view>
-          </view>
-        </view>
-        <view v-else class="user-list-empty">
-          <text>暂无受邀用户，快去直播间展示邀请码吧~</text>
         </view>
       </template>
     </view>
@@ -136,10 +111,8 @@ function restoreQrFromStorage() {
   } catch (e) {}
 }
 
-const stats = ref({ totalUsers: 0, todayUsers: 0, events: {}, recentUsers: [] })
+    const stats = ref({ totalUsers: 0, loginCount: 0, videoCount: 0 })
 const statsLoading = ref(false)
-
-const loginUv = computed(() => stats.value.events?.login?.uv ?? 0)
 
 async function loadQrCode() {
   if (qrLoading.value) return

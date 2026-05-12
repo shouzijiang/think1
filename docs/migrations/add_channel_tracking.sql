@@ -10,7 +10,7 @@ CREATE TABLE `pun_game_channel_events` (
   `id` int unsigned NOT NULL AUTO_INCREMENT,
   `user_id` int unsigned NOT NULL,
   `channel` varchar(64) NOT NULL,
-  `event_type` varchar(64) NOT NULL COMMENT 'login / claim_reward_video / claim_daily_watch_ad_hint_1 等',
+  `event_type` varchar(64) NOT NULL COMMENT 'login / reward_video / daily_watch_ad_hint_1 等',
   `extra` json DEFAULT NULL COMMENT '附加数据（added、delta 等）',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),

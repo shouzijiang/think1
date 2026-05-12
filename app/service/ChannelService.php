@@ -58,46 +58,28 @@ class ChannelService
     {
         $channel = 'streamer_' . $userId;
 
-        // 受邀总人数（通过该渠道来的唯一用户数）
+        // 累计受邀人数
         $totalUsers = (int) Db::name('users')
             ->where('channel', $channel)
             ->count();
 
-        // 今日新增
-        $todayUsers = (int) Db::name('users')
+        // 累计登录次数
+        $loginCount = (int) Db::name('pun_game_channel_events')
             ->where('channel', $channel)
-            ->whereDay('channel_at')
+            ->where('event_type', 'login')
             ->count();
 
-        // 行为事件汇总（近30天）
-        $since = date('Y-m-d H:i:s', strtotime('-30 days'));
-        $eventRows = Db::name('pun_game_channel_events')
+        // 累计看视频次数（reward_video + daily_watch_ad_hint_1）
+        $videoCount = (int) Db::name('pun_game_channel_events')
             ->where('channel', $channel)
-            ->where('created_at', '>=', $since)
-            ->group('event_type')
-            ->field('event_type, COUNT(*) as cnt, COUNT(DISTINCT user_id) as uv')
-            ->select()
-            ->toArray();
-        $events = [];
-        foreach ($eventRows as $row) {
-            $events[$row['event_type']] = ['cnt' => (int)$row['cnt'], 'uv' => (int)$row['uv']];
-        }
-
-        // 最近20名受邀用户
-        $recentUsers = Db::name('users')
-            ->where('channel', $channel)
-            ->order('channel_at', 'desc')
-            ->limit(20)
-            ->field('id as user_id, nickname, avatar, channel_at')
-            ->select()
-            ->toArray();
+            ->whereIn('event_type', ['reward_video', 'daily_watch_ad_hint_1'])
+            ->count();
 
         return [
-            'channel'     => $channel,
-            'totalUsers'  => $totalUsers,
-            'todayUsers'  => $todayUsers,
-            'events'      => $events,
-            'recentUsers' => $recentUsers,
+            'channel'    => $channel,
+            'totalUsers' => $totalUsers,
+            'loginCount' => $loginCount,
+            'videoCount' => $videoCount,
         ];
     }
 
