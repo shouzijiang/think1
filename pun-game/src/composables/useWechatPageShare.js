@@ -34,7 +34,7 @@ function ensureMpShareMenu() {
   if (typeof uni.showShareMenu !== 'function') return
   let menus = ['shareAppMessage', 'shareTimeline']
   try {
-    const platform = uni.getSystemInfoSync().uniPlatform || ''
+    const platform = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
     // 抖音小程序菜单字段与微信不同
     if (platform === 'mp-toutiao') {
       menus = ['share']

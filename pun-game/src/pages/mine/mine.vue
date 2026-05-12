@@ -349,7 +349,7 @@ let mineDailyVideoBusy = false
 let shareLoadingTimer = null
 const platform = (() => {
   try {
-    return uni.getSystemInfoSync().uniPlatform || ''
+    return (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
   } catch {
     return ''
   }

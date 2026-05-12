@@ -115,6 +115,8 @@ import PunPageNavBar from '../../components/PunPageNavBar.vue'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
+const QR_STORAGE_KEY = 'streamer_qr_base64'
+
 const qrBase64 = ref('')
 const qrLoading = ref(false)
 const channel = ref('')
@@ -124,6 +126,14 @@ const userId = ref('')
 function loadUserId() {
   const info = getUserInfo()
   userId.value = info?.user_id ? String(info.user_id) : ''
+}
+
+// 从 storage 恢复二维码
+function restoreQrFromStorage() {
+  try {
+    const saved = uni.getStorageSync(QR_STORAGE_KEY)
+    if (saved) qrBase64.value = saved
+  } catch (e) {}
 }
 
 const stats = ref({ totalUsers: 0, todayUsers: 0, events: {}, recentUsers: [] })
@@ -138,6 +148,9 @@ async function loadQrCode() {
     const data = await api.getStreamerQrCode()
     qrBase64.value = data.qrBase64 || ''
     channel.value = data.channel || ''
+    if (qrBase64.value) {
+      try { uni.setStorageSync(QR_STORAGE_KEY, qrBase64.value) } catch (e) {}
+    }
   } catch (e) {
     uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
   } finally {
@@ -193,6 +206,7 @@ function back() {
 
 onShow(() => {
   loadUserId()
+  restoreQrFromStorage()
   loadStats()
 })
 </script>

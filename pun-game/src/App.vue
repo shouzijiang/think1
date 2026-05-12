@@ -6,7 +6,7 @@ function enableMiniProgramShareMenu() {
   if (typeof uni.showShareMenu !== 'function') return
   let menus = ['shareAppMessage', 'shareTimeline']
   try {
-    const platform = uni.getSystemInfoSync().uniPlatform || ''
+    const platform = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
     // 抖音小程序仅支持 share / record / screenShot
     if (platform === 'mp-toutiao') {
       menus = ['share']

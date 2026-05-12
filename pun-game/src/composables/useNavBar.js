@@ -6,34 +6,15 @@ export function useNavBar() {
   const menuButtonHeight = ref(32)
 
   // #ifdef MP-WEIXIN
-  if (typeof uni.getSystemInfo === 'function') {
-    uni.getSystemInfo({
-      success: (systemInfo) => {
-        try {
-          const menuButtonInfo = uni.getMenuButtonBoundingClientRect()
-          if (systemInfo && menuButtonInfo) {
-            statusBarHeight.value = systemInfo.statusBarHeight
-            navBarHeight.value = menuButtonInfo.height + (menuButtonInfo.top - systemInfo.statusBarHeight) * 2
-            menuButtonHeight.value = menuButtonInfo.height
-          }
-        } catch (e) {
-          // fallback
-        }
-      },
-      fail: () => {
-        // fallback to sync
-        try {
-          const systemInfo = uni.getSystemInfoSync()
-          const menuButtonInfo = uni.getMenuButtonBoundingClientRect()
-          if (systemInfo && menuButtonInfo) {
-            statusBarHeight.value = systemInfo.statusBarHeight
-            navBarHeight.value = menuButtonInfo.height + (menuButtonInfo.top - systemInfo.statusBarHeight) * 2
-            menuButtonHeight.value = menuButtonInfo.height
-          }
-        } catch (e) {}
-      }
-    })
-  }
+  try {
+    const windowInfo = wx.getWindowInfo()
+    const menuButtonInfo = uni.getMenuButtonBoundingClientRect()
+    if (windowInfo && menuButtonInfo) {
+      statusBarHeight.value = windowInfo.statusBarHeight
+      navBarHeight.value = menuButtonInfo.height + (menuButtonInfo.top - windowInfo.statusBarHeight) * 2
+      menuButtonHeight.value = menuButtonInfo.height
+    }
+  } catch (e) {}
   // #endif
 
   return {

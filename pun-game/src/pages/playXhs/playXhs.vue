@@ -313,7 +313,7 @@ async function onRevealHint() {
 }
 
 function help() {
-  const p = uni.getSystemInfoSync().uniPlatform || ''
+  const p = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
   if (!(p === 'mp-weixin' || p === 'mp-toutiao')) {
     uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
   }

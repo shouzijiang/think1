@@ -150,7 +150,7 @@ function getResultText(result) {
 }
 
 function calcListHeight() {
-  const { windowHeight = 0 } = uni.getSystemInfoSync() || {}
+  const { windowHeight = 0 } = (uni.getWindowInfo?.() ?? uni.getSystemInfoSync()) || {}
   const safeHeight = windowHeight - Number(statusBarHeight || 0) - Number(navBarHeight || 0)
   // 给底部留出一点空间，避免 iOS 滚动区域被裁切
   listHeight.value = Math.max(200, safeHeight - 16)

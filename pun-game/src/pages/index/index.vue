@@ -63,9 +63,9 @@
         <text class="btn-text">邀请好友</text>
         <text class="btn-sub-text">1V1对战</text>
       </view>
-      <view class="btn-entry btn-levels" @click="goRank">
-        <text class="btn-icon">🏆</text>
-        <text class="btn-text">榜单</text>
+      <view class="btn-entry btn-levels" @click="goLevels">
+        <text class="btn-icon">🧩</text>
+        <text class="btn-text">我的关卡</text>
       </view>
     </view>
 
@@ -102,10 +102,9 @@
         <text class="toolbar-text">音效</text>
       </view>
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click="goLevels">
-        <text class="toolbar-icon">🧩</text>
-        <text class="toolbar-text">我的</text>
-        <text class="toolbar-text">关卡</text>
+      <view class="toolbar-item" @click="goRank">
+        <text class="toolbar-icon">🏆</text>
+        <text class="toolbar-text">榜单</text>
       </view>
       <!-- <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goForum">

@@ -347,7 +347,7 @@ const { onSkipLevel } = usePunSkipLevel({
 
 // 非小程序端点击「求助」时提示（小程序端由 open-type="share" 唤起分享）
 function help() {
-  const p = uni.getSystemInfoSync().uniPlatform || ''
+  const p = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
   if (!(p === 'mp-weixin' || p === 'mp-toutiao')) {
     uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
   }

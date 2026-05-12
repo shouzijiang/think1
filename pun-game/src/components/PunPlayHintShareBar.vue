@@ -71,7 +71,7 @@ const hintNoQuota = computed(() => hintQuotaNum.value <= 0)
 /** 小程序（微信/抖音）且无次数：角标在按钮内，整钮可点走激励视频；其它端无次数仍禁用 */
 const isMiniProgramWithRewardAd = computed(() => {
   try {
-    const p = uni.getSystemInfoSync().uniPlatform
+    const p = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform
     return p === 'mp-weixin' || p === 'mp-toutiao'
   } catch {
     return false
