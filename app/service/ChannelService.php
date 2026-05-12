@@ -49,6 +49,59 @@ class ChannelService
     }
 
     /**
+     * 获取主播的邀请信息：受邀用户列表 + 行为汇总
+     * 主播渠道固定为 streamer_{userId}
+     *
+     * @return array{channel:string, totalUsers:int, todayUsers:int, events:array, recentUsers:array}
+     */
+    public function getStreamerInviteInfo(int $userId): array
+    {
+        $channel = 'streamer_' . $userId;
+
+        // 受邀总人数（通过该渠道来的唯一用户数）
+        $totalUsers = (int) Db::name('users')
+            ->where('channel', $channel)
+            ->count();
+
+        // 今日新增
+        $todayUsers = (int) Db::name('users')
+            ->where('channel', $channel)
+            ->whereDay('channel_at')
+            ->count();
+
+        // 行为事件汇总（近30天）
+        $since = date('Y-m-d H:i:s', strtotime('-30 days'));
+        $eventRows = Db::name('pun_game_channel_events')
+            ->where('channel', $channel)
+            ->where('created_at', '>=', $since)
+            ->group('event_type')
+            ->field('event_type, COUNT(*) as cnt, COUNT(DISTINCT user_id) as uv')
+            ->select()
+            ->toArray();
+        $events = [];
+        foreach ($eventRows as $row) {
+            $events[$row['event_type']] = ['cnt' => (int)$row['cnt'], 'uv' => (int)$row['uv']];
+        }
+
+        // 最近20名受邀用户
+        $recentUsers = Db::name('users')
+            ->where('channel', $channel)
+            ->order('channel_at', 'desc')
+            ->limit(20)
+            ->field('id as user_id, nickname, avatar, channel_at')
+            ->select()
+            ->toArray();
+
+        return [
+            'channel'     => $channel,
+            'totalUsers'  => $totalUsers,
+            'todayUsers'  => $todayUsers,
+            'events'      => $events,
+            'recentUsers' => $recentUsers,
+        ];
+    }
+
+    /**
      * 统计接口：按渠道 + 事件类型汇总
      */
     public function stats(string $channel, string $startDate, string $endDate): array

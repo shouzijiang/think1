@@ -409,4 +409,14 @@ export const api = {
       data: { channel },
     })
   },
+
+  /** 主播同玩：生成专属邀请小程序码（返回 { channel, qrBase64 }） */
+  getStreamerQrCode() {
+    return request({ url: '/pun/streamer/qrcode', method: 'GET' })
+  },
+
+  /** 主播同玩：获取邀请数据（受邀用户 + 行为统计） */
+  getStreamerStats() {
+    return request({ url: '/pun/streamer/stats', method: 'GET' })
+  },
 }

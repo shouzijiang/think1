@@ -97,6 +97,13 @@
         "navigationStyle": "custom",
         "navigationBarTitleText": "对战记录"
       }
+    },
+    {
+      "path": "pages/streamer/streamer",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "主播同玩"
+      }
     }
   ],
   "globalStyle": {

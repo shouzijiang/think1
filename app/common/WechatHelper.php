@@ -86,6 +86,61 @@ class WechatHelper
     }
     
     /**
+     * 生成带参数的小程序码（wxacode.getUnlimited，适合动态场景）
+     * scene 最大 32 字节，page 须已发布；返回 base64 字符串（不含前缀），失败返回 false
+     *
+     * @param string $scene  如 "channel=streamer_123"
+     * @param string $page   如 "pages/index/index"
+     * @param int    $width  二维码宽度（默认 430px）
+     * @return string|false
+     */
+    public static function getUnlimitedQrCode(string $scene, string $page = 'pages/index/index', int $width = 430)
+    {
+        $accessToken = self::getAccessToken();
+        if (!$accessToken) {
+            Log::error('getUnlimitedQrCode: 获取access_token失败');
+            return false;
+        }
+
+        $url = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token={$accessToken}";
+        $payload = [
+            'scene' => $scene,
+            'page'  => $page,
+            'width' => $width,
+            'check_path' => false,
+            'env_version' => 'release',
+        ];
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_UNESCAPED_UNICODE));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+        $body = curl_exec($ch);
+        $err  = curl_error($ch);
+        curl_close($ch);
+
+        if ($err || empty($body)) {
+            Log::error('getUnlimitedQrCode curl error: ' . $err);
+            return false;
+        }
+
+        // 微信出错时返回 JSON；成功时返回 PNG 二进制流
+        if ($body[0] === '{') {
+            $json = json_decode($body, true);
+            Log::error('getUnlimitedQrCode error: ' . json_encode($json, JSON_UNESCAPED_UNICODE));
+            return false;
+        }
+
+        return base64_encode($body);
+    }
+
+    /**
      * 发送订阅消息
      * @param string $openid 用户openid
      * @param string $templateId 模板ID

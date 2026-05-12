@@ -1,0 +1,407 @@
+<template>
+  <view class="page">
+    <view class="bg-wrap">
+      <view class="bg-gradient" />
+      <view class="bg-dots" />
+    </view>
+
+    <PunPageNavBar
+      :status-bar-height="statusBarHeight"
+      :nav-bar-height="navBarHeight"
+      :menu-button-height="menuButtonHeight"
+      title="主播同玩"
+      @left-click="back"
+    />
+
+    <!-- 邀请码区域 -->
+    <view class="qr-card">
+      <text class="qr-title">📡 你的专属邀请码</text>
+      <text class="qr-desc">直播时展示，观众扫码进入即自动绑定</text>
+
+      <view class="qr-wrap">
+        <view v-if="qrLoading" class="qr-placeholder">
+          <text class="qr-loading-text">生成中…</text>
+        </view>
+        <image
+          v-else-if="qrBase64"
+          class="qr-img"
+          :src="'data:image/png;base64,' + qrBase64"
+          mode="aspectFit"
+        />
+        <view v-else class="qr-placeholder qr-placeholder--error">
+          <text class="qr-loading-text">生成失败，请刷新</text>
+        </view>
+      </view>
+
+      <view class="qr-channel-tag">
+        <text class="qr-channel-label">你的主播ID</text>
+        <text class="qr-channel-value">{{ userId || '加载中…' }}</text>
+      </view>
+
+      <view class="qr-actions">
+        <button class="qr-btn" :disabled="qrLoading" @click="loadQrCode">
+          {{ qrLoading ? '生成中…' : (qrBase64 ? '刷新二维码' : '生成专属二维码') }}
+        </button>
+        <button v-if="qrBase64" class="qr-btn qr-btn--save" @click="saveQrCode">
+          保存到相册
+        </button>
+      </view>
+    </view>
+
+    <!-- 数据统计 -->
+    <view class="stats-card">
+      <view class="stats-header">
+        <text class="stats-title">📊 邀请数据</text>
+        <text class="stats-refresh" @click="loadStats">刷新</text>
+      </view>
+
+      <view v-if="statsLoading" class="stats-loading">
+        <text>加载中…</text>
+      </view>
+      <template v-else>
+        <view class="stats-row">
+          <view class="stat-item">
+            <text class="stat-num">{{ stats.totalUsers }}</text>
+            <text class="stat-label">累计受邀</text>
+          </view>
+          <view class="stat-divider" />
+          <view class="stat-item">
+            <text class="stat-num stat-num--green">{{ stats.todayUsers }}</text>
+            <text class="stat-label">今日新增</text>
+          </view>
+          <view class="stat-divider" />
+          <view class="stat-item">
+            <text class="stat-num stat-num--blue">{{ loginUv }}</text>
+            <text class="stat-label">登录人次</text>
+          </view>
+        </view>
+
+        <!-- 受邀用户列表 -->
+        <view v-if="stats.recentUsers && stats.recentUsers.length" class="user-list">
+          <text class="user-list-title">最近受邀用户</text>
+          <view
+            v-for="user in stats.recentUsers"
+            :key="user.user_id"
+            class="user-item"
+          >
+            <image
+              v-if="user.avatar"
+              class="user-avatar"
+              :src="user.avatar"
+              mode="aspectFill"
+            />
+            <view v-else class="user-avatar user-avatar--empty">👤</view>
+            <view class="user-info">
+              <text class="user-name">{{ user.nickname || '用户' }}</text>
+              <text class="user-time">{{ formatTime(user.channel_at) }}</text>
+            </view>
+          </view>
+        </view>
+        <view v-else class="user-list-empty">
+          <text>暂无受邀用户，快去直播间展示邀请码吧~</text>
+        </view>
+      </template>
+    </view>
+  </view>
+</template>
+
+<script setup>
+import { ref, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { api } from '../../utils/api'
+import { useNavBar } from '../../composables/useNavBar'
+import { getUserInfo } from '../../utils/auth'
+import PunPageNavBar from '../../components/PunPageNavBar.vue'
+
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+
+const qrBase64 = ref('')
+const qrLoading = ref(false)
+const channel = ref('')
+const userId = ref('')
+
+// 从本地缓存读取 userId
+function loadUserId() {
+  const info = getUserInfo()
+  userId.value = info?.user_id ? String(info.user_id) : ''
+}
+
+const stats = ref({ totalUsers: 0, todayUsers: 0, events: {}, recentUsers: [] })
+const statsLoading = ref(false)
+
+const loginUv = computed(() => stats.value.events?.login?.uv ?? 0)
+
+async function loadQrCode() {
+  if (qrLoading.value) return
+  qrLoading.value = true
+  try {
+    const data = await api.getStreamerQrCode()
+    qrBase64.value = data.qrBase64 || ''
+    channel.value = data.channel || ''
+  } catch (e) {
+    uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+async function loadStats() {
+  statsLoading.value = true
+  try {
+    const data = await api.getStreamerStats()
+    stats.value = data
+    if (!channel.value && data.channel) channel.value = data.channel
+  } catch (e) {
+    uni.showToast({ title: '数据加载失败', icon: 'none' })
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+function saveQrCode() {
+  if (!qrBase64.value) return
+  // #ifdef MP-WEIXIN
+  const fs = wx.getFileSystemManager()
+  const filePath = `${wx.env.USER_DATA_PATH}/streamer_qr_${Date.now()}.png`
+  fs.writeFile({
+    filePath,
+    data: qrBase64.value,
+    encoding: 'base64',
+    success: () => {
+      wx.saveImageToPhotosAlbum({
+        filePath,
+        success: () => uni.showToast({ title: '已保存到相册', icon: 'success' }),
+        fail: () => uni.showToast({ title: '保存失败，请检查相册权限', icon: 'none' }),
+      })
+    },
+    fail: () => uni.showToast({ title: '文件写入失败', icon: 'none' }),
+  })
+  // #endif
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '请截图保存', icon: 'none' })
+  // #endif
+}
+
+function formatTime(str) {
+  if (!str) return ''
+  return str.slice(0, 16).replace('T', ' ')
+}
+
+function back() {
+  uni.navigateBack({ delta: 1, fail: () => uni.reLaunch({ url: '/pages/index/index' }) })
+}
+
+onShow(() => {
+  loadUserId()
+  loadStats()
+})
+</script>
+
+<style lang="scss" scoped>
+@use '../../styles/page-theme.scss' as *;
+
+.page {
+  min-height: 100vh;
+  padding: 0 32rpx 60rpx;
+  box-sizing: border-box;
+  @include pt-page-background;
+}
+
+.qr-card,
+.stats-card {
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 28rpx;
+  padding: 36rpx 32rpx;
+  margin-bottom: 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.18);
+  border: 2rpx solid rgba(169, 201, 238, 0.4);
+}
+
+.qr-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #5a6d7a;
+  display: block;
+  margin-bottom: 8rpx;
+}
+.qr-desc {
+  font-size: 24rpx;
+  color: #8eadcf;
+  display: block;
+  margin-bottom: 28rpx;
+}
+.qr-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24rpx;
+}
+.qr-img {
+  width: 320rpx;
+  height: 320rpx;
+  border-radius: 16rpx;
+  border: 4rpx solid rgba(169, 201, 238, 0.4);
+}
+.qr-placeholder {
+  width: 320rpx;
+  height: 320rpx;
+  border-radius: 16rpx;
+  background: rgba(234, 246, 249, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qr-placeholder--error {
+  background: rgba(255, 230, 230, 0.6);
+}
+.qr-loading-text {
+  font-size: 26rpx;
+  color: #8eadcf;
+}
+.qr-channel-tag {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 24rpx;
+  background: rgba(234, 246, 249, 0.8);
+  border-radius: 12rpx;
+  padding: 12rpx 18rpx;
+}
+.qr-channel-label {
+  font-size: 22rpx;
+  color: #8eadcf;
+}
+.qr-channel-value {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #5a6d7a;
+  word-break: break-all;
+}
+.qr-actions {
+  display: flex;
+  gap: 16rpx;
+}
+.qr-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #a3dd9c, #6fb868);
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 700;
+  border-radius: 48rpx;
+  border: none;
+  padding: 20rpx 0;
+  box-shadow: 0 4rpx 14rpx rgba(111, 184, 104, 0.3);
+}
+.qr-btn--save {
+  background: linear-gradient(135deg, #90caf9, #42a5f5);
+  box-shadow: 0 4rpx 14rpx rgba(66, 165, 245, 0.3);
+}
+
+/* 统计 */
+.stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+.stats-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #5a6d7a;
+}
+.stats-refresh {
+  font-size: 24rpx;
+  color: #8eadcf;
+  padding: 6rpx 18rpx;
+  background: rgba(234, 246, 249, 0.9);
+  border-radius: 20rpx;
+}
+.stats-loading {
+  text-align: center;
+  padding: 40rpx 0;
+  color: #8eadcf;
+  font-size: 26rpx;
+}
+.stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  margin-bottom: 28rpx;
+  background: rgba(234, 246, 249, 0.6);
+  border-radius: 18rpx;
+  padding: 24rpx 0;
+}
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+.stat-num {
+  font-size: 48rpx;
+  font-weight: 900;
+  color: #5a6d7a;
+  line-height: 1;
+}
+.stat-num--green { color: #6fb868; }
+.stat-num--blue  { color: #42a5f5; }
+.stat-label {
+  font-size: 22rpx;
+  color: #8eadcf;
+}
+.stat-divider {
+  width: 2rpx;
+  height: 60rpx;
+  background: rgba(169, 201, 238, 0.4);
+}
+
+.user-list-title {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #8eadcf;
+  display: block;
+  margin-bottom: 16rpx;
+}
+.user-item {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  padding: 18rpx 0;
+  border-bottom: 1rpx solid rgba(169, 201, 238, 0.2);
+}
+.user-item:last-child { border-bottom: none; }
+.user-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(234, 246, 249, 0.95);
+  border: 2rpx solid rgba(169, 201, 238, 0.4);
+  flex-shrink: 0;
+}
+.user-avatar--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34rpx;
+}
+.user-info { flex: 1; }
+.user-name {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #5a6d7a;
+  display: block;
+}
+.user-time {
+  font-size: 22rpx;
+  color: #8eadcf;
+  display: block;
+  margin-top: 4rpx;
+}
+.user-list-empty {
+  text-align: center;
+  padding: 40rpx 0;
+  font-size: 26rpx;
+  color: #8eadcf;
+}
+</style>

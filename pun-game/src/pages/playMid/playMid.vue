@@ -570,7 +570,7 @@ onShareTimeline(() => {
 }
 .card-inner--stack {
   min-height: auto;
-  padding: 36rpx 28rpx 0;
+  padding: 10rpx 28rpx;
   gap: 0;
 }
 .report-entry {
@@ -602,13 +602,14 @@ onShareTimeline(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16rpx;
+  gap: 0;
   position: relative;
 }
 .stack-img {
   width: 100%;
   border-radius: 20rpx;
   background: #f0f4f8;
+  max-height: 400px;
 }
 .stack-placeholder {
   width: 100%;

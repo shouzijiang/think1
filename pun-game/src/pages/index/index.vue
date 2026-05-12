@@ -53,13 +53,15 @@
     </view>
 
     <view class="top-actions">
-      <view class="btn-entry" @click="goBattle">
+      <view class="btn-entry btn-entry--battle" @click="goBattle">
+        <view class="battle-badge">3分钟一局</view>
         <image
           class="btn-icon btn-icon-img"
           src="https://sofun.online/static/mini/battle.png"
           mode="aspectFit"
         />
-        <text class="btn-text">1V1对战</text>
+        <text class="btn-text">邀请好友</text>
+        <text class="btn-sub-text">1V1对战</text>
       </view>
       <view class="btn-entry btn-levels" @click="goRank">
         <text class="btn-icon">🏆</text>
@@ -125,6 +127,12 @@
     <view class="daily-task-float" @click="goMine">
       <text class="daily-task-float-icon">🎁</text>
       <text class="daily-task-float-text">每日任务</text>
+    </view>
+
+    <view class="streamer-float" @click="goStreamer">
+      <text class="streamer-float-icon">📡</text>
+      <text class="streamer-float-text">主播</text>
+      <text class="streamer-float-text">同玩</text>
     </view>
   </view>
 </template>
@@ -301,6 +309,10 @@ function goLevels() {
 
 function goBattle() {
   uni.navigateTo({ url: '/pages/battleRoom/battleRoom' })
+}
+
+function goStreamer() {
+  uni.navigateTo({ url: '/pages/streamer/streamer' })
 }
 
 async function startGameXhs() {
@@ -696,7 +708,7 @@ function startGame() {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  padding: 26rpx 18rpx;
+  padding: 16rpx 18rpx;
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(10px);
   border-radius: 24rpx;
@@ -771,6 +783,28 @@ function startGame() {
   text-shadow: 0 2rpx 6rpx rgba(54, 84, 120, 0.18);
 }
 
+.battle-badge {
+  position: absolute;
+  top: -2rpx;
+  right: -2rpx;
+  background: linear-gradient(135deg, #ff7043, #ff5252);
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 800;
+  padding: 6rpx 14rpx;
+  border-radius: 25rpx;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 0;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4rpx 10rpx rgba(255, 80, 80, 0.35);
+  animation: battleBadgePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes battleBadgePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+
 .stats {
   position: relative;
   z-index: 2;
@@ -821,8 +855,7 @@ function startGame() {
   align-items: center;
   justify-content: center;
   gap: 6rpx;
-  border-top-left-radius: 22rpx;
-  border-bottom-left-radius: 22rpx;
+  border-radius: 22rpx;
   border: 2rpx solid rgba(255, 255, 255, 0.72);
   border-right: none;
   background: linear-gradient(180deg, #ffd98f 0%, #f7be60 100%);
@@ -833,6 +866,53 @@ function startGame() {
 .daily-task-float:active {
   opacity: 0.92;
   transform: translateY(-50%) scale(0.98);
+}
+
+.streamer-float {
+  position: fixed;
+  right: 0rpx;
+  top: 30%;
+  transform: translateY(-50%);
+  z-index: 52;
+  width: 112rpx;
+  min-height: 120rpx;
+  padding: 16rpx 10rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  border-radius: 22rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.72);
+  border-left: none;
+  background: linear-gradient(180deg, #ffe0a0 0%, #f7c860 100%);
+  box-shadow: 0 10rpx 24rpx rgba(242, 180, 95, 0.32);
+  animation: streamer-float-wiggle 3s ease-in-out infinite;
+}
+
+.streamer-float:active {
+  opacity: 0.92;
+  transform: translateY(-50%) scale(0.98);
+}
+
+.streamer-float-icon {
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.streamer-float-text {
+  font-size: 20rpx;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #754400;
+  letter-spacing: 0.04em;
+}
+
+@keyframes streamer-float-wiggle {
+  0%, 100% { transform: translateY(-50%) rotate(0deg); }
+  25% { transform: translateY(-50%) rotate(3deg); }
+  75% { transform: translateY(-50%) rotate(-3deg); }
 }
 
 .daily-task-float-icon {
