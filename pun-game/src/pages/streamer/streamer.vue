@@ -186,8 +186,8 @@ function saveQrCode() {
           success: () => uni.showToast({ title: '已保存到相册', icon: 'success' }),
           fail: () => {
             wx.showModal({
-              title: '需要相册权限',
-              content: '请在设置中开启相册权限后重试',
+              title: '提示',
+              content: '请长按二维码保存，或者在设置中开启相册权限后重试',
               confirmText: '去设置',
               success: (res) => {
                 if (res.confirm) wx.openSetting()
@@ -210,8 +210,8 @@ function saveQrCode() {
           success: doSave,
           fail: () => {
             wx.showModal({
-              title: '需要相册权限',
-              content: '请在设置中开启相册权限后重试',
+              title: '提示',
+              content: '请长按二维码保存，或者在设置中开启相册权限后重试',
               confirmText: '去设置',
               success: (res) => {
                 if (res.confirm) wx.openSetting()
