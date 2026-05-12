@@ -72,16 +72,16 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
-import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
-const shareRewardQuotaRef = ref(0)
-useWechatPageShare('排行榜 · 谐音梗猜一猜', shareRewardQuotaRef)
+// 分享固定落地首页
+onShareAppMessage(() => ({ title: '谐音梗猜一猜', path: '/pages/index/index' }))
+onShareTimeline(() => ({ title: '谐音梗猜一猜' }))
 
 const list = ref([])
 const loading = ref(false)
