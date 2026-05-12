@@ -78,7 +78,7 @@
         <view class="stats-row">
           <view class="stat-item">
             <text class="stat-num stat-num--blue">{{ (stats.videoCount * 0.01).toFixed(2) }}</text>
-            <text class="stat-label">累计收益</text>
+            <text class="stat-label">预估收益</text>
           </view>
         </view>
       </template>
