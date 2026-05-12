@@ -129,7 +129,7 @@
       </view>
     </view>
 
-    <view class="daily-task-float" @click="goMine">
+    <view class="daily-task-float" @click="goTasks">
       <text class="daily-task-float-icon">🎁</text>
       <text class="daily-task-float-text">每日任务</text>
     </view>
@@ -328,6 +328,9 @@ function goRank() {
 }
 function goMine() {
   uni.navigateTo({ url: '/pages/mine/mine' })
+}
+function goTasks() {
+  uni.navigateTo({ url: '/pages/tasks/tasks' })
 }
 function goMail() {
   uni.navigateTo({ url: '/pages/mail/mail' })

@@ -36,6 +36,13 @@
       }
     },
     {
+      "path": "pages/tasks/tasks",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "任务中心"
+      }
+    },
+    {
       "path": "pages/play/play",
       "style": {
         "navigationStyle": "custom",

@@ -31,6 +31,8 @@ class ChannelService
     public function track(int $userId, string $channel, string $eventType, array $extra = []): void
     {
         if (!$channel) return;
+        $allowedEvents = ['login', 'daily_watch_ad_hint_1', 'reward_video'];
+        if (!in_array($eventType, $allowedEvents, true)) return;
         Db::name('pun_game_channel_events')->insert([
             'user_id'    => $userId,
             'channel'    => $channel,
