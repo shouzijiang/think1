@@ -254,7 +254,7 @@ CREATE TABLE `pun_reward_claim_record` (
   `claim_type` varchar(50) NOT NULL COMMENT '领取类型：如 share、reward_video、daily_noon_hint_5、permanent_my_mini_program_hint_3 等',
   `claim_date` date NOT NULL COMMENT '领取日期（Asia/Shanghai，自然日）',
   `add_quota` int(11) NOT NULL DEFAULT '0' COMMENT '本次增加次数，失败/拒绝为0',
-  `status` varchar(20) NOT NULL COMMENT '结果：success/rejected/failed',
+  `status` varchar(20) NOT NULL COMMENT '结果：业务仅写入 success；历史或其它脚本可能含 rejected/failed',
   `reason` varchar(255) NOT NULL DEFAULT '' COMMENT '失败/拒绝原因',
   `meta_json` text COMMENT '扩展信息（如模板ID、订阅状态）',
   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

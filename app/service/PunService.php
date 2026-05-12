@@ -243,6 +243,10 @@ class PunService
         string $reason = '',
         array $meta = []
     ): void {
+        // 拒绝/异常失败不落库，仅成功领取写审计记录
+        if ($status === 'rejected' || $status === 'failed') {
+            return;
+        }
         Db::name('pun_reward_claim_record')->insert([
             'user_id' => $userId,
             'claim_type' => $claimType,
@@ -351,7 +355,7 @@ class PunService
     }
 
     /**
-     * 统一领取接口：按 type 路由到不同领取逻辑，并统一写领取记录。
+     * 统一领取接口：按 type 路由到不同领取逻辑；成功时写领取记录。
      *
      * @param array<string,mixed> $extra
      * @return array{hintAnswerQuota:int,added:int,type:string}
@@ -380,47 +384,39 @@ class PunService
         $meta['type'] = $type;
         $meta['requested_add'] = $delta;
 
-        try {
-            if ($type === self::REWARD_TYPE_SHARE) {
-                $result = $this->claimByShare($userId, $delta);
-            } elseif ($type === self::REWARD_TYPE_VIDEO) {
-                $result = $this->claimByRewardVideo($userId, $delta);
-            } elseif ($type === self::DAILY_TASKS['noon']['type']) {
-                $result = $this->claimByDailyNoon($userId, $extra);
-            } elseif ($type === self::DAILY_TASKS['ad']['type']) {
-                $result = $this->claimByDailyAdTask($userId);
-            } elseif ($type === self::PERMANENT_TASKS['avatar']['type']) {
-                $result = $this->claimByPermanentAvatar($userId);
-            } elseif ($type === self::PERMANENT_TASKS['nickname']['type']) {
-                $result = $this->claimByPermanentNickname($userId);
-            } elseif ($type === self::PERMANENT_TASKS['my_mini_program']['type']) {
-                $result = $this->claimByPermanentMyMiniProgram($userId, $extra);
-            } else {
-                $result = $this->claimByDailyBattleTask($userId);
-            }
-
-            $this->createRewardClaimRecord($userId, $type, (int) $result['added'], 'success', '', $meta);
-            $this->invalidateLevelProgressCache($userId);
-
-            // 买量渠道追踪
-            try {
-                $channelService = new \app\service\ChannelService();
-                $channel = $channelService->getChannel($userId);
-                if ($channel) {
-                    $channelService->track($userId, $channel, $type, [
-                        'added' => (int) $result['added'],
-                    ]);
-                }
-            } catch (\Throwable $ignored) {}
-
-            return $result;
-        } catch (\InvalidArgumentException $e) {
-            $this->createRewardClaimRecord($userId, $type, 0, 'rejected', $e->getMessage(), $meta);
-            throw $e;
-        } catch (\Throwable $e) {
-            $this->createRewardClaimRecord($userId, $type, 0, 'failed', $e->getMessage(), $meta);
-            throw $e;
+        if ($type === self::REWARD_TYPE_SHARE) {
+            $result = $this->claimByShare($userId, $delta);
+        } elseif ($type === self::REWARD_TYPE_VIDEO) {
+            $result = $this->claimByRewardVideo($userId, $delta);
+        } elseif ($type === self::DAILY_TASKS['noon']['type']) {
+            $result = $this->claimByDailyNoon($userId, $extra);
+        } elseif ($type === self::DAILY_TASKS['ad']['type']) {
+            $result = $this->claimByDailyAdTask($userId);
+        } elseif ($type === self::PERMANENT_TASKS['avatar']['type']) {
+            $result = $this->claimByPermanentAvatar($userId);
+        } elseif ($type === self::PERMANENT_TASKS['nickname']['type']) {
+            $result = $this->claimByPermanentNickname($userId);
+        } elseif ($type === self::PERMANENT_TASKS['my_mini_program']['type']) {
+            $result = $this->claimByPermanentMyMiniProgram($userId, $extra);
+        } else {
+            $result = $this->claimByDailyBattleTask($userId);
         }
+
+        $this->createRewardClaimRecord($userId, $type, (int) $result['added'], 'success', '', $meta);
+        $this->invalidateLevelProgressCache($userId);
+
+        // 买量渠道追踪
+        try {
+            $channelService = new \app\service\ChannelService();
+            $channel = $channelService->getChannel($userId);
+            if ($channel) {
+                $channelService->track($userId, $channel, $type, [
+                    'added' => (int) $result['added'],
+                ]);
+            }
+        } catch (\Throwable $ignored) {}
+
+        return $result;
     }
 
     /**

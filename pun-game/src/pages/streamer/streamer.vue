@@ -200,26 +200,39 @@ function saveQrCode() {
     })
   }
 
-  wx.getSetting({
-    success: (res) => {
-      if (res.authSetting['scope.writePhotosAlbum']) {
-        doSave()
-      } else {
-        wx.authorize({
-          scope: 'scope.writePhotosAlbum',
-          success: doSave,
-          fail: () => {
-            wx.showModal({
-              title: '提示',
-              content: '请长按二维码保存，或者在设置中开启相册权限后重试',
-              confirmText: '去设置',
-              success: (res) => {
-                if (res.confirm) wx.openSetting()
-              },
-            })
+  const albumDeniedModal = () => {
+    wx.showModal({
+      title: '提示',
+      content: '请长按二维码保存，或在设置中开启「保存到相册」权限后重试',
+      confirmText: '去设置',
+      success: (r) => {
+        if (!r.confirm) return
+        wx.openSetting({
+          success: (openRes) => {
+            if (openRes.authSetting['scope.writePhotosAlbum']) doSave()
           },
         })
+      },
+    })
+  }
+
+  wx.getSetting({
+    success: (res) => {
+      const album = res.authSetting['scope.writePhotosAlbum']
+      if (album === true) {
+        doSave()
+        return
       }
+      // 用户曾拒绝：authorize 不会再弹系统授权框，只能去设置里打开
+      if (album === false) {
+        albumDeniedModal()
+        return
+      }
+      wx.authorize({
+        scope: 'scope.writePhotosAlbum',
+        success: doSave,
+        fail: albumDeniedModal,
+      })
     },
     fail: doSave, // getSetting 失败时直接尝试保存
   })
