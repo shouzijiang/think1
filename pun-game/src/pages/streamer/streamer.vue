@@ -16,7 +16,7 @@
     <!-- 邀请码区域 -->
     <view class="qr-card">
       <text class="qr-title">📡 你的专属邀请码</text>
-      <text class="qr-desc">直播时展示，观众扫码进入即自动绑定</text>
+      <text class="qr-desc">扫码进入即自动绑定</text>
 
       <view class="qr-wrap">
         <view v-if="qrLoading" class="qr-placeholder">
@@ -34,7 +34,7 @@
       </view>
 
       <view class="qr-channel-tag">
-        <text class="qr-channel-label">你的主播ID</text>
+        <text class="qr-channel-label">你的ID</text>
         <text class="qr-channel-value">{{ userId || '加载中…' }}</text>
       </view>
 
@@ -73,6 +73,12 @@
           <view class="stat-item">
             <text class="stat-num stat-num--blue">{{ stats.videoCount }}</text>
             <text class="stat-label">累计看视频</text>
+          </view>
+        </view>
+        <view class="stats-row">
+          <view class="stat-item">
+            <text class="stat-num stat-num--blue">{{ (stats.videoCount * 0.01).toFixed(2) }}</text>
+            <text class="stat-label">累计收益</text>
           </view>
         </view>
       </template>

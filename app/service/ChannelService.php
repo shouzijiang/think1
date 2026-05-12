@@ -42,9 +42,16 @@ class ChannelService
 
     /**
      * 根据 user_id 获取渠道（空字符串表示非买量用户）
+     * 优先取最近一次 login 事件的 channel（更准确），兜底取 users.channel 字段
      */
     public function getChannel(int $userId): string
     {
+        $fromEvent = (string) Db::name('pun_game_channel_events')
+            ->where('user_id', $userId)
+            ->where('event_type', 'login')
+            ->order('id', 'desc')
+            ->value('channel');
+        if ($fromEvent !== '') return $fromEvent;
         return (string) Db::name('users')->where('id', $userId)->value('channel');
     }
 
@@ -63,15 +70,20 @@ class ChannelService
             ->where('channel', $channel)
             ->count();
 
-        // 累计登录次数
-        $loginCount = (int) Db::name('pun_game_channel_events')
+        // 受邀用户的 user_id 列表（用于后续事件查询，事件的 channel 记的是用户自己的渠道，不一定是 streamer_xxx）
+        $invitedUserIds = Db::name('users')
             ->where('channel', $channel)
+            ->column('id');
+
+        // 累计登录次数（按受邀用户 ID 过滤事件表）
+        $loginCount = empty($invitedUserIds) ? 0 : (int) Db::name('pun_game_channel_events')
+            ->whereIn('user_id', $invitedUserIds)
             ->where('event_type', 'login')
             ->count();
 
-        // 累计看视频次数（reward_video + daily_watch_ad_hint_1）
-        $videoCount = (int) Db::name('pun_game_channel_events')
-            ->where('channel', $channel)
+        // 累计看视频次数（按受邀用户 ID 过滤事件表）
+        $videoCount = empty($invitedUserIds) ? 0 : (int) Db::name('pun_game_channel_events')
+            ->whereIn('user_id', $invitedUserIds)
             ->whereIn('event_type', ['reward_video', 'daily_watch_ad_hint_1'])
             ->count();
 

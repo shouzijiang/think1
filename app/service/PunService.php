@@ -1130,7 +1130,19 @@ class PunService
     protected function updateMidProgress(int $userId, int $level, array $answersRaw): void
     {
         $before = $this->buildMidTierProgressState($userId, $answersRaw);
-        if ($before['currentLevel'] === null || $before['currentLevel'] !== $level) {
+        // 计算跳关后的真实 currentLevel（与 getLevelProgress 逻辑一致）
+        $skippedLevels = $this->getSkipLevels($userId, 'intermediate', $answersRaw);
+        $passedSet  = array_fill_keys(array_map('intval', $before['passedLevels']), true);
+        $skipSet    = array_fill_keys(array_map('intval', $skippedLevels), true);
+        $effectiveCurrentLevel = null;
+        foreach ($before['allKeys'] as $k) {
+            $kid = (int) $k;
+            if (!isset($passedSet[$kid]) && !isset($skipSet[$kid])) {
+                $effectiveCurrentLevel = $kid;
+                break;
+            }
+        }
+        if ($effectiveCurrentLevel === null || $effectiveCurrentLevel !== $level) {
             return;
         }
 

@@ -130,8 +130,8 @@
 
     <view class="streamer-float" @click="goStreamer">
       <text class="streamer-float-icon">📡</text>
-      <text class="streamer-float-text">主播</text>
-      <text class="streamer-float-text">同玩</text>
+      <text class="streamer-float-text">邀好友</text>
+      <text class="streamer-float-text">赚收益</text>
     </view>
   </view>
 </template>
