@@ -40,8 +40,8 @@ export function usePunHanAnswerInput({ answerLen, answerChars, answerInputValue,
     // 不对原始输入做 maxlength 截断，否则拼音输入法会在字母长度达到 answerLen 时卡住
     answerInputValue.value = raw
 
-    // 提取有效字符：汉字 + 英文字母（忽略数字、标点、拼音中间态的纯字母串中的组合状态）
-    const validChars = Array.from(raw).filter(ch => /[\u4e00-\u9fffa-zA-Z]/.test(ch))
+    // 提取有效字符：汉字 + 英文字母 + 数字
+    const validChars = Array.from(raw).filter(ch => /[\u4e00-\u9fffa-zA-Z0-9]/.test(ch))
 
     if (validChars.length === 0) {
       answerChars.value = []

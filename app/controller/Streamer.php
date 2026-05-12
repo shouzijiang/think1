@@ -9,8 +9,8 @@ use app\service\ChannelService;
 use think\Request;
 
 /**
- * 同玩控制器
- * 主播渠道固定为 streamer_{userId}，通过 wxacode.getUnlimited 生成专属邀请码
+ * 邀请好友赚收益控制器
+ * 用户邀请渠道固定为 streamer_{userId}，通过 wxacode.getUnlimited 生成专属邀请码
  */
 class Streamer extends BaseController
 {

@@ -37,7 +37,7 @@ Route::group('pun', function () {
         Route::post('battle/update-bank', 'PunBattle/updateBank');
         Route::get('battle/history', 'PunBattle/history');
 
-        // 主播同玩
+        // 邀请好友赚收益
         Route::get('streamer/qrcode', 'Streamer/generateQrCode');
         Route::get('streamer/stats', 'Streamer/inviteStats');
     })->middleware(\app\middleware\Auth::class);

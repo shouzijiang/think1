@@ -102,7 +102,7 @@
       "path": "pages/streamer/streamer",
       "style": {
         "navigationStyle": "custom",
-        "navigationBarTitleText": "主播同玩"
+        "navigationBarTitleText": "邀请好友赚收益"
       }
     }
   ],

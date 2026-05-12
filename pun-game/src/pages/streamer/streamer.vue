@@ -9,7 +9,7 @@
       :status-bar-height="statusBarHeight"
       :nav-bar-height="navBarHeight"
       :menu-button-height="menuButtonHeight"
-      title="主播同玩"
+      title="邀请好友赚收益"
       @left-click="back"
     />
 

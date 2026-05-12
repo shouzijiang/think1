@@ -49,7 +49,7 @@ class ChannelService
     }
 
     /**
-     * 获取主播的邀请信息
+     * 获取用户的邀请信息
      * pun_game_channel_events.channel = 邀请人渠道，直接过滤即可
      *
      * @return array{channel:string, totalUsers:int, loginCount:int, videoCount:int}
