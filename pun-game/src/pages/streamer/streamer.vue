@@ -29,7 +29,7 @@
           mode="aspectFit"
         />
         <view v-else class="qr-placeholder qr-placeholder--error">
-          <text class="qr-loading-text">生成失败，请刷新</text>
+          <text class="qr-loading-text">请生成您的专属邀请码</text>
         </view>
       </view>
 

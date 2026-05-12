@@ -251,6 +251,16 @@ onShow(async () => {
     // 登录失败也不阻断页面展示
     console.warn('wechatLogin 失败', e)
   }
+
+  // 兜底上报渠道：已登录用户扫码进入时 auth.js 不走登录流程，pun_channel 不会被消费
+  try {
+    const pendingChannel = uni.getStorageSync('pun_channel')
+    if (pendingChannel) {
+      api.reportChannel(pendingChannel).catch(() => {})
+      uni.removeStorageSync('pun_channel')
+    }
+  } catch {}
+
   bgmOn.value = isBgmEnabled()
   sfxOn.value = isSfxEnabled()
   if (bgmOn.value) {
