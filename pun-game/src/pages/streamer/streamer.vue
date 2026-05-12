@@ -25,8 +25,9 @@
         <image
           v-else-if="qrBase64"
           class="qr-img"
-          :src="'data:image/png;base64,' + qrBase64"
+          :src="qrTempPath || ('data:image/png;base64,' + qrBase64)"
           mode="aspectFit"
+          show-menu-by-longpress
         />
         <view v-else class="qr-placeholder qr-placeholder--error">
           <text class="qr-loading-text">请生成您的专属邀请码</text>
@@ -99,9 +100,24 @@ const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 const QR_STORAGE_KEY = 'streamer_qr_base64'
 
 const qrBase64 = ref('')
+const qrTempPath = ref('') // 本地临时文件路径，用于长按保存
 const qrLoading = ref(false)
 const channel = ref('')
 const userId = ref('')
+
+// base64 → 临时文件，供长按保存使用
+function writeQrTempFile(base64) {
+  // #ifdef MP-WEIXIN
+  try {
+    const fs = wx.getFileSystemManager()
+    const filePath = `${wx.env.USER_DATA_PATH}/streamer_qr_preview.png`
+    fs.writeFileSync(filePath, base64, 'base64')
+    qrTempPath.value = filePath
+  } catch (e) {
+    qrTempPath.value = ''
+  }
+  // #endif
+}
 
 // 从本地缓存读取 userId
 function loadUserId() {
@@ -113,7 +129,10 @@ function loadUserId() {
 function restoreQrFromStorage() {
   try {
     const saved = uni.getStorageSync(QR_STORAGE_KEY)
-    if (saved) qrBase64.value = saved
+    if (saved) {
+      qrBase64.value = saved
+      writeQrTempFile(saved)
+    }
   } catch (e) {}
 }
 
@@ -129,6 +148,7 @@ async function loadQrCode() {
     channel.value = data.channel || ''
     if (qrBase64.value) {
       try { uni.setStorageSync(QR_STORAGE_KEY, qrBase64.value) } catch (e) {}
+      writeQrTempFile(qrBase64.value)
     }
   } catch (e) {
     uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
@@ -153,20 +173,55 @@ async function loadStats() {
 function saveQrCode() {
   if (!qrBase64.value) return
   // #ifdef MP-WEIXIN
-  const fs = wx.getFileSystemManager()
-  const filePath = `${wx.env.USER_DATA_PATH}/streamer_qr_${Date.now()}.png`
-  fs.writeFile({
-    filePath,
-    data: qrBase64.value,
-    encoding: 'base64',
-    success: () => {
-      wx.saveImageToPhotosAlbum({
-        filePath,
-        success: () => uni.showToast({ title: '已保存到相册', icon: 'success' }),
-        fail: () => uni.showToast({ title: '保存失败，请检查相册权限', icon: 'none' }),
-      })
+  const doSave = () => {
+    const fs = wx.getFileSystemManager()
+    const filePath = `${wx.env.USER_DATA_PATH}/streamer_qr_${Date.now()}.png`
+    fs.writeFile({
+      filePath,
+      data: qrBase64.value,
+      encoding: 'base64',
+      success: () => {
+        wx.saveImageToPhotosAlbum({
+          filePath,
+          success: () => uni.showToast({ title: '已保存到相册', icon: 'success' }),
+          fail: () => {
+            wx.showModal({
+              title: '需要相册权限',
+              content: '请在设置中开启相册权限后重试',
+              confirmText: '去设置',
+              success: (res) => {
+                if (res.confirm) wx.openSetting()
+              },
+            })
+          },
+        })
+      },
+      fail: () => uni.showToast({ title: '文件写入失败', icon: 'none' }),
+    })
+  }
+
+  wx.getSetting({
+    success: (res) => {
+      if (res.authSetting['scope.writePhotosAlbum']) {
+        doSave()
+      } else {
+        wx.authorize({
+          scope: 'scope.writePhotosAlbum',
+          success: doSave,
+          fail: () => {
+            wx.showModal({
+              title: '需要相册权限',
+              content: '请在设置中开启相册权限后重试',
+              confirmText: '去设置',
+              success: (res) => {
+                if (res.confirm) wx.openSetting()
+              },
+            })
+          },
+        })
+      }
     },
-    fail: () => uni.showToast({ title: '文件写入失败', icon: 'none' }),
+    fail: doSave, // getSetting 失败时直接尝试保存
   })
   // #endif
   // #ifndef MP-WEIXIN

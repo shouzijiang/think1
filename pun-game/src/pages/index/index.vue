@@ -83,6 +83,12 @@
             <text class="changelog-line">{{ line }}</text>
           </view>
         </scroll-view>
+        <view class="changelog-suppress-row" @click.stop="changelogSuppressChecked = !changelogSuppressChecked">
+          <view :class="['changelog-suppress-check', { 'changelog-suppress-check--on': changelogSuppressChecked }]">
+            <text v-if="changelogSuppressChecked" class="changelog-suppress-tick">✓</text>
+          </view>
+          <text class="changelog-suppress-label">7天内不再展示</text>
+        </view>
         <view class="changelog-btn" @click="dismissChangelog">
           <text class="changelog-btn-text">知道了</text>
         </view>
@@ -159,7 +165,7 @@ const { statusBarHeight, navBarHeight } = useNavBar()
 const hintShareQuotaRef = ref(0)
 const { withShareReward } = usePunShareReward(hintShareQuotaRef)
 
-const CHANGELOG_SEEN_KEY = 'pun_changelog_seen_version'
+const CHANGELOG_SEEN_KEY = 'pun_changelog_suppress' // { version, until }
 
 // 捕获买量渠道参数（?channel=xxx 或扫码 scene=xxx）
 onLoad((opts) => {
@@ -184,10 +190,14 @@ const changelogVisible = ref(false)
 const changelogTitle = ref('本期更新')
 const changelogLines = ref([])
 const changelogVersion = ref('')
+const changelogSuppressChecked = ref(false)
 
 function dismissChangelog() {
-  if (changelogVersion.value) {
-    uni.setStorageSync(CHANGELOG_SEEN_KEY, changelogVersion.value)
+  if (changelogVersion.value && changelogSuppressChecked.value) {
+    const until = Date.now() + 7 * 24 * 60 * 60 * 1000
+    try {
+      uni.setStorageSync(CHANGELOG_SEEN_KEY, JSON.stringify({ version: changelogVersion.value, until }))
+    } catch {}
   }
   changelogVisible.value = false
 }
@@ -213,10 +223,23 @@ async function tryShowChangelog() {
     if (!data) return
     const versionCode = data.versionCode ?? data.version_code
     if (!versionCode) return
-    const seen = uni.getStorageSync(CHANGELOG_SEEN_KEY) || ''
-    if (String(seen) === String(versionCode)) return
     const lines = Array.isArray(data.lines) ? data.lines.filter(Boolean) : []
     if (lines.length === 0) return
+
+    // 检查是否在 7 天内已勾选不展示（且是同一版本）
+    try {
+      const raw = uni.getStorageSync(CHANGELOG_SEEN_KEY)
+      if (raw) {
+        const saved = JSON.parse(raw)
+        if (
+          saved.version === String(versionCode) &&
+          typeof saved.until === 'number' &&
+          Date.now() < saved.until
+        ) return // 7 天内且同版本 → 不展示
+      }
+    } catch {}
+
+    changelogSuppressChecked.value = false
     changelogTitle.value = data.title || '本期更新'
     changelogLines.value = lines
     changelogVersion.value = String(versionCode)
@@ -1073,6 +1096,40 @@ function startGame() {
   font-size: 26rpx;
   line-height: 1.55;
   color: #6a7f8c;
+  font-weight: 600;
+}
+.changelog-suppress-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-bottom: 24rpx;
+  padding: 0 4rpx;
+}
+.changelog-suppress-check {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 8rpx;
+  border: 2rpx solid rgba(169, 201, 238, 0.8);
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.changelog-suppress-check--on {
+  background: #91d58b;
+  border-color: #6fb868;
+}
+.changelog-suppress-tick {
+  font-size: 24rpx;
+  color: #fff;
+  font-weight: 800;
+  line-height: 1;
+}
+.changelog-suppress-label {
+  font-size: 24rpx;
+  color: #8eadcf;
   font-weight: 600;
 }
 .changelog-btn {
