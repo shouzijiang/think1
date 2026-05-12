@@ -54,34 +54,42 @@ class WechatHelper
     }
     
     /**
-     * 获取 access_token（带缓存）
+     * 获取 access_token（使用稳定版接口 getStableAccessToken，避免频繁失效）
+     * @param bool $forceRefresh 为 true 时强制刷新（遇到 40001 时使用）
      * @return string|false
      */
-    public static function getAccessToken()
+    public static function getAccessToken(bool $forceRefresh = false)
     {
-        // 从缓存读取
-        $cacheKey = 'wechat_access_token';
-        $token = Cache::get($cacheKey);
-        if ($token) {
-            return $token;
+        $cacheKey = 'wechat_access_token_stable';
+
+        if (!$forceRefresh) {
+            $token = Cache::get($cacheKey);
+            if ($token) {
+                return $token;
+            }
+        } else {
+            Cache::delete($cacheKey);
         }
-        
-        // 重新获取
+
         $config = self::getConfig();
-        $url = "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid={$config['appid']}&secret={$config['secret']}";
-        
-        $response = self::httpGet($url);
+        $url = 'https://api.weixin.qq.com/cgi-bin/stable_token';
+        $response = self::httpPost($url, [
+            'grant_type'    => 'client_credential',
+            'appid'         => $config['appid'],
+            'secret'        => $config['secret'],
+            'force_refresh' => $forceRefresh,
+        ]);
         $result = json_decode($response, true);
-        
+
         if (!isset($result['access_token'])) {
-            Log::error('获取access_token失败 ' . json_encode($result, JSON_UNESCAPED_UNICODE));
+            Log::error('获取 stable access_token 失败 ' . json_encode($result, JSON_UNESCAPED_UNICODE));
             return false;
         }
-        
-        // 缓存 access_token（提前5分钟过期）
+
+        // 稳定版 token 有效期也是 7200s，提前 5 分钟过期
         $expire = ($result['expires_in'] ?? 7200) - 300;
         Cache::set($cacheKey, $result['access_token'], $expire);
-        
+
         return $result['access_token'];
     }
     
@@ -133,6 +141,31 @@ class WechatHelper
         // 微信出错时返回 JSON；成功时返回 PNG 二进制流
         if ($body[0] === '{') {
             $json = json_decode($body, true);
+            // 40001 = token 失效，强制刷新后重试一次
+            if (($json['errcode'] ?? 0) === 40001 && !isset($retried)) {
+                $retried = true;
+                $accessToken = self::getAccessToken(true);
+                if (!$accessToken) return false;
+                // 更新 url 重试
+                $url = "https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token={$accessToken}";
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload, JSON_UNESCAPED_UNICODE));
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+                $body = curl_exec($ch);
+                curl_close($ch);
+                if (!$body || $body[0] === '{') {
+                    Log::error('getUnlimitedQrCode retry failed: ' . $body);
+                    return false;
+                }
+                return base64_encode($body);
+            }
             Log::error('getUnlimitedQrCode error: ' . json_encode($json, JSON_UNESCAPED_UNICODE));
             return false;
         }

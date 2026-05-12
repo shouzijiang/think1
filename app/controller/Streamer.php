@@ -9,7 +9,7 @@ use app\service\ChannelService;
 use think\Request;
 
 /**
- * 主播同玩控制器
+ * 同玩控制器
  * 主播渠道固定为 streamer_{userId}，通过 wxacode.getUnlimited 生成专属邀请码
  */
 class Streamer extends BaseController
@@ -51,6 +51,7 @@ class Streamer extends BaseController
     {
         $userId = (int) $request->user_id;
         $info   = $this->channelService->getStreamerInviteInfo($userId);
+        $info['userId'] = $userId; // 方便前端/调试确认是哪个用户
         return ResponseHelper::success($info);
     }
 }
