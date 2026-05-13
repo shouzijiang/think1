@@ -7,7 +7,9 @@ use think\console\Command;
 use think\console\Input;
 use think\console\Output;
 use Workerman\Worker;
+use Workerman\Timer;
 use Workerman\Connection\TcpConnection;
+use think\facade\Log;
 use app\common\FeishuBotHelper;
 use app\model\PunGameBattleRecord;
 use app\model\User;
@@ -18,6 +20,12 @@ class WebSocket extends Command
     // 保存房间信息与连接映射
     // $rooms[roomId] = ['creator' => connection, 'challenger' => connection, 'status' => 'waiting/playing', 'creator_ready' => bool, 'challenger_ready' => bool, 'creator_progress' => 0, 'challenger_progress' => 0]
     protected $rooms = [];
+
+    /** @var array<string, int> disconnect timer IDs [roomId => timerId] */
+    protected $disconnectTimers = [];
+
+    /** disconnect timeout seconds */
+    protected const DISCONNECT_TIMEOUT = 120;
 
     protected function configure()
     {
@@ -46,6 +54,20 @@ class WebSocket extends Command
         // 允许的连接数等配置
         $worker->count = 1; // 简单起见，单进程保存内存状态
         $worker->name = 'PunBattleWebSocket';
+
+        // 进程启动时清理残留的 status=1 记录（进程重启导致内存丢失）
+        $worker->onWorkerStart = function () {
+            $staleCount = PunGameBattleRecord::where('status', 1)->count();
+            if ($staleCount > 0) {
+                Log::channel('battle')->info('[STARTUP] cleaning ' . $staleCount . ' stale status=1 records');
+                PunGameBattleRecord::where('status', 1)->update([
+                    'status'       => 2,
+                    'total_time_ms' => 0,
+                    'updated_at'   => date('Y-m-d H:i:s'),
+                ]);
+            }
+            Log::channel('battle')->info('[STARTUP] WebSocket worker started');
+        };
 
         $worker->onConnect = function(TcpConnection $connection) {
             $connection->send(json_encode(['action' => 'connected', 'msg' => 'Please auth']));
@@ -192,8 +214,18 @@ class WebSocket extends Command
 
         // 检查是否断线重连（游戏正在进行中）
         if ($room['status'] === 'playing') {
+            Log::channel('battle')->info('[RECONNECT] userId=' . $connection->userId . ' role=' . $connection->role . ' roomId=' . $roomId);
+            // 重连成功，取消断线判负定时器
+            if (isset($this->disconnectTimers[$roomId])) {
+                Timer::del($this->disconnectTimers[$roomId]);
+                unset($this->disconnectTimers[$roomId]);
+            }
             $myRole = $connection->role;
             $opponentRole = $myRole === 'creator' ? 'challenger' : 'creator';
+            // 通知对方：对手已重连
+            if ($room[$opponentRole]) {
+                $room[$opponentRole]->send(json_encode(['action' => 'opponent_reconnected']));
+            }
             $timePassed = (microtime(true) * 1000) - ($room['start_time'] ?: (microtime(true) * 1000));
             $connection->send(json_encode([
                 'action' => 'resume_game',
@@ -229,6 +261,7 @@ class WebSocket extends Command
         if ($room['creator_ready'] && $room['challenger_ready'] && $room['status'] === 'waiting') {
             $room['status'] = 'playing';
             $room['start_time'] = microtime(true) * 1000;
+            Log::channel('battle')->info('[START] roomId=' . $roomId . ' game started');
             
             // 更新数据库状态
             $record = PunGameBattleRecord::where('room_id', $roomId)->find();
@@ -311,6 +344,8 @@ class WebSocket extends Command
         $room[$role . '_finished'] = true;
         $room[$role . '_time'] = $totalTimeMs;
 
+        Log::channel('battle')->info('[FINISH] userId=' . $connection->userId . ' role=' . $role . ' roomId=' . $roomId . ' totalTimeMs=' . $totalTimeMs);
+
         // 只要有一方完成，立刻判赢并结束游戏（总耗时仅记胜方通关用时）
         $this->settleGameImmediately($roomId, $connection->userId, $totalTimeMs);
     }
@@ -325,6 +360,7 @@ class WebSocket extends Command
         $record->status = 2; // 已结束
         $record->winner_id = $winnerId;
         $record->total_time_ms = $winnerTimeMs;
+        Log::channel('battle')->info('[SETTLE] roomId=' . $roomId . ' winnerId=' . $winnerId . ' timeMs=' . $winnerTimeMs);
 
         // 结束态写入：确保 join/game_over 仍能拿到真实 dots
         $record->creator_progress = (int) ($room['creator_progress'] ?? 0);
@@ -362,6 +398,8 @@ class WebSocket extends Command
 
         $room = &$this->rooms[$roomId];
         $role = $connection->role ?? '';
+        $userId = $connection->userId ?? 0;
+        Log::channel('battle')->info('[CLOSE] userId=' . $userId . ' role=' . $role . ' roomId=' . $roomId . ' roomStatus=' . ($room['status'] ?? ''));
 
         if ($role === 'creator') {
             $room['creator'] = null;
@@ -370,11 +408,70 @@ class WebSocket extends Command
         }
 
         if ($room['status'] === 'playing') {
-            // 不再自动判负，保留房间状态，等待玩家重连
-            // 对方可以通过对方发来的消息获知你掉线了，不过这里为了简单，不通知了
+            // 通知对方：你的对手已断线
+            $opponentRole = $role === 'creator' ? 'challenger' : 'creator';
+            if ($room[$opponentRole]) {
+                $room[$opponentRole]->send(json_encode([
+                    'action' => 'opponent_disconnected',
+                    'timeout' => self::DISCONNECT_TIMEOUT,
+                ]));
+            }
+
+            // 如果已有定时器（说明双方都掉了），不再重复设置
+            if (!isset($this->disconnectTimers[$roomId])) {
+                $timeout = self::DISCONNECT_TIMEOUT;
+                Log::channel('battle')->info('[TIMER] starting ' . $timeout . 's timer, roomId=' . $roomId . ' disconnectedRole=' . $role);
+                $this->disconnectTimers[$roomId] = Timer::add(self::DISCONNECT_TIMEOUT, function () use ($roomId, $role) {
+                    $this->settleByDisconnect($roomId, $role);
+                }, [], false);
+            }
         } else {
             $this->broadcastRoomInfo($roomId);
         }
+    }
+
+    /**
+     * 断线超时判负：disconnectedRole 判负，对方获胜
+     */
+    private function settleByDisconnect(string $roomId, string $disconnectedRole): void
+    {
+        Log::channel('battle')->info('[TIMEOUT] fired, roomId=' . $roomId . ' disconnectedRole=' . $disconnectedRole);
+        unset($this->disconnectTimers[$roomId]);
+        if (!isset($this->rooms[$roomId])) return;
+        $room = &$this->rooms[$roomId];
+        if ($room['status'] !== 'playing') return;
+
+        $record = PunGameBattleRecord::where('room_id', $roomId)->find();
+        if (!$record || (int) $record->status !== 1) return;
+
+        // 判对方获胜
+        $winnerId = $disconnectedRole === 'creator'
+            ? (int) $record->challenger_id
+            : (int) $record->creator_id;
+
+        Log::channel('battle')->info('[TIMEOUT] settle roomId=' . $roomId . ' winnerId=' . $winnerId . ' disconnected=' . $disconnectedRole);
+        $room['status'] = 'finished';
+        $record->status = 2;
+        $record->winner_id = $winnerId;
+        $record->total_time_ms = 0;
+        $record->creator_progress = (int) ($room['creator_progress'] ?? 0);
+        $record->challenger_progress = (int) ($room['challenger_progress'] ?? 0);
+        $record->save();
+
+        // 通知在线的一方
+        $winnerRole = $disconnectedRole === 'creator' ? 'challenger' : 'creator';
+        if ($room[$winnerRole]) {
+            $room[$winnerRole]->send(json_encode([
+                'action' => 'game_over',
+                'winnerId' => $winnerId,
+                'totalTimeMs' => 0,
+                'reason' => 'opponent_disconnected',
+                'myProgress' => (int) ($room[$winnerRole . '_progress'] ?? 0),
+                'opponentProgress' => (int) ($room[$disconnectedRole . '_progress'] ?? 0),
+            ]));
+        }
+
+        unset($this->rooms[$roomId]);
     }
 
     private function broadcastRoomInfo(string $roomId)

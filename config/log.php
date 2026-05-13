@@ -52,6 +52,19 @@ return [
             'format'         => '[%s][%s] %s',
             'realtime_write' => true,
         ],
+        /** WebSocket 对战日志（battle 通道，单文件 battle.log） */
+        'battle' => [
+            'type'           => 'File',
+            'path'           => '',
+            'single'         => 'battle',
+            'max_files'      => 30,
+            'apart_level'    => [],
+            'json'           => false,
+            'processor'      => null,
+            'close'          => false,
+            'format'         => '[%s][%s] %s',
+            'realtime_write' => true,
+        ],
         // 其它日志通道配置
     ],
 
