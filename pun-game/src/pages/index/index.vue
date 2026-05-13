@@ -311,20 +311,7 @@ onShareTimeline(() => ({
 }))
 
 function goRank() {
-  // #ifdef MP-WEIXIN
-  wx.getUserProfile({
-    desc: '用于展示排行榜头像与昵称',
-    success: () => {
-      uni.navigateTo({ url: '/pages/rank/rank' })
-    },
-    fail: () => {
-      uni.showToast({ title: '需要授权才能查看排行榜', icon: 'none' })
-    },
-  })
-  // #endif
-  // #ifndef MP-WEIXIN
   uni.navigateTo({ url: '/pages/rank/rank' })
-  // #endif
 }
 function goMine() {
   uni.navigateTo({ url: '/pages/mine/mine' })

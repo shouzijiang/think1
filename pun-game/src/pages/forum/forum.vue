@@ -55,8 +55,11 @@
         :class="['item-wrap', { 'item-wrap--open': expandedId === item.id }]"
       >
         <view class="item" @click="toggleThread(item.id)">
-          <image v-if="item.avatar" class="avatar-img" :src="item.avatar" mode="aspectFill" />
-          <view v-else class="avatar-fallback">👤</view>
+          <image
+            class="avatar-img"
+            :src="item.avatar || DEFAULT_AVATAR_URL"
+            mode="aspectFill"
+          />
 
           <view class="item-body">
             <view class="item-header">
@@ -138,6 +141,7 @@ import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
+import { DEFAULT_AVATAR_URL } from '../../utils/defaultAvatar'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
@@ -457,21 +461,13 @@ onShow(async () => {
   border-radius: 24rpx 24rpx 0 0;
 }
 
-.avatar-img,
-.avatar-fallback {
+.avatar-img {
   width: 78rpx;
   height: 78rpx;
   border-radius: 50%;
   border: 2rpx solid rgba(169, 201, 238, 0.2);
   background: rgba(240, 230, 220, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   flex-shrink: 0;
-}
-
-.avatar-fallback {
-  font-size: 38rpx;
 }
 
 .item-body {

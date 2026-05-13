@@ -13,7 +13,12 @@
         :src="userInfo.avatar + (userInfo.avatar.includes('?') ? '&' : '?') + '_t=' + avatarTs"
         mode="aspectFill"
       />
-      <view v-else class="user-avatar user-avatar-placeholder">👤</view>
+      <image
+        v-else
+        class="user-avatar"
+        :src="DEFAULT_AVATAR_URL"
+        mode="aspectFit"
+      />
     </button>
     <view class="nickname-wrapper">
       <input
@@ -39,7 +44,12 @@
         :src="userInfo.avatar + (userInfo.avatar.includes('?') ? '&' : '?') + '_t=' + avatarTs"
         mode="aspectFill"
       />
-      <view v-else class="user-avatar user-avatar-placeholder">👤</view>
+      <image
+        v-else
+        class="user-avatar"
+        :src="DEFAULT_AVATAR_URL"
+        mode="aspectFit"
+      />
     </button>
     <view class="nickname-wrapper">
       <input
@@ -63,7 +73,12 @@
         :src="userInfo.avatar + (userInfo.avatar.includes('?') ? '&' : '?') + '_t=' + avatarTs"
         mode="aspectFill"
       />
-      <view v-else class="user-avatar user-avatar-placeholder">👤</view>
+      <image
+        v-else
+        class="user-avatar"
+        :src="DEFAULT_AVATAR_URL"
+        mode="aspectFit"
+      />
     </view>
     <view class="nickname-wrapper">
       <text class="user-nickname">{{ userInfo?.nickname || '用户' }}</text>
@@ -76,6 +91,7 @@
 
 <script setup>
 import { useUserProfileNav } from '../composables/useUserProfileNav'
+import { DEFAULT_AVATAR_URL } from '../utils/defaultAvatar'
 
 const {
   userInfo,
@@ -144,16 +160,6 @@ defineExpose({ loadUserInfo })
   border-radius: 50%;
   border: none;
   display: block;
-}
-.user-avatar-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 48rpx;
-  background: rgba(234, 246, 249, 0.95);
-  filter: saturate(0.88);
 }
 .nickname-wrapper {
   flex: 1;

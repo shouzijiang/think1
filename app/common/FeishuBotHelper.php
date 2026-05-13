@@ -33,15 +33,19 @@ class FeishuBotHelper
     /**
      * 发送纯文本（失败仅打日志，不影响业务）
      */
-    public static function sendText(string $text): bool
+    public static function sendText(string $text, string $webhookUrl = '', string $secret = ''): bool
     {
         $cfg = self::getConfig();
-        if ($cfg['webhook_url'] === '' || $cfg['secret'] === '') {
+        if ($webhookUrl !== '') {
+            $cfg['webhook_url'] = $webhookUrl;
+            $cfg['secret']      = $secret;
+        }
+        if ($cfg['webhook_url'] === '') {
             return false;
         }
 
         $timestamp = (string) time();
-        $sign = self::genSign($cfg['secret'], $timestamp);
+        $sign = $cfg['secret'] !== '' ? self::genSign($cfg['secret'], $timestamp) : '';
 
         $payload = [
             'timestamp' => $timestamp,
@@ -147,6 +151,10 @@ class FeishuBotHelper
             mb_substr($content, 0, 200, 'UTF-8') . (mb_strlen($content, 'UTF-8') > 200 ? '…' : ''),
             $contact !== '' ? "\n联系方式：{$contact}" : ''
         );
-        self::sendText($text);
+        self::sendText(
+            $text,
+            (string) env('FEISHU_FEEDBACK_WEBHOOK_URL', ''),
+            (string) env('FEISHU_FEEDBACK_WEBHOOK_SECRET', '')
+        );
     }
 }

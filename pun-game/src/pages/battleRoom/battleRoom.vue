@@ -25,8 +25,11 @@
           <!-- 房主 -->
           <view class="player-box">
             <view class="avatar-wrap">
-              <image v-if="creator?.avatar" :src="creator.avatar" class="avatar" mode="aspectFill" />
-              <view v-else class="avatar placeholder">？</view>
+              <image
+                class="avatar"
+                :src="creator?.avatar || DEFAULT_AVATAR_URL"
+                mode="aspectFill"
+              />
               <view v-if="creatorReady" class="ready-badge">已准备</view>
             </view>
             <text class="name">{{ creator?.nickname || '等待加入...' }}</text>
@@ -37,8 +40,11 @@
           <!-- 挑战者 -->
           <view class="player-box">
             <view class="avatar-wrap">
-              <image v-if="challenger?.avatar" :src="challenger.avatar" class="avatar" mode="aspectFill" />
-              <view v-else class="avatar placeholder">？</view>
+              <image
+                class="avatar"
+                :src="challenger?.avatar || DEFAULT_AVATAR_URL"
+                mode="aspectFill"
+              />
               <view v-if="challengerReady" class="ready-badge">已准备</view>
             </view>
             <text class="name">{{ challenger?.nickname || '等待加入...' }}</text>
@@ -164,6 +170,7 @@ import { wsApi } from '../../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { getUserInfo, wechatLogin } from '../../utils/auth'
+import { DEFAULT_AVATAR_URL } from '../../utils/defaultAvatar'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
@@ -864,15 +871,6 @@ function goHistory() {
   border-radius: 50%;
   border: 6rpx solid #fff;
   box-shadow: 0 8rpx 16rpx rgba(0,0,0,0.1);
-}
-.placeholder {
-  background: #e2e8f0;
-  color: #94a3b8;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 48rpx;
-  font-weight: bold;
 }
 .ready-badge {
   position: absolute;

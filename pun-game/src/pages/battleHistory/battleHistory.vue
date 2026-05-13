@@ -29,8 +29,11 @@
           <!-- 我 -->
           <view class="player my-player">
             <view class="avatar-wrap">
-              <image v-if="userInfo?.avatar" :src="userInfo.avatar" class="avatar" mode="aspectFill" />
-              <view v-else class="avatar placeholder">我</view>
+              <image
+                class="avatar"
+                :src="userInfo?.avatar || DEFAULT_AVATAR_URL"
+                mode="aspectFill"
+              />
               <view v-if="item.result === 'win'" class="crown">👑</view>
             </view>
             <text class="name">我</text>
@@ -44,8 +47,11 @@
           <!-- 对手 -->
           <view class="player opponent-player">
             <view class="avatar-wrap">
-              <image v-if="item.opponentAvatar" :src="item.opponentAvatar" class="avatar" mode="aspectFill" />
-              <view v-else class="avatar placeholder">对</view>
+              <image
+                class="avatar"
+                :src="item.opponentAvatar || DEFAULT_AVATAR_URL"
+                mode="aspectFill"
+              />
               <view v-if="item.result === 'lose'" class="crown">👑</view>
             </view>
             <text class="name">{{ item.opponentName }}</text>
@@ -70,6 +76,7 @@ import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { getUserInfo } from '../../utils/auth'
+import { DEFAULT_AVATAR_URL } from '../../utils/defaultAvatar'
 import { useWechatPageShare } from '../../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -222,16 +229,6 @@ function calcListHeight() {
   border-radius: 50%;
   border: 4rpx solid #fff;
   box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.1);
-}
-
-.placeholder {
-  background: #e2e8f0;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32rpx;
-  font-weight: bold;
 }
 
 .crown {

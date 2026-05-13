@@ -54,7 +54,7 @@
 | `/pun/reward/claim` | POST | 统一领奖接口：`type=share/reward_video/daily_noon_hint_5/daily_watch_ad_hint_1/daily_battle_3_hint_3/permanent_set_avatar/permanent_set_nickname/permanent_my_mini_program_hint_3` 等；**成功领取**时写 `pun_reward_claim_record` |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
 | `/pun/stats/home` | GET | 首页统计（无需 Token）：`players` 为 `pun_game_level_progress` 行数，`answers` 为全表 `JSON_LENGTH(passed_levels)+JSON_LENGTH(passed_levels_mid)` 之和 |
-| `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分；同分按**该模式** `last_pass_at_*`，无则回退行 `updated_at`） |
+| `/pun/rank/list` | GET | 获取排行榜（支持分页及 `gameTier=beginner/mid/xhs` 区分；同分按**该模式** `last_pass_at_*`，无则回退行 `updated_at`）；响应含 `nickname`/`avatar`；**小程序端**无头像时用与首页一致的默认图 `index-badge.jpg`，昵称脱敏：仅首字可见，其余每位一个 `*`；昵称为空时显示 `*` |
 | `/pun/feedback/submit` | POST | 提交意见反馈 (`bug/suggest/other`) |
 | `/pun/mail/list` | GET | 信箱列表（当前用户可见：全服+单发），返回每封邮件 `isRead/readAt` |
 | `/pun/mail/detail` | GET | 邮件详情，并自动写入已读记录 |
@@ -64,7 +64,7 @@
 | `/pun/forum/reply/create` | POST | 回复帖子或二级评论 |
 | `/pun/battle/create` | POST | 1V1：创建对战房间 |
 | `/pun/battle/history` | GET | 1V1：获取个人历史对战记录 |
-| `/pun/battle/rank` | GET | 1V1：全局对战排行榜（分页；统计已结束且有胜负的局：`win_count`/`lose_count`，不含平局），无需 Token |
+| `/pun/battle/rank` | GET | 1V1：全局对战排行榜（分页；统计已结束且有胜负的局：`win_count`/`lose_count`，不含平局），无需 Token；**小程序端**头像默认图与昵称脱敏同 `/pun/rank/list` |
 
 #### 分步提示 `/pun/level/reveal-hint`（需登录）
 
