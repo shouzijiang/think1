@@ -82,34 +82,16 @@ class AccessLogAndIpBlacklist
         float $t0,
         bool $blocked
     ): void {
-        $maxParam = (int) ($cfg['max_param_json_length'] ?? 2000);
         $channel = (string) ($cfg['access_log_channel'] ?? 'request_audit');
 
-        // 仅记录已解析的 GET/POST，避免再读 raw body（部分环境下 php://input 仅可读一次）
-        $params = array_merge($request->get(), $request->post());
-        $paramJson = json_encode($params, JSON_UNESCAPED_UNICODE);
-        if ($paramJson !== false && strlen($paramJson) > $maxParam) {
-            $paramJson = substr($paramJson, 0, $maxParam) . '…(truncated)';
-        }
-
         $line = json_encode([
-            'ts' => date('Y-m-d H:i:s'),
-            'blocked' => $blocked,
             'ip' => $clientIp,
-            'xff' => $request->header('x-forwarded-for', ''),
-            'xri' => $request->header('x-real-ip', ''),
             'method' => $request->method(),
             'path' => $request->pathinfo(),
-            'url' => $request->url(true),
-            'query_string' => (string) $request->server('QUERY_STRING', ''),
-            'ua' => $request->header('user-agent', ''),
-            'referer' => $request->header('referer', ''),
             'status' => $httpStatus,
             'ms' => round((microtime(true) - $t0) * 1000, 2),
-            'has_auth' => $request->header('authorization', '') !== '',
             'user_id' => $request->user_id ?? null,
-            'params' => $paramJson === false ? '' : $paramJson,
-        ], JSON_UNESCAPED_UNICODE);
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         if ($line === false) {
             $line = '{"error":"json_encode_failed"}';
