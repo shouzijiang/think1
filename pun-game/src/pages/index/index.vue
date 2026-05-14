@@ -64,7 +64,7 @@
         <text class="btn-sub-text">1V1对战</text>
       </view>
       <view class="btn-entry btn-levels" @click="goLevels">
-        <text class="btn-icon">🧩</text>
+        <text class="btn-icon">📋</text>
         <text class="btn-text">我的关卡</text>
       </view>
     </view>
@@ -98,13 +98,11 @@
     <view class="side-toolbar">
       <view class="toolbar-item" @click.stop="toggleBgm">
         <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
-        <text class="toolbar-text">背景</text>
         <text class="toolbar-text">音乐</text>
       </view>
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click.stop="toggleSfx">
         <text class="toolbar-icon">{{ sfxOn ? '🔊' : '🔕' }}</text>
-        <text class="toolbar-text">交互</text>
         <text class="toolbar-text">音效</text>
       </view>
       <view class="toolbar-divider"></view>
@@ -118,20 +116,20 @@
         <text class="toolbar-text">交流</text>
       </view> -->
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item toolbar-item--asset-highlight" @click.stop="goMine">
-        <text class="toolbar-icon">💴</text>
-        <text class="toolbar-text">资产</text>
-      </view>
-      <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click.stop="goMail">
         <text class="toolbar-icon">✉️</text>
         <text class="toolbar-text">邮件</text>
       </view>
-    </view>
-
-    <view class="daily-task-float" @click="goTasks">
-      <text class="daily-task-float-icon">🎁</text>
-      <text class="daily-task-float-text">每日任务</text>
+      <view class="toolbar-divider"></view>
+      <view class="toolbar-item" @click.stop="goMine">
+        <text class="toolbar-icon">🎁</text>
+        <text class="toolbar-text">任务</text>
+      </view>
+      <view class="toolbar-divider"></view>
+      <view class="toolbar-item" @click.stop="goMine">
+        <text class="toolbar-icon">💴</text>
+        <text class="toolbar-text">我的</text>
+      </view>
     </view>
 
     <view class="streamer-float" @click="goStreamer">
@@ -462,11 +460,11 @@ function startGame() {
   flex-direction: column;
   align-items: center;
   margin: 4vh 0 9vh;
-  animation: float 3s ease-in-out infinite;
+  animation: float 1s ease-in-out infinite;
 }
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-12rpx); }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
 }
 .hero-badge {
   width: 200rpx;
@@ -501,8 +499,7 @@ function startGame() {
 }
 .subtitle {
   font-size: 24rpx;
-  font-weight: 600;
-  color: #8eadcf;
+  color: #3a86da;
   letter-spacing: 0.06em;
   background: rgba(255, 255, 255, 0.72);
   padding: 10rpx 26rpx;
@@ -534,7 +531,7 @@ function startGame() {
   padding: 28rpx 40rpx;
   border-radius: 28rpx;
   font-size: 30rpx;
-  font-weight: 700;
+  // font-weight: 700;
   letter-spacing: 0.04em;
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
   overflow: hidden;
@@ -654,7 +651,7 @@ function startGame() {
 .xhs-new-text {
   font-size: 20rpx;
   line-height: 1.1;
-  font-weight: 700;
+  // font-weight: 700;
   letter-spacing: 0.06em;
   padding: 0 5rpx;
   color: #fff;
@@ -683,17 +680,18 @@ function startGame() {
 }
 .btn-start-main {
   width: 100%;
-  padding: 36rpx 40rpx;
-  font-size: 40rpx;
+  padding: 46rpx 40rpx;
+  font-size: 46rpx;
   // 字间距
-  letter-spacing: 0.2em;
+  letter-spacing: 0.4em;
+  font-weight: bold;
 }
 .start-sub-row .btn-start {
   flex: 1;
   min-width: 0;
   flex-direction: column;
   gap: 12rpx;
-  padding: 24rpx 18rpx;
+  padding: 34rpx 18rpx;
   font-size: 26rpx;
 }
 .btn-start:active {
@@ -734,9 +732,9 @@ function startGame() {
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(10px);
   border-radius: 24rpx;
-  color: #8eadcf;
+  color: #3a86da;
   font-size: 26rpx;
-  font-weight: 700;
+  // font-weight: 700;
   box-shadow:
     0 18rpx 24rpx rgba(169, 201, 238, 0.26),
     0 10rpx 0 rgba(117, 154, 194, 0.28),
@@ -746,6 +744,7 @@ function startGame() {
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
   overflow: hidden;
   position: relative;
+  font-weight: none;
 }
 .btn-entry::before {
   content: '';
@@ -799,10 +798,8 @@ function startGame() {
   filter: drop-shadow(0 3rpx 6rpx rgba(54, 84, 120, 0.2));
 }
 .btn-text {
-  font-size: 26rpx;
-  font-weight: 700;
+  font-size: 28rpx;
   line-height: 1.2;
-  text-shadow: 0 2rpx 6rpx rgba(54, 84, 120, 0.18);
 }
 
 .battle-badge {
@@ -836,8 +833,7 @@ function startGame() {
 }
 .stats-text {
   font-size: 22rpx;
-  font-weight: 600;
-  color: #8eadcf;
+  color: #3a86da;
   letter-spacing: 0.03em;
   background: rgba(255, 255, 255, 0.65);
   padding: 10rpx 26rpx;
@@ -848,7 +844,7 @@ function startGame() {
 .side-toolbar {
   position: fixed;
   right: 0rpx;
-  bottom: 220rpx;
+  bottom: 15%;
   z-index: 50;
   display: flex;
   flex-direction: column;
@@ -969,8 +965,8 @@ function startGame() {
   align-items: center;
   justify-content: center;
   width: 100rpx;
-  height: 100rpx;
-  gap: 6rpx;
+  height: 90rpx;
+  gap: 4rpx;
   transition: all 0.15s ease;
 }
 
@@ -1027,9 +1023,8 @@ function startGame() {
 }
 
 .toolbar-text {
-  font-size: 18rpx;
-  color: #8eadcf;
-  font-weight: 600;
+  font-size: 22rpx;
+  color: #3a86da;
   line-height: 1;
   white-space: nowrap;
 }
@@ -1085,8 +1080,7 @@ function startGame() {
   flex: 1;
   font-size: 26rpx;
   line-height: 1.55;
-  color: #6a7f8c;
-  font-weight: 600;
+  color: #3a86da;
 }
 .changelog-suppress-row {
   display: flex;
@@ -1119,7 +1113,7 @@ function startGame() {
 }
 .changelog-suppress-label {
   font-size: 24rpx;
-  color: #8eadcf;
+  color: #3a86da;
   font-weight: 600;
 }
 .changelog-btn {

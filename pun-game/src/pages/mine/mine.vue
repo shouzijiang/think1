@@ -72,7 +72,7 @@
         </view>
       </view>
       <view class="cell" @click="goLevels">
-        <text class="cell-icon">🧩</text>
+        <text class="cell-icon">📋</text>
         <text class="cell-text">我的关卡</text>
         <text class="cell-arrow">›</text>
       </view>
