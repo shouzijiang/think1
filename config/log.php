@@ -42,8 +42,8 @@ return [
         /** HTTP 访问审计（每行一条 JSON，由 AccessLogAndIpBlacklist 中间件写入） */
         'request_audit' => [
             'type'           => 'File',
-            'path'           => '',
-            'single'         => 'request_audit',
+            'path'           => runtime_path('log/request_audit'),
+            'single'         => false,
             'max_files'      => 30,
             'apart_level'    => [],
             'json'           => false,
@@ -55,8 +55,8 @@ return [
         /** WebSocket 对战日志（battle 通道，单文件 battle.log） */
         'battle' => [
             'type'           => 'File',
-            'path'           => '',
-            'single'         => 'battle',
+            'path'           => runtime_path('log/battle'),
+            'single'         => false,
             'max_files'      => 30,
             'apart_level'    => [],
             'json'           => false,
