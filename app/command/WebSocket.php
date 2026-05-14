@@ -215,10 +215,12 @@ class WebSocket extends Command
         // 检查是否断线重连（游戏正在进行中）
         if ($room['status'] === 'playing') {
             Log::channel('battle')->info('[RECONNECT] userId=' . $connection->userId . ' role=' . $connection->role . ' roomId=' . $roomId);
-            // 重连成功，取消断线判负定时器
-            if (isset($this->disconnectTimers[$roomId])) {
+            // 只有断线方自己重连才取消定时器
+            if (isset($this->disconnectTimers[$roomId]) && ($room['disconnected_role'] ?? '') === $connection->role) {
                 Timer::del($this->disconnectTimers[$roomId]);
                 unset($this->disconnectTimers[$roomId]);
+                unset($room['disconnected_role']);
+                Log::channel('battle')->info('[TIMER] cancelled, roomId=' . $roomId . ' reconnectedRole=' . $connection->role);
             }
             $myRole = $connection->role;
             $opponentRole = $myRole === 'creator' ? 'challenger' : 'creator';
@@ -416,6 +418,9 @@ class WebSocket extends Command
                     'timeout' => self::DISCONNECT_TIMEOUT,
                 ]));
             }
+
+            // 记录断线角色
+            $room['disconnected_role'] = $role;
 
             // 如果已有定时器（说明双方都掉了），不再重复设置
             if (!isset($this->disconnectTimers[$roomId])) {
