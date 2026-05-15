@@ -25,28 +25,33 @@
     </view>
 
     <view class="start-wrap">
-      <view class="btn-start btn-start-main" @click="startGameMid">
-        <image
+      <view class="btn-start btn-start-main" @click="startGame">
+        <!-- <image
           class="btn-start-icon"
           src="https://sofun.online/static/mini/start.png"
           mode="aspectFit"
-        />
+        /> -->
         <text class="btn-start-text">开始游戏</text>
+        <text class="btn-start-text btn-start-text2">(小红书专辑)</text>
       </view>
       <view class="start-sub-row">
         <view class="btn-start btn-start-xhs" @click="startGameXhs">
-          <view class="xhs-new-badge">
+          <!-- <view class="xhs-new-badge">
             <text class="xhs-new-text">新</text>
-          </view>
+          </view> -->
           <image
             class="btn-icon btn-icon-img"
             src="https://sofun.online/static/mini/xhs.png"
             mode="aspectFit"
           />
-          <text class="btn-text">小红书专辑</text>
+          <text class="btn-text">经典专辑</text>
         </view>
-        <view class="btn-start btn-start-2" @click="startGame">
-          <text class="btn-icon">🌱</text>
+        <view class="btn-start btn-start-2" @click="startGameMid">
+          <image
+            class="btn-icon btn-icon-img"
+            src="https://sofun.online/static/mini/gttc.png"
+            mode="aspectFit"
+          />
           <text class="btn-text">梗图填词</text>
         </view>
       </view>
@@ -97,17 +102,43 @@
 
     <view class="side-toolbar">
       <view class="toolbar-item" @click.stop="toggleBgm">
-        <text class="toolbar-icon">{{ bgmOn ? '🎵' : '🔇' }}</text>
+        <image
+          v-if="bgmOn"
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/bgm.png"
+          mode="aspectFit"
+        />
+        <image
+          v-else
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/close-yy.png"
+          mode="aspectFit"
+        />
         <text class="toolbar-text">音乐</text>
       </view>
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click.stop="toggleSfx">
-        <text class="toolbar-icon">{{ sfxOn ? '🔊' : '🔕' }}</text>
+        <image
+          v-if="sfxOn"
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/sfx.png"
+          mode="aspectFit"
+        />
+        <image
+          v-else
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/close-yy.png"
+          mode="aspectFit"
+        />
         <text class="toolbar-text">音效</text>
       </view>
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click="goRank">
-        <text class="toolbar-icon">🏆</text>
+        <image
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/rank.png"
+          mode="aspectFit"
+        />
         <text class="toolbar-text">榜单</text>
       </view>
       <!-- <view class="toolbar-divider"></view>
@@ -117,17 +148,29 @@
       </view> -->
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click.stop="goMail">
-        <text class="toolbar-icon">✉️</text>
+        <image
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/mail.png"
+          mode="aspectFit"
+        />
         <text class="toolbar-text">邮件</text>
       </view>
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click.stop="goMine">
-        <text class="toolbar-icon">🎁</text>
+      <view class="toolbar-item" @click.stop="goTasks">
+        <image
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/tasks.png"
+          mode="aspectFit"
+        />
         <text class="toolbar-text">任务</text>
       </view>
       <view class="toolbar-divider"></view>
       <view class="toolbar-item" @click.stop="goMine">
-        <text class="toolbar-icon">💴</text>
+        <image
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/mine.png"
+          mode="aspectFit"
+        />
         <text class="toolbar-text">我的</text>
       </view>
     </view>
@@ -537,16 +580,19 @@ function startGame() {
   overflow: hidden;
   box-sizing: border-box;
 
-  /* 主按钮：薄荷绿实底 + 白字 */
-  background: linear-gradient(180deg, #a3dd9c 0%, #91d58b 55%, #85c97f 100%);
-  color: #fff;
-  border: 2rpx solid rgba(255, 255, 255, 0.68);
+  background: linear-gradient(
+    180deg,
+    rgb(255, 216, 229) 0%,
+    rgb(245, 175, 200) 55%,
+    rgb(231, 139, 174) 100%
+  );
+  color: #B83B5E;
+  border: 2rpx solid rgba(255, 255, 255, 0.64);
   box-shadow:
-    0 22rpx 32rpx rgba(145, 213, 139, 0.38),
-    0 12rpx 0 rgba(72, 145, 68, 0.34),
-    inset 0 2rpx 0 rgba(255, 255, 255, 0.4),
-    inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.16);
-
+    0 20rpx 30rpx rgba(245, 137, 163, 0.36),
+    0 12rpx 0 rgba(189, 90, 126, 0.26),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.2),
+    inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
   &::before {
     content: '';
     position: absolute;
@@ -584,33 +630,30 @@ function startGame() {
   &.btn-start-2 {
     background: linear-gradient(
       180deg,
-      rgb(142, 236, 224) 0%,
-      rgb(102, 222, 209) 55%,
-      rgb(72, 200, 186) 100%
+      #8bd4ff 0%,
+      #56b4f8 55%,
+      #2f8fe5 100%
     );
     color: #fff;
     border: 2rpx solid rgba(255, 255, 255, 0.64);
     box-shadow:
-      0 20rpx 30rpx rgba(102, 222, 209, 0.42),
-      0 12rpx 0 rgba(38, 156, 144, 0.3),
+      0 20rpx 30rpx rgba(79, 167, 245, 0.42),
+      0 12rpx 0 rgba(34, 108, 186, 0.3),
       inset 0 2rpx 0 rgba(255, 255, 255, 0.2),
       inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
   }
 
   &.btn-start-xhs {
-    background: linear-gradient(
-      180deg,
-      rgb(255, 216, 229) 0%,
-      rgb(245, 175, 200) 55%,
-      rgb(231, 139, 174) 100%
-    );
+
+    /* 主按钮：薄荷绿实底 + 白字 */
+    background: linear-gradient(180deg, #ffe49a 0%, #ffc857 55%, #f4a62a 100%);
     color: #fff;
-    border: 2rpx solid rgba(255, 255, 255, 0.64);
+    border: 2rpx solid rgba(255, 255, 255, 0.68);
     box-shadow:
-      0 20rpx 30rpx rgba(245, 137, 163, 0.36),
-      0 12rpx 0 rgba(189, 90, 126, 0.26),
-      inset 0 2rpx 0 rgba(255, 255, 255, 0.2),
-      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
+      0 22rpx 32rpx rgba(255, 190, 74, 0.42),
+      0 12rpx 0 rgba(184, 118, 18, 0.34),
+      inset 0 2rpx 0 rgba(255, 255, 255, 0.4),
+      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.16);
 
     .btn-icon-img {
       width: 40rpx;
@@ -618,7 +661,7 @@ function startGame() {
     }
 
     .btn-text {
-      text-shadow: 0 2rpx 8rpx rgba(120, 48, 78, 0.28);
+      text-shadow: 0 2rpx 8rpx rgba(120, 78, 12, 0.32);
       // color: #ff2442;
     }
   }
@@ -680,11 +723,15 @@ function startGame() {
 }
 .btn-start-main {
   width: 100%;
-  padding: 46rpx 40rpx;
+  padding: 26rpx 40rpx;
   font-size: 46rpx;
-  // 字间距
-  letter-spacing: 0.4em;
   font-weight: bold;
+  flex-direction: column;
+  .btn-start-text {
+    // 字间距
+    letter-spacing: 0.4em;
+
+  }
 }
 .start-sub-row .btn-start {
   flex: 1;
@@ -707,10 +754,13 @@ function startGame() {
   width: 44rpx;
   height: 44rpx;
   flex-shrink: 0;
-  filter: drop-shadow(0 3rpx 6rpx rgba(0, 0, 0, 0.16));
 }
 .btn-start-text {
   text-shadow: 0 3rpx 8rpx rgba(0, 0, 0, 0.2);
+}
+.btn-start-text2 {
+  font-size: 22rpx;
+  display: block;
 }
 
 .top-actions {
@@ -745,6 +795,12 @@ function startGame() {
   overflow: hidden;
   position: relative;
   font-weight: none;
+
+  &.btn-entry--battle{
+    .btn-text {
+      font-size: 26rpx;
+    }
+  }
 }
 .btn-entry::before {
   content: '';

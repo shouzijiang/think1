@@ -109,10 +109,10 @@ onLoad((opts = {}) => {
     typeIndex.value = findTypeIndexByValue(type)
   }
 
-  const presetContent = safeDecode(opts.content)
-  if (presetContent) {
-    content.value = presetContent
-  }
+  // const presetContent = safeDecode(opts.content)
+  // if (presetContent) {
+  //   content.value = presetContent
+  // }
 
   if (String(opts.contentFocus || '') === '1') {
     contentFocus.value = true
