@@ -132,8 +132,7 @@ onLoad((opts = {}) => {
 
 .content {
   font-size: 26rpx;
-  font-weight: 600;
-  color: #6a7f8c;
+  color: #587186;
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.6;

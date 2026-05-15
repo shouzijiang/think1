@@ -168,15 +168,13 @@ onShow(() => {
 }
 
 .mail-time {
-  font-size: 22rpx;
-  font-weight: 600;
+  font-size: 26rpx;
   color: $pt-muted;
 }
 
 .mail-preview {
   font-size: 24rpx;
-  font-weight: 600;
-  color: #6a7f8c;
+  color: #587186;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

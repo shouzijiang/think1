@@ -716,7 +716,7 @@ async function toggleDailyReminder() {
   display: block;
   font-size: 26rpx;
   line-height: 1.55;
-  color: #6a7f8c;
+  color: #587186;
   font-weight: 600;
 }
 
