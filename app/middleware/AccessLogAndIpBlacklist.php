@@ -83,14 +83,18 @@ class AccessLogAndIpBlacklist
         bool $blocked
     ): void {
         $channel = (string) ($cfg['access_log_channel'] ?? 'request_audit');
-
+        // path为空不打印，避免日志过多无效记录
+        if ($request->pathinfo() === '') {
+            return;
+        }
         $line = json_encode([
             'ip' => $clientIp,
-            'method' => $request->method(),
+            // 'method' => $request->method(),
             'path' => $request->pathinfo(),
-            'status' => $httpStatus,
+            // 'status' => $httpStatus,
             'ms' => round((microtime(true) - $t0) * 1000, 2),
             'user_id' => $request->user_id ?? null,
+            'params' => substr(json_encode($request->param(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), 0, (int) ($cfg['max_param_json_length'] ?? 2000)),
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         if ($line === false) {
