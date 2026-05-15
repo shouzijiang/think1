@@ -25,7 +25,7 @@
     </view>
 
     <view class="start-wrap">
-      <view class="btn-start btn-start-main" @click="startGame">
+      <view class="btn-start btn-start-main" @click="startGameXhs">
         <!-- <image
           class="btn-start-icon"
           src="https://sofun.online/static/mini/start.png"
@@ -35,7 +35,7 @@
         <text class="btn-start-text btn-start-text2">(小红书专辑)</text>
       </view>
       <view class="start-sub-row">
-        <view class="btn-start btn-start-xhs" @click="startGameXhs">
+        <view class="btn-start btn-start-xhs" @click="startGameMid">
           <!-- <view class="xhs-new-badge">
             <text class="xhs-new-text">新</text>
           </view> -->
@@ -46,7 +46,7 @@
           />
           <text class="btn-text">经典专辑</text>
         </view>
-        <view class="btn-start btn-start-2" @click="startGameMid">
+        <view class="btn-start btn-start-2" @click="startGame">
           <image
             class="btn-icon btn-icon-img"
             src="https://sofun.online/static/mini/gttc.png"
@@ -723,14 +723,19 @@ function startGame() {
 }
 .btn-start-main {
   width: 100%;
-  padding: 26rpx 40rpx;
+  padding: 36rpx 40rpx;
   font-size: 46rpx;
-  font-weight: bold;
   flex-direction: column;
+  line-height: 1;
   .btn-start-text {
     // 字间距
     letter-spacing: 0.4em;
-
+    font-weight: bold;
+  }
+  
+  .btn-start-text2 {
+    font-size: 22rpx;
+    display: block;
   }
 }
 .start-sub-row .btn-start {
@@ -754,13 +759,6 @@ function startGame() {
   width: 44rpx;
   height: 44rpx;
   flex-shrink: 0;
-}
-.btn-start-text {
-  text-shadow: 0 3rpx 8rpx rgba(0, 0, 0, 0.2);
-}
-.btn-start-text2 {
-  font-size: 22rpx;
-  display: block;
 }
 
 .top-actions {

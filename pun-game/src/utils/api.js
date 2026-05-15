@@ -3,6 +3,10 @@ import { API_BASE_URL } from '../config'
 import { forceLogin, handleLoginExpired } from './auth'
 
 const BASE_URL = API_BASE_URL
+const DEFAULT_TIMEOUT = 12000
+const DEFAULT_GET_RETRY = 1
+const DEFAULT_RETRY_DELAY = 220
+const inFlightGetRequests = new Map()
 
 // 构建查询字符串（兼容微信小程序，不使用 URLSearchParams）
 function buildQueryString(params) {
@@ -20,9 +24,68 @@ function getToken() {
   return uni.getStorageSync('token') || ''
 }
 
-// 使用 HTTP 的请求方法
-function requestWithHttp(options) {
+function normalizeMethod(method) {
+  return (method || 'GET').toUpperCase()
+}
+
+function getMaxRetries(options, method) {
+  if (typeof options?.retryCount === 'number' && options.retryCount >= 0) {
+    return Math.floor(options.retryCount)
+  }
+  return method === 'GET' ? DEFAULT_GET_RETRY : 0
+}
+
+function isRetryableNetworkError(err) {
+  const msg = String(err?.errMsg || err?.message || '')
+  return /timeout|timed out|超时|request:fail|network|断网|interrupted/i.test(msg)
+}
+
+function isRetryableStatus(statusCode) {
+  return statusCode === 429 || statusCode >= 500
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function buildGetDedupeKey(options, method) {
+  if (method !== 'GET') return ''
+  const url = options?.url || ''
+  const data = options?.data ? JSON.stringify(options.data) : ''
+  const auth = options?.skipAuth ? 'skip' : 'auth'
+  return `${method}:${url}:${data}:${auth}`
+}
+
+function buildStatusError(statusCode, requestUrl) {
+  const msg = `网络请求失败 (状态码: ${statusCode})，请检查：\n1. 后端服务是否正常运行\n2. 请求地址是否正确: ${requestUrl}\n3. 小程序后台是否配置了合法域名`
+  const err = new Error(msg)
+  err.statusCode = statusCode
+  return err
+}
+
+function buildFailError(err, requestUrl) {
+  let errorMsg = '网络请求失败'
+  if (err?.errMsg) {
+    if (err.errMsg.includes('timeout') || err.errMsg.includes('超时')) {
+      errorMsg = '网络请求超时，请检查网络后重试'
+    } else if (err.errMsg.includes('fail')) {
+      errorMsg = `网络请求失败，可能的原因：\n1. 后端服务未启动或无法访问 (${BASE_URL})\n2. 请求地址错误: ${requestUrl}\n3. 微信开发者工具 -> 设置 -> 项目设置 -> 是否勾选"不校验合法域名"\n4. 网络连接问题\n\n错误详情: ${err.errMsg}`
+    } else {
+      errorMsg = `网络请求失败: ${err.errMsg}`
+    }
+  } else if (err instanceof Error) {
+    errorMsg = err.message
+  } else {
+    errorMsg = String(err)
+  }
+  const wrapped = new Error(errorMsg)
+  wrapped.isNetworkError = true
+  return wrapped
+}
+
+function requestWithHttpOnce(options = {}) {
   return new Promise((resolve, reject) => {
+    const method = normalizeMethod(options.method)
     const header = {
       'Content-Type': 'application/json',
       ...options.header,
@@ -34,22 +97,23 @@ function requestWithHttp(options) {
     }
 
     const requestUrl = BASE_URL + options.url
-    // console.log('发起 HTTP 请求:', requestUrl, options.method || 'GET', options.data)
+    const startAt = Date.now()
 
     uni.request({
       url: requestUrl,
-      method: options.method || 'GET',
+      method,
       data: options.data || {},
       header,
-      timeout: options.timeout || 15000,
+      timeout: options.timeout || DEFAULT_TIMEOUT,
       success: (res) => {
+        const elapsed = Date.now() - startAt
         if (res.statusCode === 200) {
-          // console.log('请求响应:', res.statusCode, res.data)
-          if (res.data.code === 200) {
+          if (res.data?.code === 200) {
+            if (elapsed > 1200) {
+              console.warn(`[api-slow] ${method} ${options.url} ${elapsed}ms`)
+            }
             resolve(res.data.data)
-          } else if (res.data.code === 401) {
-            // token 失效：先尝试“强制重新登录 + 重试原请求（最多一次）”
-            // 避免每次401都让用户手动再点一次
+          } else if (res.data?.code === 401) {
             if (options && options._authRetried) {
               handleLoginExpired()
               reject(new Error(res.data.message || '登录已过期，请重新登录'))
@@ -63,37 +127,64 @@ function requestWithHttp(options) {
               })
               .catch(() => {
                 handleLoginExpired()
-                reject(new Error(res.data.message || '登录已过期，请重新登录'))
+                reject(new Error(res.data?.message || '登录已过期，请重新登录'))
               })
           } else {
-            reject(new Error(res.data.message || '请求失败'))
+            reject(new Error(res.data?.message || '请求失败'))
           }
         } else {
-          const errorMsg = `网络请求失败 (状态码: ${res.statusCode})，请检查：\n1. 后端服务是否正常运行\n2. 请求地址是否正确: ${requestUrl}\n3. 小程序后台是否配置了合法域名`
-          console.error(errorMsg)
-          reject(new Error(errorMsg))
+          reject(buildStatusError(res.statusCode, requestUrl))
         }
       },
       fail: (err) => {
-        console.error('请求失败:', err)
-        let errorMsg = '网络请求失败'
-        if (err.errMsg) {
-          if (err.errMsg.includes('timeout') || err.errMsg.includes('超时')) {
-            errorMsg = '网络请求超时，请检查网络后重试'
-          } else if (err.errMsg.includes('fail')) {
-            errorMsg = `网络请求失败，可能的原因：\n1. 后端服务未启动或无法访问 (${BASE_URL})\n2. 请求地址错误: ${requestUrl}\n3. 微信开发者工具 -> 设置 -> 项目设置 -> 是否勾选"不校验合法域名"\n4. 网络连接问题\n\n错误详情: ${err.errMsg}`
-          } else {
-            errorMsg = `网络请求失败: ${err.errMsg}`
-          }
-        } else if (err instanceof Error) {
-          errorMsg = err.message
-        } else {
-          errorMsg = String(err)
-        }
-        reject(new Error(errorMsg))
+        reject(buildFailError(err, requestUrl))
       },
     })
   })
+}
+
+async function requestWithRetry(options = {}) {
+  const method = normalizeMethod(options.method)
+  const maxRetries = getMaxRetries(options, method)
+  let attempt = 0
+
+  while (true) {
+    try {
+      return await requestWithHttpOnce(options)
+    } catch (err) {
+      const canRetryByType = Boolean(err?.isNetworkError) || isRetryableStatus(Number(err?.statusCode || 0))
+      if (!canRetryByType || attempt >= maxRetries) {
+        throw err
+      }
+
+      if (err?.isNetworkError && !isRetryableNetworkError(err)) {
+        throw err
+      }
+
+      const delay = (options.retryDelay || DEFAULT_RETRY_DELAY) * Math.pow(2, attempt)
+      attempt += 1
+      console.warn(`[api-retry] ${method} ${options.url} attempt=${attempt} wait=${delay}ms`)
+      await sleep(delay)
+    }
+  }
+}
+
+// 使用 HTTP 的请求方法（含 GET 去重 + 重试）
+function requestWithHttp(options = {}) {
+  const method = normalizeMethod(options.method)
+  const canDedupe = method === 'GET' && options.dedupe !== false
+  const dedupeKey = canDedupe ? buildGetDedupeKey(options, method) : ''
+
+  if (canDedupe && inFlightGetRequests.has(dedupeKey)) {
+    return inFlightGetRequests.get(dedupeKey)
+  }
+
+  const promise = requestWithRetry(options)
+  if (canDedupe) {
+    inFlightGetRequests.set(dedupeKey, promise)
+    promise.finally(() => inFlightGetRequests.delete(dedupeKey))
+  }
+  return promise
 }
 
 function request(options) {
@@ -246,7 +337,7 @@ export const api = {
    * @param {string} filePath 本地临时文件路径（chooseAvatar 返回的 avatarUrl）
    */
   uploadAvatar(filePath) {
-    return new Promise((resolve, reject) => {
+    const doUpload = () => new Promise((resolve, reject) => {
       const token = uni.getStorageSync('token') || ''
       uni.uploadFile({
         url: BASE_URL + '/upload/avatar',
@@ -269,6 +360,15 @@ export const api = {
           reject(new Error((err && err.errMsg) || '上传失败'))
         },
       })
+    })
+
+    return doUpload().catch(async (err) => {
+      const msg = String(err?.message || '')
+      if (/timeout|超时|fail|network|断网/i.test(msg)) {
+        await sleep(280)
+        return doUpload()
+      }
+      throw err
     })
   },
 
