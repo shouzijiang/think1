@@ -78,6 +78,7 @@
     <PunPassSuccessOverlay
       :show="showSuccess"
       variant="rich"
+      :sub-text="passSuccessExplain"
       :tap-anywhere="true"
       @action="confirmPassSuccess"
     />
@@ -107,6 +108,7 @@ import { usePunShareReward } from '../../composables/usePunShareReward'
 import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHint'
 import { usePunSkipLevel } from '../../composables/usePunSkipLevel'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
+import { generatePassExplain } from '../../utils/punPassExplain'
 import {
   punGetCachedHint,
   punIsSlotError,
@@ -132,6 +134,7 @@ const submitting = ref(false)
 const feedback = ref([])
 const slotShake = ref(false)
 const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
+const passSuccessExplain = ref('')
 const hintLoading = ref(false)
 const skipLoading = ref(false)
 /** 揭字剩余次数（/pun/level/progress 与 reveal-hint 返回） */
@@ -180,6 +183,7 @@ onLoad((opts) => {
     }
     answerChars.value = []
     pickedIndices.value = []
+    passSuccessExplain.value = ''
     loading.value = false
   }).catch(() => {
     loading.value = false
@@ -219,10 +223,17 @@ async function checkAnswer() {
   try {
     const data = await api.submitAnswer(level.value, userAnswer)
     if (data.isCorrect) {
+      const solvedAnswer = userAnswer.join('')
       runPassSuccess({
         durationMs: 1500,
         manualClose: true,
-        afterPrepare: () => resolveNextBeginnerLevel(),
+        afterPrepare: async () => {
+          const [nextLevel] = await Promise.all([
+            resolveNextBeginnerLevel(),
+            preparePassExplain(solvedAnswer),
+          ])
+          return nextLevel
+        },
         onAfter: (nextLevel) => {
           const targetLevel = Number(nextLevel)
           if (!Number.isFinite(targetLevel)) {
@@ -256,6 +267,19 @@ async function checkAnswer() {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
+  }
+}
+
+async function preparePassExplain(answerText) {
+  passSuccessExplain.value = '正在生成趣味解读…'
+  try {
+    passSuccessExplain.value = await generatePassExplain({
+      answer: answerText,
+      hint: puzzle.value.hintText || '',
+      gameTier: 'beginner',
+    })
+  } catch (_) {
+    passSuccessExplain.value = '这题的谐音转折很妙，抓住关键词就豁然开朗。'
   }
 }
 

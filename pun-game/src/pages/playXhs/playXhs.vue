@@ -103,6 +103,7 @@
     <PunPassSuccessOverlay
       :show="showSuccess"
       variant="plain"
+      :sub-text="passSuccessExplain"
       :tap-anywhere="true"
       @action="confirmPassSuccess"
     />
@@ -145,6 +146,7 @@ import { usePunRewardedVideoHint } from '../../composables/usePunRewardedVideoHi
 import { usePunHanAnswerInput } from '../../composables/usePunHanAnswerInput'
 import { usePunSkipLevel } from '../../composables/usePunSkipLevel'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
+import { generatePassExplain } from '../../utils/punPassExplain'
 import {
   punGetCachedHint,
   punIsSlotError,
@@ -170,6 +172,7 @@ const submitting = ref(false)
 const feedback = ref([])
 const slotShake = ref(false)
 const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
+const passSuccessExplain = ref('')
 const hintLoading = ref(false)
 const skipLoading = ref(false)
 const hintAnswerQuota = ref(0)
@@ -215,10 +218,17 @@ async function checkAnswer() {
       gameTier: 'xhs'
     })
     if (data.isCorrect) {
+      const solvedAnswer = userAnswer.join('')
       runPassSuccess({
         durationMs: 1200,
         manualClose: true,
-        afterPrepare: () => resolveNextXhsLevel(),
+        afterPrepare: async () => {
+          const [nextLevel] = await Promise.all([
+            resolveNextXhsLevel(),
+            preparePassExplain(solvedAnswer),
+          ])
+          return nextLevel
+        },
         onAfter: (nextLevel) => {
           if (nextLevel == null) {
             uni.showToast({ title: '专辑持续更新中，敬请期待~', icon: 'none' })
@@ -242,6 +252,19 @@ async function checkAnswer() {
     uni.showToast({ title: e.message || '提交失败', icon: 'none' })
   } finally {
     submitting.value = false
+  }
+}
+
+async function preparePassExplain(answerText) {
+  passSuccessExplain.value = '正在生成趣味解读…'
+  try {
+    passSuccessExplain.value = await generatePassExplain({
+      answer: answerText,
+      hint: puzzle.value.keywordHint || '',
+      gameTier: 'xhs',
+    })
+  } catch (_) {
+    passSuccessExplain.value = '这题的谐音转折很妙，抓住关键词就豁然开朗。'
   }
 }
 
@@ -392,6 +415,7 @@ onLoad(async (opts) => {
       answerChars.value = []
       feedback.value = []
       answerInputValue.value = ''
+      passSuccessExplain.value = ''
       loading.value = false
       prefetchNextXhsLevelImage(lv)
     })

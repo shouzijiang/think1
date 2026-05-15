@@ -58,6 +58,14 @@ export default {
       })
     }
     enableMiniProgramShareMenu()
+    // 云开发初始化（仅微信小程序，且已在 manifest.json 配置使用云开发）
+    try {
+      wx.cloud.init({
+        env: "aaa-d6g7scjdwfbee4d24"
+      });
+    } catch (error) {
+      
+    }
   },
   onShow: function () {
     console.log('App Show')

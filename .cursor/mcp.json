@@ -21,6 +21,13 @@
         "--mysql",
         "mysql://sofun_online:s7AkMGW8G6sEsnbd@193.112.251.5:3306/sofun_online"
       ]
+    },
+    "cloudbase": {
+      "command": "npx",
+      "args": ["@cloudbase/cloudbase-mcp@latest"],
+      "env": {
+        "INTEGRATION_IDE": "Cursor"
+      }
     }
   }
 }

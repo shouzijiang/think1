@@ -39,17 +39,17 @@
         <template v-if="props.variant === 'battle'">
           <text class="pun-pass__kicker pun-pass__kicker--battle">Nice!</text>
           <text class="pun-pass__headline pun-pass__headline--battle">回答正确~</text>
-          <text class="pun-pass__sub pun-pass__sub--battle">继续加油</text>
+          <text class="pun-pass__sub pun-pass__sub--battle">{{ resolveSubText('继续加油') }}</text>
         </template>
         <template v-else-if="props.variant === 'plain'">
           <text class="pun-pass__kicker">闯关成功</text>
           <text class="pun-pass__headline">回答正确~</text>
-          <text class="pun-pass__sub">太棒了</text>
+          <text class="pun-pass__sub">{{ resolveSubText('太棒了') }}</text>
         </template>
         <template v-else>
           <text class="pun-pass__kicker">闯关成功</text>
           <text class="pun-pass__headline">回答正确~</text>
-          <text class="pun-pass__sub">继续下一关吧</text>
+          <text class="pun-pass__sub">{{ resolveSubText('继续下一关吧') }}</text>
         </template>
 
         <button
@@ -83,6 +83,7 @@ const props = defineProps({
   showAction: { type: Boolean, default: false },
   actionText: { type: String, default: '下一关' },
   tapAnywhere: { type: Boolean, default: false },
+  subText: { type: String, default: '' },
 })
 const emit = defineEmits(['action'])
 
@@ -125,6 +126,11 @@ function handleOverlayClick() {
 function handleActionClick() {
   if (!canInteract.value) return
   emit('action')
+}
+
+function resolveSubText(fallback) {
+  const t = String(props.subText || '').trim()
+  return t || fallback
 }
 
 /** 放射短线角度 */
@@ -424,7 +430,8 @@ function confettiStyle(i) {
 
 .pun-pass__sub {
   font-size: 30rpx;
-  font-weight: 700;
+  // font-weight: 700;
+  line-height: 2;
   color: rgba(255, 255, 255, 0.92);
   letter-spacing: 0.08em;
   text-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.2);
