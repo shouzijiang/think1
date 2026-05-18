@@ -71,7 +71,7 @@ function getChunkText(payload) {
   return ''
 }
 
-async function generateByCloud({ answer, hint }) {
+async function generateByCloud({ answer, hint }, onChunk) {
   if (cloudExplainDisabled) return ''
   if (!isWeixinMiniProgram()) return ''
   if (typeof wx === 'undefined') return ''
@@ -81,13 +81,7 @@ async function generateByCloud({ answer, hint }) {
   const safeAnswer = normalizeText(answer)
   const safeHint = normalizeText(hint)
   const prompt = [
-    '你是一个幽默的谐音梗解说员，擅长用一句话让人恍然大悟又忍不住笑。',
-    `玩家刚猜对了一道谐音梗题，答案是"${safeAnswer || '未知'}"。`,
-    safeHint ? `题目关键词提示是"${safeHint}"。` : '',
-    '请用1句话解释这个谐音梗的笑点：',
-    '① 点明哪两个词读音相近但意思完全不同，',
-    '② 用轻松吐槽或段子手的口吻，让人会心一笑。',
-    '要求：20-50字，一句话说完，不要分点，不要引号，不要emoji。',
+    `重要：只解释${safeAnswer}这一个词，不要扯别的。用清奇的脑洞给它一个离谱但又好像有点道理的搞笑解释，一句话说完，30-40字，无任何特殊格式。`,
   ].filter(Boolean).join('')
 
   let lastErr = null
@@ -116,6 +110,7 @@ async function generateByCloud({ answer, hint }) {
           const chunkText = getChunkText(payload)
           if (chunkText) {
             output += String(chunkText)
+            if (typeof onChunk === 'function') onChunk(output)
             if (output.length >= 80) break
           }
         }
@@ -141,7 +136,7 @@ async function generateByCloud({ answer, hint }) {
  * @param {{answer?: string, hint?: string, gameTier?: 'beginner'|'mid'|'xhs'}} payload
  * @returns {Promise<string>}
  */
-export async function generatePassExplain(payload = {}) {
+export async function generatePassExplain(payload = {}, onChunk) {
   const answer = normalizeText(payload.answer)
   const hint = normalizeText(payload.hint)
   const gameTier = normalizeText(payload.gameTier)
@@ -149,7 +144,7 @@ export async function generatePassExplain(payload = {}) {
   if (cache.has(cacheKey)) return cache.get(cacheKey)
 
   try {
-    const aiText = await withTimeout(generateByCloud({ answer, hint }), CLOUD_TIMEOUT_MS)
+    const aiText = await withTimeout(generateByCloud({ answer, hint }, onChunk), CLOUD_TIMEOUT_MS)
     const finalText = normalizeText(aiText)
     cache.set(cacheKey, finalText)
     return finalText

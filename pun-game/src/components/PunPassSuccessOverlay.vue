@@ -70,7 +70,7 @@
 import { ref, watch, onUnmounted } from 'vue'
 
 /** 过关动画展示后延迟（毫秒），避免误触瞬间关闭 */
-const ACTION_UNLOCK_MS = 1000
+const ACTION_UNLOCK_MS = 2000
 
 const props = defineProps({
   show: { type: Boolean, default: false },

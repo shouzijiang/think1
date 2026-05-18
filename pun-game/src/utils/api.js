@@ -321,6 +321,13 @@ export const api = {
   },
 
   /**
+   * 任务状态（独立接口，不含关卡进度）
+   */
+  getTaskStatus() {
+    return request({ url: '/pun/tasks/status', method: 'GET' })
+  },
+
+  /**
    * 提交意见反馈
    * @param {Object} data - { type?, content, contact? }
    */

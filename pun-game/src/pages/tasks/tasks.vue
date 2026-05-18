@@ -91,6 +91,24 @@
             {{ myMiniProgramTaskClaimed ? '✓ 已领取' : (myMiniProgramTaskLoading ? '领取中…' : '领取') }}
           </button>
         </view>
+        <view class="task-divider" />
+        <view class="task-row">
+          <view class="task-row-info">
+            <text class="task-row-icon">⭐</text>
+            <view class="task-row-main">
+              <text class="task-row-name">给小程序评分</text>
+              <text class="task-row-sub">评分后可领 <text class="task-row-reward">+3次</text> 查看答案</text>
+            </view>
+          </view>
+          <button
+            class="task-btn"
+            :class="rateTaskClaimed ? 'task-btn--done' : 'task-btn--permanent'"
+            :disabled="rateTaskClaimed || rateTaskClaimLoading"
+            @click.stop="claimRateTask"
+          >
+            {{ rateTaskClaimed ? '✓ 已领取' : (rateTaskClaimLoading ? '领取中…' : '去评分') }}
+          </button>
+        </view>
       </view>
 
       <!-- 每日任务 -->
@@ -245,9 +263,11 @@ const dailyBattleTaskClaimed = ref(false)
 const avatarTaskClaimed = ref(false)
 const nicknameTaskClaimed = ref(false)
 const myMiniProgramTaskClaimed = ref(false)
+const rateTaskClaimed = ref(false)
 const avatarTaskClaimLoading = ref(false)
 const nicknameTaskClaimLoading = ref(false)
 const myMiniProgramTaskLoading = ref(false)
+const rateTaskClaimLoading = ref(false)
 const launchFromMyMiniOrCollect = ref(false)
 const dailyClaimLoading = ref(false)
 const dailyAdTaskLoading = ref(false)
@@ -307,7 +327,7 @@ function isLaunchFromMyMiniOrCollectScene() {
 
 async function refreshTaskData() {
   try {
-    const data = await api.getLevelProgress({ gameTier: 'mid' })
+    const data = await api.getTaskStatus()
     if (!data) return
     if (typeof data.hintAnswerQuota === 'number') hintAnswerQuota.value = data.hintAnswerQuota
     if (typeof data.hintAnswerShareDailyMax === 'number' && data.hintAnswerShareDailyMax > 0)
@@ -336,6 +356,8 @@ async function refreshTaskData() {
       nicknameTaskClaimed.value = Number(data.nicknameTaskClaimed) > 0
     if (typeof data.myMiniProgramTaskClaimed !== 'undefined')
       myMiniProgramTaskClaimed.value = Number(data.myMiniProgramTaskClaimed) > 0
+    if (typeof data.rateTaskClaimed !== 'undefined')
+      rateTaskClaimed.value = Number(data.rateTaskClaimed) > 0
   } catch {}
 }
 
@@ -513,6 +535,28 @@ async function claimMyMiniProgramTask() {
     uni.showToast({ title: e.message || '领取失败', icon: 'none' })
   } finally {
     myMiniProgramTaskLoading.value = false
+  }
+}
+
+async function claimRateTask() {
+  if (rateTaskClaimLoading.value || rateTaskClaimed.value) return
+  // 先唤起评分弹窗（仅微信小程序支持）
+  try {
+    if (typeof wx !== 'undefined' && typeof wx.openAppAuthorizeSetting === 'function') {
+      // 无专用评分 API 时用 showModal 引导
+    }
+  } catch (_) {}
+  rateTaskClaimLoading.value = true
+  try {
+    const data = await api.claimReward({ type: 'permanent_rate_app' })
+    if (typeof data.hintAnswerQuota === 'number') hintAnswerQuota.value = data.hintAnswerQuota
+    rateTaskClaimed.value = true
+    uni.showToast({ title: `领取成功 +${data.added || 3}`, icon: 'none' })
+    refreshTaskData()
+  } catch (e) {
+    uni.showToast({ title: e.message || '领取失败', icon: 'none' })
+  } finally {
+    rateTaskClaimLoading.value = false
   }
 }
 

@@ -299,11 +299,10 @@ async function checkAnswer() {
 async function preparePassExplain(answerText) {
   passSuccessExplain.value = '正在生成趣味解读…'
   try {
-    passSuccessExplain.value = await generatePassExplain({
-      answer: answerText,
-      hint: puzzle.value.keywordHint || '',
-      gameTier: 'mid',
-    })
+    passSuccessExplain.value = await generatePassExplain(
+      { answer: answerText, hint: puzzle.value.keywordHint || '', gameTier: 'mid' },
+      (partial) => { passSuccessExplain.value = partial },
+    )
   } catch (_) {
     passSuccessExplain.value = '这题的谐音转折很妙，抓住关键词就豁然开朗。'
   }
