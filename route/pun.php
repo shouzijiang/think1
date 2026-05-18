@@ -22,6 +22,7 @@ Route::group('pun', function () {
         Route::post('level/skip', 'Pun/skipLevel');
         Route::post('reward/claim', 'Pun/claimReward');
         Route::get('level/progress', 'Pun/levelProgress');
+        Route::get('tasks/status', 'Pun/taskStatus');
         Route::post('feedback/submit', 'Pun/feedbackSubmit');
         
         // 信箱（站内信；新增邮件由库内 INSERT pun_game_mail，无 HTTP 发送接口）

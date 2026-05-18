@@ -216,6 +216,19 @@ class Pun extends BaseController
     }
 
     /**
+     * 任务状态 GET /pun/tasks/status
+     */
+    public function taskStatus(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+        $result = $this->punService->getTaskStatus($userId);
+        return ResponseHelper::success($result);
+    }
+
+    /**
      * 提交意见反馈 POST /pun/feedback/submit
      * Body: { "type"?: "bug"|"suggest"|"other", "content": "...", "contact"?: "..." }
      */
