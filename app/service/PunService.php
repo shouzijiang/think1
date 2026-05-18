@@ -64,6 +64,10 @@ class PunService
             'type'       => 'permanent_my_mini_program_hint_3',
             'reward_add' => 3,
         ],
+        'rate_app' => [
+            'type'       => 'permanent_rate_app',
+            'reward_add' => 3,
+        ],
     ];
 
     /** 分享领奖最小间隔（秒） */
@@ -376,6 +380,7 @@ class PunService
             self::PERMANENT_TASKS['avatar']['type'],
             self::PERMANENT_TASKS['nickname']['type'],
             self::PERMANENT_TASKS['my_mini_program']['type'],
+            self::PERMANENT_TASKS['rate_app']['type'],
         ], true)) {
             throw new \InvalidArgumentException('不支持的领取类型');
         }
@@ -398,6 +403,8 @@ class PunService
             $result = $this->claimByPermanentNickname($userId);
         } elseif ($type === self::PERMANENT_TASKS['my_mini_program']['type']) {
             $result = $this->claimByPermanentMyMiniProgram($userId, $extra);
+        } elseif ($type === self::PERMANENT_TASKS['rate_app']['type']) {
+            $result = $this->claimByPermanentRateApp($userId);
         } else {
             $result = $this->claimByDailyBattleTask($userId);
         }
@@ -632,6 +639,27 @@ class PunService
             'hintAnswerQuota' => $newQuota,
             'added' => self::PERMANENT_TASKS['my_mini_program']['reward_add'],
             'type' => self::PERMANENT_TASKS['my_mini_program']['type'],
+        ];
+    }
+
+    /**
+     * 永久任务：给小程序评分后领取 +3（全生命周期仅一次）
+     */
+    private function claimByPermanentRateApp(int $userId): array
+    {
+        $already = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::PERMANENT_TASKS['rate_app']['type'])
+            ->where('status', 'success')
+            ->find();
+        if ($already) {
+            throw new \InvalidArgumentException('评分奖励已领取过');
+        }
+        $newQuota = $this->increaseHintQuota($userId, self::PERMANENT_TASKS['rate_app']['reward_add']);
+        return [
+            'hintAnswerQuota' => $newQuota,
+            'added' => self::PERMANENT_TASKS['rate_app']['reward_add'],
+            'type' => self::PERMANENT_TASKS['rate_app']['type'],
         ];
     }
 
@@ -952,6 +980,7 @@ class PunService
         foreach (['beginner', 'intermediate', 'xhs'] as $m) {
             Cache::delete($this->levelProgressCacheKey($userId, $m));
         }
+        Cache::delete('task_status_' . $userId);
     }
 
     private function hintCacheKeyBattle(int $userId, string $roomId, int $questionIndex, int $level): string
@@ -1492,15 +1521,13 @@ class PunService
     }
 
     /**
-     * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数 
+     * 获取任务状态（独立接口，不含关卡进度）
      * @param int $userId
-     * @param string $mode beginner=初级 | intermediate=中级
-     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed, hintAnswerShareDailyMax, hintAnswerShareDailyClaimed, dailyAnswerCount, dailyAnswerRequired, dailyNoonTaskClaimed, dailyAdTaskCount, dailyBattleCount, dailyBattleRequired, dailyBattleTaskClaimed}
+     * @return array
      */
-    public function getLevelProgress(int $userId, string $mode = 'beginner'): array
+    public function getTaskStatus(int $userId): array
     {
-        $mode = $this->normalizeMode($mode);
-        $cacheKey = $this->levelProgressCacheKey($userId, $mode);
+        $cacheKey = 'task_status_' . $userId;
         $cached = Cache::get($cacheKey);
         if (is_array($cached)) {
             return $cached;
@@ -1531,14 +1558,17 @@ class PunService
             ->where('claim_type', self::PERMANENT_TASKS['my_mini_program']['type'])
             ->where('status', 'success')
             ->count() > 0 ? 1 : 0;
+        $rateTaskClaimed = Db::name('pun_reward_claim_record')
+            ->where('user_id', $userId)
+            ->where('claim_type', self::PERMANENT_TASKS['rate_app']['type'])
+            ->where('status', 'success')
+            ->count() > 0 ? 1 : 0;
         $dailyReminderSubscribed = UserSubscribe::where('user_id', $userId)
             ->where('template_id', self::DAILY_TASKS['noon']['template_id'])
             ->where('subscribe_status', 'accept')
             ->count() > 0 ? 1 : 0;
-        $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
 
-        // 公共字段（所有模式共享）
-        $common = [
+        $result = [
             'hintAnswerQuota'  => $hintAnswerQuota,
             'hintAnswerTotalUsed' => $hintAnswerTotalUsed,
             'hintAnswerShareDailyMax' => self::SHARE_REWARD_DAILY_MAX,
@@ -1553,8 +1583,37 @@ class PunService
             'avatarTaskClaimed' => $avatarTaskClaimed,
             'nicknameTaskClaimed' => $nicknameTaskClaimed,
             'myMiniProgramTaskClaimed' => $myMiniProgramTaskClaimed,
+            'rateTaskClaimed' => $rateTaskClaimed,
             'dailyReminderSubscribed' => $dailyReminderSubscribed,
         ];
+
+        Cache::set($cacheKey, $result, 60);
+        return $result;
+    }
+
+    /**
+     * 当前用户关卡进度：当前可玩关卡、已通过关卡列表、总关卡数 
+     * @param int $userId
+     * @param string $mode beginner=初级 | intermediate=中级
+     * @return array {currentLevel, passedLevels, totalLevels, hintAnswerQuota, hintAnswerTotalUsed}
+     */
+    public function getLevelProgress(int $userId, string $mode = 'beginner'): array
+    {
+        $mode = $this->normalizeMode($mode);
+        $cacheKey = $this->levelProgressCacheKey($userId, $mode);
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        // 仅取提示次数，任务状态走独立接口 getTaskStatus
+        $this->getOrCreateHintAnswerQuota($userId);
+        $hintRow = Db::name('pun_user_hint_quota')->where('user_id', $userId)->find();
+        $common = [
+            'hintAnswerQuota'    => $hintRow ? (int) $hintRow['quota'] : PunUserHintQuota::DEFAULT_QUOTA,
+            'hintAnswerTotalUsed'=> $hintRow ? (int) ($hintRow['total_used'] ?? 0) : 0,
+        ];
+        $progress = Db::name('pun_game_level_progress')->where('user_id', $userId)->find();
 
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
