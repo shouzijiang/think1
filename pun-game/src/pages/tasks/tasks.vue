@@ -234,6 +234,13 @@
         </view>
       </view>
     </view>
+
+    <!-- 评分引导蒙版 -->
+    <view v-if="showRateGuide" class="rate-guide-mask" @click="closeRateGuide">
+      <view class="rate-guide-arrow" />
+      <view class="rate-guide-tip">点击右上角「…」→ 给小程序评分</view>
+      <view class="rate-guide-close">点击任意处关闭</view>
+    </view>
   </view>
 </template>
 
@@ -264,6 +271,8 @@ const avatarTaskClaimed = ref(false)
 const nicknameTaskClaimed = ref(false)
 const myMiniProgramTaskClaimed = ref(false)
 const rateTaskClaimed = ref(false)
+const showRateGuide = ref(false)
+let rateIntentTs = 0
 const avatarTaskClaimLoading = ref(false)
 const nicknameTaskClaimLoading = ref(false)
 const myMiniProgramTaskLoading = ref(false)
@@ -364,6 +373,16 @@ async function refreshTaskData() {
 onShow(() => {
   launchFromMyMiniOrCollect.value = isLaunchFromMyMiniOrCollectScene()
   refreshTaskData()
+  // 评分返回后判定：离开超过 2 秒视为已评分
+  if (rateIntentTs > 0 && !rateTaskClaimed.value) {
+    const elapsed = Date.now() - rateIntentTs
+    rateIntentTs = 0
+    if (elapsed >= SHARE_SUCCESS_THRESHOLD_MS) {
+      doClaimRateReward()
+    } else {
+      uni.showToast({ title: '请先完成评分再领取', icon: 'none' })
+    }
+  }
 })
 
 function back() {
@@ -538,14 +557,19 @@ async function claimMyMiniProgramTask() {
   }
 }
 
-async function claimRateTask() {
+function claimRateTask() {
   if (rateTaskClaimLoading.value || rateTaskClaimed.value) return
-  // 先唤起评分弹窗（仅微信小程序支持）
-  try {
-    if (typeof wx !== 'undefined' && typeof wx.openAppAuthorizeSetting === 'function') {
-      // 无专用评分 API 时用 showModal 引导
-    }
-  } catch (_) {}
+  // 显示引导蒙版，记录意图时间戳
+  showRateGuide.value = true
+  rateIntentTs = Date.now()
+}
+
+function closeRateGuide() {
+  showRateGuide.value = false
+}
+
+async function doClaimRateReward() {
+  if (rateTaskClaimLoading.value || rateTaskClaimed.value) return
   rateTaskClaimLoading.value = true
   try {
     const data = await api.claimReward({ type: 'permanent_rate_app' })
@@ -772,5 +796,30 @@ onBeforeUnmount(() => {
 .task-btn[disabled]:not(.task-btn--done) {
   background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%) !important;
   color: #9ca3af !important;
+}
+
+/* 评分引导蒙版 */
+.rate-guide-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex; flex-direction: column; align-items: flex-end;
+  padding-top: 20%; padding-right: 40rpx;
+}
+.rate-guide-arrow {
+  width: 0; height: 0;
+  border-left: 20rpx solid transparent;
+  border-right: 20rpx solid transparent;
+  border-bottom: 30rpx solid #fff;
+  margin-right: 30rpx; margin-bottom: 16rpx;
+}
+.rate-guide-tip {
+  color: #fff; font-size: 32rpx; font-weight: 700;
+  text-align: right; margin-right: 0; line-height: 1.6;
+}
+.rate-guide-close {
+  color: rgba(255, 255, 255, 0.6); font-size: 24rpx;
+  margin-top: 40rpx; text-align: center; width: 100%;
+  position: absolute; bottom: 120rpx; left: 0;
 }
 </style>
