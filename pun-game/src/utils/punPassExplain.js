@@ -2,8 +2,8 @@ const CLOUD_TIMEOUT_MS = 3500
 const cache = new Map()
 // 注意：hunyuan-v3 / hy3-preview 在 CloudBase 里需要走 taiji 专属接口，
 // 不能通过 wx.cloud.extend.AI 的通用 streamText 直接调用。
-const PROVIDER_CANDIDATES = ['hunyuan-exp']
-const MODEL_CANDIDATES = ['hunyuan-2.0-instruct-20251111']
+const PROVIDER_CANDIDATES = ['hunyuan-v3']
+const MODEL_CANDIDATES = ['hy3-preview']
 let cloudExplainDisabled = false
 
 function normalizeText(v) {
@@ -81,7 +81,7 @@ async function generateByCloud({ answer, hint }, onChunk) {
   const safeAnswer = normalizeText(answer)
   const safeHint = normalizeText(hint)
   const prompt = [
-    `重要：只解释${safeAnswer}这一个词，不要扯别的。用清奇的脑洞给它一个离谱但又好像有点道理的搞笑解释，一句话说完，30-40字，无任何特殊格式。`,
+    `重要：只解释${safeAnswer}这一个词，不要扯别的。用清奇的脑洞给它一个离谱但又好像有点道理的搞笑解释，一句话说完，40字左右，支持格式。`,
   ].filter(Boolean).join('')
 
   let lastErr = null
@@ -99,7 +99,6 @@ async function generateByCloud({ answer, hint }, onChunk) {
               },
             ],
             temperature: 0.7,
-            max_tokens: 120,
           },
         })
 
@@ -111,7 +110,6 @@ async function generateByCloud({ answer, hint }, onChunk) {
           if (chunkText) {
             output += String(chunkText)
             if (typeof onChunk === 'function') onChunk(output)
-            if (output.length >= 80) break
           }
         }
         const text = normalizeText(output)
