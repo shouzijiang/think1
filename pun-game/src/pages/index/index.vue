@@ -176,9 +176,16 @@
     </view>
 
     <view class="streamer-float" @click="goStreamer">
-      <text class="streamer-float-icon">📡</text>
-      <text class="streamer-float-text">邀好友</text>
-      <text class="streamer-float-text">赚收益</text>
+      <view class="streamer-float-inner">
+        <image
+          class="btn-start-icon"
+          src="https://sofun.online/static/mini/gold.png"
+          mode="aspectFit"
+        />
+        <text class="streamer-float-title">邀好友</text>
+        <text class="streamer-float-sub">赚收益</text>
+      </view>
+      <view class="streamer-float-dot" />
     </view>
   </view>
 </template>
@@ -942,49 +949,95 @@ function startGame() {
 
 .streamer-float {
   position: fixed;
-  right: 0rpx;
+  right: 0;
   top: 30%;
   transform: translateY(-50%);
   z-index: 52;
-  width: 112rpx;
-  min-height: 120rpx;
-  padding: 16rpx 10rpx;
+  width: 120rpx;
+  padding: 0;
   box-sizing: border-box;
+  border-radius: 24rpx 0 0 24rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.85);
+  border-right: none;
+  background: linear-gradient(160deg, #c084fc 0%, #a855f7 55%, #9333ea 100%);
+  box-shadow:
+    0 8rpx 28rpx rgba(168, 85, 247, 0.5),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.35);
+  overflow: hidden;
+  animation: streamer-float-wiggle 3s ease-in-out infinite;
+}
+
+.streamer-float::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.28) 0%, transparent 100%);
+  pointer-events: none;
+  border-radius: 24rpx 0 0 0;
+}
+
+.streamer-float:active {
+  opacity: 0.9;
+  transform: translateY(-50%) scale(0.96);
+}
+
+.streamer-float-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6rpx;
-  border-radius: 22rpx;
-  border: 2rpx solid rgba(255, 255, 255, 0.72);
-  border-left: none;
-  background: linear-gradient(180deg, #ffe0a0 0%, #f7c860 100%);
-  box-shadow: 0 10rpx 24rpx rgba(242, 180, 95, 0.32);
-  animation: streamer-float-wiggle 3s ease-in-out infinite;
-}
-
-.streamer-float:active {
-  opacity: 0.92;
-  transform: translateY(-50%) scale(0.98);
+  gap: 4rpx;
+  padding: 18rpx 10rpx;
 }
 
 .streamer-float-icon {
-  font-size: 30rpx;
+  font-size: 36rpx;
   line-height: 1;
+  animation: streamer-icon-bounce 1.6s ease-in-out infinite;
 }
 
-.streamer-float-text {
-  font-size: 20rpx;
-  line-height: 1.25;
-  font-weight: 800;
-  color: #754400;
+.streamer-float-title {
+  font-size: 24rpx;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-shadow: 0 1rpx 4rpx rgba(150, 40, 0, 0.4);
+}
+
+.streamer-float-sub {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: #fff;
   letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.streamer-float-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: #fff;
+  margin: 0 auto 14rpx;
+  opacity: 0.9;
+  animation: streamer-dot-pulse 1.4s ease-in-out infinite;
 }
 
 @keyframes streamer-float-wiggle {
   0%, 100% { transform: translateY(-50%) rotate(0deg); }
-  25% { transform: translateY(-50%) rotate(3deg); }
-  75% { transform: translateY(-50%) rotate(-3deg); }
+  25% { transform: translateY(-52%) rotate(2deg); }
+  75% { transform: translateY(-48%) rotate(-2deg); }
+}
+
+@keyframes streamer-icon-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4rpx) scale(1.12); }
+}
+
+@keyframes streamer-dot-pulse {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
 }
 
 .daily-task-float-icon {

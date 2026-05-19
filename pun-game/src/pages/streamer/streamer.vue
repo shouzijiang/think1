@@ -16,7 +16,7 @@
     <!-- 邀请码区域 -->
     <view class="qr-card">
       <text class="qr-title">📡 你的专属邀请码</text>
-      <text class="qr-desc">扫码进入即自动绑定</text>
+      <text class="qr-desc">扫码或者分享链接进入的好友即自动绑定，获取收益</text>
 
       <view class="qr-wrap">
         <view v-if="qrLoading" class="qr-placeholder">
@@ -30,13 +30,8 @@
           show-menu-by-longpress
         />
         <view v-else class="qr-placeholder qr-placeholder--error">
-          <text class="qr-loading-text">请生成您的专属邀请码</text>
+          <text class="qr-loading-text">请生成您的专属邀请码。你的ID：{{ userId || '加载中…' }}</text>
         </view>
-      </view>
-
-      <view class="qr-channel-tag">
-        <text class="qr-channel-label">你的ID</text>
-        <text class="qr-channel-value">{{ userId || '加载中…' }}</text>
       </view>
 
       <view class="qr-actions">
@@ -46,6 +41,9 @@
         <button v-if="qrBase64" class="qr-btn qr-btn--save" @click="saveQrCode">
           保存到相册
         </button>
+      </view>
+      <view class="qr-share-row">
+        <button class="qr-btn qr-btn--share" open-type="share">📤 立刻邀请好友</button>
       </view>
     </view>
 
@@ -78,18 +76,33 @@
         </view>
         <view class="stats-row">
           <view class="stat-item">
-            <text class="stat-num stat-num--blue">{{ (stats.videoCount * 0.01).toFixed(2) }}</text>
-            <text class="stat-label">预估收益</text>
+            <text class="stat-num stat-num--blue">{{ (stats.videoCount * 0.01).toFixed(2) }}元</text>
+            <text class="stat-label">展示为预估收益，收益达到1元即可提现</text>
           </view>
         </view>
       </template>
+    </view>
+
+    <!-- 加入群聊 -->
+    <view class="group-card">
+      <text class="group-title">💬 加入玩家交流群</text>
+      <text class="group-desc">扫码进群，第一时间获取活动福利</text>
+      <view class="group-qr-wrap">
+        <image
+          class="group-qr-img"
+          src="https://sofun.online/static/group_qr.jpg"
+          mode="aspectFit"
+          show-menu-by-longpress
+        />
+      </view>
+      <text class="group-tip">长按二维码识别加入</text>
     </view>
   </view>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onShareAppMessage } from '@dcloudio/uni-app'
 import { api } from '../../utils/api'
 import { useNavBar } from '../../composables/useNavBar'
 import { getUserInfo } from '../../utils/auth'
@@ -251,6 +264,11 @@ function back() {
   uni.navigateBack({ delta: 1, fail: () => uni.reLaunch({ url: '/pages/index/index' }) })
 }
 
+onShareAppMessage(() => ({
+  title: `邀请你来玩谐音梗猜一猜，用我的专属链接进入`,
+  path: `/pages/index/index?channel=${userId.value}`,
+}))
+
 onShow(() => {
   loadUserId()
   restoreQrFromStorage()
@@ -351,12 +369,66 @@ onShow(() => {
   font-weight: 700;
   border-radius: 48rpx;
   border: none;
-  padding: 20rpx 0;
+  padding: 10rpx 0;
   box-shadow: 0 4rpx 14rpx rgba(111, 184, 104, 0.3);
 }
 .qr-btn--save {
   background: linear-gradient(135deg, #90caf9, #42a5f5);
   box-shadow: 0 4rpx 14rpx rgba(66, 165, 245, 0.3);
+}
+.qr-share-row {
+  margin-top: 16rpx;
+  .qr-btn--share {
+    background: linear-gradient(135deg, #6ee7b7, #10b981);
+    box-shadow: 0 4rpx 14rpx rgba(16, 185, 129, 0.3);
+    color: #fff;
+    padding: 15rpx 0;
+  }
+}
+
+.group-card {
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 28rpx;
+  padding: 36rpx 32rpx;
+  margin-bottom: 28rpx;
+  box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.18);
+  border: 2rpx solid rgba(169, 201, 238, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.group-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #5a6d7a;
+  display: block;
+  margin-bottom: 8rpx;
+  align-self: flex-start;
+}
+.group-desc {
+  font-size: 24rpx;
+  color: #8eadcf;
+  display: block;
+  margin-bottom: 24rpx;
+  align-self: flex-start;
+}
+.group-qr-wrap {
+  width: 280rpx;
+  height: 280rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  border: 4rpx solid rgba(169, 201, 238, 0.4);
+  margin-bottom: 16rpx;
+}
+.group-qr-img {
+  width: 100%;
+  height: 100%;
+}
+.group-tip {
+  font-size: 22rpx;
+  color: #8eadcf;
 }
 
 /* 统计 */
