@@ -25,20 +25,24 @@
     </view>
 
     <view class="start-wrap">
-      <view class="btn-start btn-start-main" @click="startGameXhs">
-        <!-- <image
-          class="btn-start-icon"
-          src="https://sofun.online/static/mini/start.png"
-          mode="aspectFit"
-        /> -->
+      <view
+        class="btn-start btn-start-main"
+        hover-class="btn-start--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click="startGameXhs"
+      >
         <text class="btn-start-text">开始游戏</text>
         <text class="btn-start-text btn-start-text2">(小红书专辑)</text>
       </view>
       <view class="start-sub-row">
-        <view class="btn-start btn-start-xhs" @click="startGameMid">
-          <!-- <view class="xhs-new-badge">
-            <text class="xhs-new-text">新</text>
-          </view> -->
+        <view
+          class="btn-start btn-start-xhs"
+          hover-class="btn-start--hover"
+          :hover-start-time="20"
+          :hover-stay-time="100"
+          @click="startGameMid"
+        >
           <image
             class="btn-icon btn-icon-img"
             src="https://sofun.online/static/mini/xhs.png"
@@ -46,7 +50,13 @@
           />
           <text class="btn-text">经典专辑</text>
         </view>
-        <view class="btn-start btn-start-2" @click="startGame">
+        <view
+          class="btn-start btn-start-2"
+          hover-class="btn-start--hover"
+          :hover-start-time="20"
+          :hover-stay-time="100"
+          @click="startGame"
+        >
           <image
             class="btn-icon btn-icon-img"
             src="https://sofun.online/static/mini/gttc.png"
@@ -58,7 +68,13 @@
     </view>
 
     <view class="top-actions">
-      <view class="btn-entry btn-entry--battle" @click="goBattle">
+      <view
+        class="btn-entry btn-entry--battle"
+        hover-class="btn-entry--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click="goBattle"
+      >
         <view class="battle-badge">3分钟一局</view>
         <image
           class="btn-icon btn-icon-img"
@@ -68,7 +84,13 @@
         <text class="btn-text">邀请好友</text>
         <text class="btn-sub-text">1V1对战</text>
       </view>
-      <view class="btn-entry btn-levels" @click="goLevels">
+      <view
+        class="btn-entry btn-levels"
+        hover-class="btn-entry--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click="goLevels"
+      >
         <text class="btn-icon">📋</text>
         <text class="btn-text">我的关卡</text>
       </view>
@@ -94,14 +116,26 @@
           </view>
           <text class="changelog-suppress-label">7天内不再展示</text>
         </view>
-        <view class="changelog-btn" @click="dismissChangelog">
+        <view
+          class="changelog-btn"
+          hover-class="changelog-btn--hover"
+          :hover-start-time="20"
+          :hover-stay-time="100"
+          @click="dismissChangelog"
+        >
           <text class="changelog-btn-text">知道了</text>
         </view>
       </view>
     </view>
 
     <view class="side-toolbar">
-      <view class="toolbar-item" @click.stop="toggleBgm">
+      <view
+        class="toolbar-item"
+        hover-class="toolbar-item--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click.stop="toggleBgm"
+      >
         <image
           v-if="bgmOn"
           class="btn-start-icon"
@@ -117,7 +151,13 @@
         <text class="toolbar-text">音乐</text>
       </view>
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click.stop="toggleSfx">
+      <view
+        class="toolbar-item"
+        hover-class="toolbar-item--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click.stop="toggleSfx"
+      >
         <image
           v-if="sfxOn"
           class="btn-start-icon"
@@ -133,7 +173,13 @@
         <text class="toolbar-text">音效</text>
       </view>
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click="goRank">
+      <view
+        class="toolbar-item"
+        hover-class="toolbar-item--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click="goRank"
+      >
         <image
           class="btn-start-icon"
           src="https://sofun.online/static/mini/rank.png"
@@ -141,13 +187,14 @@
         />
         <text class="toolbar-text">榜单</text>
       </view>
-      <!-- <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click="goForum">
-        <text class="toolbar-icon">☕</text>
-        <text class="toolbar-text">交流</text>
-      </view> -->
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click.stop="goMail">
+      <view
+        class="toolbar-item"
+        hover-class="toolbar-item--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click.stop="goMail"
+      >
         <image
           class="btn-start-icon"
           src="https://sofun.online/static/mini/mail.png"
@@ -156,7 +203,13 @@
         <text class="toolbar-text">邮件</text>
       </view>
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click.stop="goTasks">
+      <view
+        class="toolbar-item"
+        hover-class="toolbar-item--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click.stop="goTasks"
+      >
         <image
           class="btn-start-icon"
           src="https://sofun.online/static/mini/tasks.png"
@@ -165,7 +218,13 @@
         <text class="toolbar-text">任务</text>
       </view>
       <view class="toolbar-divider"></view>
-      <view class="toolbar-item" @click.stop="goMine">
+      <view
+        class="toolbar-item"
+        hover-class="toolbar-item--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click.stop="goMine"
+      >
         <image
           class="btn-start-icon"
           src="https://sofun.online/static/mini/mine.png"
@@ -175,7 +234,13 @@
       </view>
     </view>
 
-    <view class="streamer-float" @click="goStreamer">
+    <view
+      class="streamer-float"
+      hover-class="streamer-float--hover"
+      :hover-start-time="20"
+      :hover-stay-time="100"
+      @click="goStreamer"
+    >
       <view class="streamer-float-inner">
         <image
           class="btn-start-icon"
@@ -359,35 +424,35 @@ onShareTimeline(() => ({
 }))
 
 function goRank() {
-  uni.navigateTo({ url: '/pages/rank/rank' })
+  uni.navigateTo({ url: '/pages-sub/rank/rank' })
 }
 function goMine() {
-  uni.navigateTo({ url: '/pages/mine/mine' })
+  uni.navigateTo({ url: '/pages-sub/mine/mine' })
 }
 function goTasks() {
-  uni.navigateTo({ url: '/pages/tasks/tasks' })
+  uni.navigateTo({ url: '/pages-sub/tasks/tasks' })
 }
 function goMail() {
-  uni.navigateTo({ url: '/pages/mail/mail' })
+  uni.navigateTo({ url: '/pages-sub/mail/mail' })
 }
 function goForum() {
-  uni.navigateTo({ url: '/pages/forum/forum' })
+  uni.navigateTo({ url: '/pages-sub/forum/forum' })
 }
 function goLevels() {
-  uni.navigateTo({ url: '/pages/levels/levels' })
+  uni.navigateTo({ url: '/pages-sub/levels/levels' })
 }
 
 function goBattle() {
-  uni.navigateTo({ url: '/pages/battleRoom/battleRoom' })
+  uni.navigateTo({ url: '/pages-sub/battleRoom/battleRoom' })
 }
 
 function goStreamer() {
-  uni.navigateTo({ url: '/pages/streamer/streamer' })
+  uni.navigateTo({ url: '/pages-sub/streamer/streamer' })
 }
 
 async function startGameXhs() {
   // uni.showToast({ title: '4月15号上线,尽情期待~', icon: 'none' })
-  const goPlay = (lv) => { uni.navigateTo({ url: `/pages/playXhs/playXhs?level=${lv}` }) }
+  const goPlay = (lv) => { uni.navigateTo({ url: `/pages-sub/playXhs/playXhs?level=${lv}` }) }
   try {
     const data = await api.getLevelProgress({ gameTier: 'xhs' })
     const list = await loadXhsLevelList()
@@ -411,7 +476,7 @@ async function startGameXhs() {
   }
 }
 async function startGameMid() {
-  const goPlay = (lv) => { uni.navigateTo({ url: `/pages/playMid/playMid?level=${lv}` }) }
+  const goPlay = (lv) => { uni.navigateTo({ url: `/pages-sub/playMid/playMid?level=${lv}` }) }
   try {
     const data = await api.getLevelProgress({ gameTier: 'mid' })
     const list = await loadMidLevelList()
@@ -436,14 +501,25 @@ async function startGameMid() {
 }
 
 function startGame() {
-  const goPlay = (level) => { uni.navigateTo({ url: `/pages/play/play?level=${level}` }) }
-  api.getLevelProgress()
+  const goPlay = (level) => { uni.navigateTo({ url: `/pages-sub/play/play?level=${level}` }) }
+  api.getLevelProgress({ gameTier: 'beginner' })
     .then((data) => {
-      if(data.currentLevel >= 270) {
-        uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往我的关卡继续游玩~', icon: 'none' })
+      const totalRaw = data && data.totalLevels != null ? Number(data.totalLevels) : NaN
+      if (!Number.isFinite(totalRaw) || totalRaw < 1) {
+        uni.showToast({ title: '无法获取关卡信息，请稍后重试', icon: 'none' })
         return
       }
-      goPlay(data.currentLevel != null ? data.currentLevel : 1)
+      const cap = totalRaw
+      const curRaw = data && data.currentLevel != null ? Number(data.currentLevel) : NaN
+      if (!Number.isFinite(curRaw) || curRaw < 1) {
+        goPlay(1)
+        return
+      }
+      if (curRaw >= cap) {
+        uni.showToast({ title: '恭喜通关全部梗图填词！', icon: 'none', duration: 2000 })
+        return
+      }
+      goPlay(curRaw)
     })
     .catch(() => goPlay(getCurrentLevel()))
 }
@@ -451,7 +527,9 @@ function startGame() {
 </script>
 
 <style lang="scss" scoped>
-/* 参考：浅粉蓝底 + 薄荷绿主色 + 浅蓝描边（柔和不刺眼） */
+@use '../../styles/page-theme.scss' as *;
+
+/* 浅粉蓝底 + 薄荷绿主色（背景层与 page-theme 一致） */
 .page {
   min-height: 100vh;
   display: flex;
@@ -461,47 +539,10 @@ function startGame() {
   overflow: hidden;
   padding: 0 40rpx;
   box-sizing: border-box;
-  background: #eaf6f9;
+  @include pt-page-background;
 }
 
-.bg-wrap {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-.bg-gradient {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse 200rpx 120rpx at 12% 22%, rgba(255, 235, 200, 0.45), transparent 55%),
-    radial-gradient(ellipse 180rpx 100rpx at 88% 18%, rgba(210, 200, 245, 0.35), transparent 50%),
-    radial-gradient(ellipse 220rpx 140rpx at 72% 78%, rgba(255, 210, 190, 0.28), transparent 55%),
-    linear-gradient(180deg, #eaf6f9 0%, #e4f3f8 45%, #eaf6f9 100%);
-}
-.bg-dots {
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image: radial-gradient(circle at 2px 2px, rgba(169, 201, 238, 0.45) 2px, transparent 0);
-  background-size: 40rpx 40rpx;
-}
-.bg-glow {
-  position: absolute;
-  top: -5%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120%;
-  height: 50%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(255, 255, 255, 0.65) 0%,
-    rgba(234, 246, 249, 0) 68%
-  );
-  pointer-events: none;
-}
-
-/* 与 forum.vue .nav-bar 同构：条内左侧区域对齐「返回/首页」nav-btn 位置 */
+/* 与 forum 顶栏同构：条内左侧区域对齐「返回/首页」nav-btn 位置 */
 
 .hero {
   position: relative;
@@ -534,10 +575,6 @@ function startGame() {
 .hero-badge-img {
   width: 100%;
   height: 100%;
-}
-.hero-emoji {
-  font-size: 100rpx;
-  filter: drop-shadow(0 8rpx 8rpx rgba(0,0,0,0.1));
 }
 .title {
   font-size: 56rpx;
@@ -674,60 +711,6 @@ function startGame() {
   }
 }
 
-/* 右上角「上新」：深玫红底 + 白字，与浅粉按钮拉开对比（父级 .btn-start 已 position:relative） */
-.xhs-new-badge {
-  position: absolute;
-  top: -0;
-  right: -0;
-  z-index: 44;
-  padding: 6rpx 14rpx;
-  border-radius: 25rpx;
-  border-bottom-right-radius: 0;
-  border-top-left-radius: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  background: rgb(255 36 66);
-  border: 1rpx solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 4rpx 14rpx rgba(247, 46, 119, 0.38),
-    inset 0 1rpx 0 rgba(87, 54, 54, 0.28);
-  transform-origin: 50% 50%;
-  animation: xhsBadgeFloat .4s ease-in infinite;
-
-}
-
-.xhs-new-text {
-  font-size: 20rpx;
-  line-height: 1.1;
-  // font-weight: 700;
-  letter-spacing: 0.06em;
-  padding: 0 5rpx;
-  color: #fff;
-  text-shadow: 0 1rpx 2rpx rgba(40, 0, 20, 0.45);
-  animation: xhsBadgeTextGlow 2.4s ease-in-out infinite;
-}
-
-@keyframes xhsBadgeFloat {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
-  }
-  50% {
-    transform: translateY(5rpx) scale(1.2);
-  }
-}
-
-@keyframes xhsBadgeTextGlow {
-  0%,
-  100% {
-    opacity: 0.92;
-  }
-  50% {
-    opacity: 1;
-  }
-}
 .btn-start-main {
   width: 100%;
   padding: 36rpx 40rpx;
@@ -753,7 +736,7 @@ function startGame() {
   padding: 34rpx 18rpx;
   font-size: 26rpx;
 }
-.btn-start:active {
+.btn-start--hover {
   transform: translateY(10rpx) scale(0.985);
   filter: brightness(0.97);
   box-shadow:
@@ -838,7 +821,7 @@ function startGame() {
   );
   pointer-events: none;
 }
-.btn-entry:active {
+.btn-entry--hover {
   transform: translateY(8rpx) scale(0.985);
   filter: brightness(0.97);
   box-shadow:
@@ -942,9 +925,9 @@ function startGame() {
   animation: daily-task-float-wiggle 2.4s ease-in-out infinite;
 }
 
-.daily-task-float:active {
+/* 与 wiggle 动画共用 transform，按下态仅用透明度，避免小程序 :active 粘连 */
+.daily-task-float--hover {
   opacity: 0.92;
-  transform: translateY(-50%) scale(0.98);
 }
 
 .streamer-float {
@@ -977,9 +960,9 @@ function startGame() {
   border-radius: 24rpx 0 0 0;
 }
 
-.streamer-float:active {
+.streamer-float--hover {
   opacity: 0.9;
-  transform: translateY(-50%) scale(0.96);
+  filter: brightness(0.96);
 }
 
 .streamer-float-inner {
@@ -1077,9 +1060,9 @@ function startGame() {
   transition: all 0.15s ease;
 }
 
-.toolbar-item:active {
-  transform: scale(0.9);
-  opacity: 0.8;
+.toolbar-item--hover {
+  opacity: 0.82;
+  filter: brightness(0.96);
 }
 
 .toolbar-item--asset-highlight {
@@ -1231,7 +1214,7 @@ function startGame() {
   border: 3rpx solid rgba(255, 255, 255, 0.5);
   box-shadow: 0 6rpx 18rpx rgba(145, 213, 139, 0.35);
 }
-.changelog-btn:active {
+.changelog-btn--hover {
   opacity: 0.92;
   transform: scale(0.98);
 }

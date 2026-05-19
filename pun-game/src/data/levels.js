@@ -10,16 +10,20 @@ const STORAGE_PASSED = 'pun_game_passed_levels'
 
 export function getCurrentLevel() {
   try {
-    const n = uni.getStorageSync(STORAGE_CURRENT)
-    return n ? parseInt(n, 10) : 1
+    const raw = uni.getStorageSync(STORAGE_CURRENT)
+    if (raw === '' || raw === null || raw === undefined) return 1
+    const v = parseInt(String(raw), 10)
+    return Number.isFinite(v) && v >= 1 ? v : 1
   } catch {
     return 1
   }
 }
 
 export function setCurrentLevel(level) {
+  const v = parseInt(String(level), 10)
+  const safe = Number.isFinite(v) && v >= 1 ? v : 1
   try {
-    uni.setStorageSync(STORAGE_CURRENT, String(level))
+    uni.setStorageSync(STORAGE_CURRENT, String(safe))
   } catch (e) {}
 }
 
@@ -105,7 +109,9 @@ function normalizePuzzle(data) {
  * 初级关卡题目：{ hintText, wordArray, answerLength, imageUrl, imageUrlTop?, imageUrlBottom?, keywordHint?, topCaption?, bottomCaption?, ... }
  */
 export function getLevelPuzzle(levelNum) {
-  const url = `${LEVEL_DATA_BASE}/${levelNum}.json`
+  const n = parseInt(String(levelNum), 10)
+  const safe = Number.isFinite(n) && n >= 1 ? n : 1
+  const url = `${LEVEL_DATA_BASE}/${safe}.json`
   return request({ url, method: 'GET' })
     .then((res) => (res.data && normalizePuzzle(res.data)))
     .catch(() => ({ ...FALLBACK_PUZZLE }))
@@ -385,7 +391,6 @@ export function getXhsLevelPuzzle(levelNum) {
 
     const answerLength = Math.max(1, parseInt(item.answerLength, 10) || 3)
     const imageUrl = getXhsLevelImageUrl(lv)
-    console.log(item)
     return normalizePuzzle({
       hintText: '',
       topCaption: '',

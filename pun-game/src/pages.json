@@ -13,104 +13,118 @@
         "navigationBarTitleText": "谐音梗猜一猜",
         "backgroundColor": "#0a1628"
       }
-    },
+    }
+  ],
+  "subPackages": [
     {
-      "path": "pages/rank/rank",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "排行榜"
-      }
-    },
-    {
-      "path": "pages/levels/levels",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "我的关卡"
-      }
-    },
-    {
-      "path": "pages/mine/mine",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "我的"
-      }
-    },
-    {
-      "path": "pages/tasks/tasks",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "任务中心"
-      }
-    },
-    {
-      "path": "pages/play/play",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "梗图填词"
-      }
-    },
-    {
-      "path": "pages/playMid/playMid",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "经典"
-      }
-    },
-    {
-      "path": "pages/playXhs/playXhs",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "小红书专辑"
-      }
-    },
-    {
-      "path": "pages/feedback/feedback",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "意见反馈"
-      }
-    },
-    {
-      "path": "pages/mail/mail",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "信箱"
-      }
-    },
-    {
-      "path": "pages/mail/detail",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "邮件详情"
-      }
-    },
-    {
-      "path": "pages/battleRoom/battleRoom",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "好友1V1对战"
-      }
-    },
-    {
-      "path": "pages/battlePlay/battlePlay",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "对战中"
-      }
-    },
-    {
-      "path": "pages/battleHistory/battleHistory",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "对战记录"
-      }
-    },
-    {
-      "path": "pages/streamer/streamer",
-      "style": {
-        "navigationStyle": "custom",
-        "navigationBarTitleText": "邀请好友赚收益"
-      }
+      "root": "pages-sub",
+      "pages": [
+        {
+          "path": "rank/rank",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "排行榜"
+          }
+        },
+        {
+          "path": "levels/levels",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "我的关卡"
+          }
+        },
+        {
+          "path": "mine/mine",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "我的"
+          }
+        },
+        {
+          "path": "tasks/tasks",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "任务中心"
+          }
+        },
+        {
+          "path": "play/play",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "梗图填词"
+          }
+        },
+        {
+          "path": "playMid/playMid",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "经典"
+          }
+        },
+        {
+          "path": "playXhs/playXhs",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "小红书专辑"
+          }
+        },
+        {
+          "path": "feedback/feedback",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "意见反馈"
+          }
+        },
+        {
+          "path": "mail/mail",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "信箱"
+          }
+        },
+        {
+          "path": "mail/detail",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "邮件详情"
+          }
+        },
+        {
+          "path": "battleRoom/battleRoom",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "好友1V1对战"
+          }
+        },
+        {
+          "path": "battlePlay/battlePlay",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "对战中"
+          }
+        },
+        {
+          "path": "battleHistory/battleHistory",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "对战记录"
+          }
+        },
+        {
+          "path": "streamer/streamer",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "邀请好友赚收益"
+          }
+        },
+        {
+          "path": "forum/forum",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "闲聊"
+          }
+        }
+      ]
     }
   ],
   "globalStyle": {

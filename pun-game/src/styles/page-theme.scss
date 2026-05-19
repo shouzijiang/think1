@@ -78,11 +78,6 @@ $pt-muted: #8eadcf;
   display: flex;
   align-items: center;
   justify-content: center;
-  // border-radius: 50%;
-  // background: rgba(255, 255, 255, 0.92);
-  // color: #5a6d7a;
-  // box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.25);
-  // border: 2rpx solid rgba(169, 201, 238, 0.65);
 }
 
 .nav-btn-refresh {
@@ -92,7 +87,8 @@ $pt-muted: #8eadcf;
   color: #5a6d7a;
 }
 
-.nav-btn:active {
+/* 点击态由组件 hover-class 触发（见 PunPageNavBar），避免小程序 :active 滑动粘连 */
+.nav-btn--hover {
   transform: scale(0.96);
   opacity: 0.95;
 }
@@ -117,9 +113,4 @@ $pt-muted: #8eadcf;
   font-weight: 700;
   color: #6fb868;
   letter-spacing: 0.04em;
-}
-
-.nav-star {
-  font-size: 28rpx;
-  opacity: 0.85;
 }

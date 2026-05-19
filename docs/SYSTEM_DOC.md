@@ -125,8 +125,10 @@
 
 ### 1. 前端 (UniApp) 注意事项
 - **API 规范**：遵循 `uniapp-apis.mdc` 规范，禁止使用原生的 `fetch` 或 `window`，必须统一使用 `uni.request` 和 `uni.setStorageSync`。
-- **统一领奖调用（仅微信小程序）**：分享、激励视频、每日任务（`daily_noon_hint_5` / `daily_watch_ad_hint_1` / `daily_battle_3_hint_3`）统一调用 `POST /pun/reward/claim`，按 `type` 区分逻辑；激励视频仍要求完整观看后再领奖。广告位 `adUnitId` 配置在 `pun-game/src/constants/rewardedVideoAd.js`。
+- **微信小程序分包**：主包仅 **`pages/index/index`**；其余业务页在分包 **`pages-sub`**（见 `pun-game/src/pages.json` → `subPackages`）。`uni.navigateTo` / `redirectTo` / `reLaunch` 及分享 `path` 中，非首页路由须使用 **`/pages-sub/...`** 前缀（如 `/pages-sub/play/play?level=1`）；首页仍为 **`/pages/index/index`**。仅分包页面使用的逻辑放在 **`pun-game/src/pages-sub/composables/`**、**`pun-game/src/pages-sub/utils/`**（如对战 WebSocket、通关解读、揭字/跳关共享 **`punPlayShared`**、激励视频常量等）与 **`pun-game/src/pages-sub/constants/`**，避免微信主包「未使用 JS」审计将文件算入主包根目录。
+- **统一领奖调用（仅微信小程序）**：分享、激励视频、每日任务（`daily_noon_hint_5` / `daily_watch_ad_hint_1` / `daily_battle_3_hint_3`）统一调用 `POST /pun/reward/claim`，按 `type` 区分逻辑；激励视频仍要求完整观看后再领奖。广告位 `adUnitId` 配置在 **`pun-game/src/pages-sub/constants/rewardedVideoAd.js`**（与分包闯关/任务页一致，避免主包未使用 JS 审计）。
 - **中级与小红书关卡逻辑**：`mid` 与 `xhs` 关卡 `level` 均可能不连续，不能用 ID 大小判断进度，必须依赖接口 `/pun/level/progress` 返回的 `currentLevel`、`passedLevels`、`totalLevels` 渲染锁定/解锁状态。
+- **初级（beginner）题号约定**：关卡号最小为 **1**；`/pun/level/progress?gameTier=beginner` 仅在 `pun_levels` 配置中键 ≥1 且为有效题目时推算 `currentLevel`，避免出现 `0` 导致前端请求不存在的 `issue/0.json`。本地 `pun_game_current_level` 读写也规范为 ≥1。**总关数与是否全通**：以前端拿到的接口字段 **`totalLevels`**（由 `config/pun_levels.php` 决定）为准，前端不写死关数；**全部通关**后提示「恭喜通关全部梗图填词！」并 `reLaunch` 回首页。中级/小红书同理依赖接口与 `pun_levels_issue2` / `pun_levels_issue3`。
 - **1V1 对战题库**：`battle` 模式题目来源已与小红书专辑一致（`issue3` / `pun_levels_issue3`），前后端需保持同一题库来源，避免房间下发关卡与校验答案不一致。
 - **首页更新弹窗**：进入首页请求 `/pun/changelog/latest`，与本地 `pun_changelog_seen_version`（`version_code`）比对，未读则弹窗；点「知道了」写入本地已读。
 - **抖音与微信登录解耦**：`uni.login` 的 `provider` 在抖音侧须为 `toutiao`（见 `pun-game/src/utils/auth.js` 中 `getUniLoginProvider`），后端接口仍走 `/auth/douyin/login`（内部 provider 为 `douyin`）；两者不可混用为同一个字符串。

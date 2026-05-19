@@ -18,12 +18,12 @@
 
       <!-- 放射状短线（轻量「礼花」感，纯 CSS） -->
       <view class="pun-pass__rays" aria-hidden="true">
-        <view v-for="i in 16" :key="'r' + i" class="pun-pass__ray" :style="rayStyle(i)" />
+        <view v-for="(st, i) in RAY_STYLES" :key="'r' + i" class="pun-pass__ray" :style="st" />
       </view>
 
       <!-- 飘落粒子 -->
       <view class="pun-pass__confetti" aria-hidden="true">
-        <view v-for="i in 18" :key="'c' + i" class="pun-pass__confetti-piece" :style="confettiStyle(i)" />
+        <view v-for="(st, i) in CONFETTI_STYLES" :key="'c' + i" class="pun-pass__confetti-piece" :style="st" />
       </view>
 
       <!-- 角标星光 -->
@@ -68,6 +68,24 @@
 
 <script setup>
 import { ref, watch, onUnmounted } from 'vue'
+
+/** 放射短线角度（静态样式，避免每次父组件重渲染时新建对象） */
+const RAY_STYLES = Array.from({ length: 16 }, (_, i) => ({
+  transform: `rotate(${i * 22.5}deg)`,
+}))
+
+/** 彩色纸条初始水平位置与延迟 */
+const CONFETTI_STYLES = Array.from({ length: 18 }, (_, i) => {
+  const ii = i + 1
+  const left = 5 + ((ii * 17) % 90)
+  const delay = ((ii * 0.07) % 1).toFixed(2)
+  const hue = (ii * 47) % 360
+  return {
+    left: `${left}%`,
+    animationDelay: `${delay}s`,
+    backgroundColor: `hsla(${hue}, 85%, 62%, 0.95)`,
+  }
+})
 
 /** 过关动画展示后延迟（毫秒），避免误触瞬间关闭 */
 const ACTION_UNLOCK_MS = 2000
@@ -131,26 +149,6 @@ function handleActionClick() {
 function resolveSubText(fallback) {
   const t = String(props.subText || '').trim()
   return t || fallback
-}
-
-/** 放射短线角度 */
-function rayStyle(i) {
-  const deg = (i - 1) * 22.5
-  return {
-    transform: `rotate(${deg}deg)`,
-  }
-}
-
-/** 彩色纸条初始水平位置与延迟 */
-function confettiStyle(i) {
-  const left = 5 + ((i * 17) % 90)
-  const delay = ((i * 0.07) % 1).toFixed(2)
-  const hue = (i * 47) % 360
-  return {
-    left: `${left}%`,
-    animationDelay: `${delay}s`,
-    backgroundColor: `hsla(${hue}, 85%, 62%, 0.95)`,
-  }
 }
 </script>
 

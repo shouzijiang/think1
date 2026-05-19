@@ -116,86 +116,102 @@ defineExpose({ loadUserInfo })
   gap: 20rpx;
   width: 100%;
   box-sizing: border-box;
-}
 
-.avatar-btn {
-  padding: 0;
-  margin: 0;
-  background: transparent;
-  border: none;
-  line-height: 1;
-  position: relative;
-}
-.avatar-btn::after {
-  border: none;
-}
-.avatar-btn--card {
-  flex-shrink: 0;
-  box-sizing: border-box;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid rgba(169, 201, 238, 0.65);
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
-}
-.avatar-fallback {
-  flex-shrink: 0;
-  box-sizing: border-box;
-  border-radius: 50%;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid rgba(169, 201, 238, 0.65);
-  box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
-}
-.avatar-btn--card .user-avatar,
-.avatar-fallback .user-avatar {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: none;
-  display: block;
-}
-.nickname-wrapper {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4rpx;
-}
-.nickname-input {
-  width: 100%;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #5a6d7a;
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  height: auto;
-  line-height: 1.2;
-}
-.nickname-input::placeholder {
-  color: #8eadcf;
-  font-weight: 600;
-}
-.edit-hint {
-  font-size: 22rpx;
-  color: #8eadcf;
-  font-weight: 400;
-  display: inline-block;
-  align-self: flex-start;
-}
-.user-nickname {
-  flex: 1;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: #5a6d7a;
+  .avatar-btn {
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    line-height: 1;
+    position: relative;
+
+    &::after {
+      border: none;
+    }
+
+    &.avatar-btn--card {
+      flex-shrink: 0;
+      box-sizing: border-box;
+      border-radius: 50%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2rpx solid rgba(169, 201, 238, 0.65);
+      box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
+
+      .user-avatar {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: none;
+        display: block;
+      }
+    }
+  }
+
+  .avatar-fallback {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.92);
+    border: 2rpx solid rgba(169, 201, 238, 0.65);
+    box-shadow: 0 4rpx 14rpx rgba(169, 201, 238, 0.2);
+
+    .user-avatar {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: none;
+      display: block;
+    }
+  }
+
+  .nickname-wrapper {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4rpx;
+
+    .nickname-input {
+      width: 100%;
+      font-size: 30rpx;
+      font-weight: 700;
+      color: #5a6d7a;
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      height: auto;
+      line-height: 1.2;
+
+      &::placeholder {
+        color: #8eadcf;
+        font-weight: 600;
+      }
+    }
+
+    .edit-hint {
+      font-size: 22rpx;
+      color: #8eadcf;
+      font-weight: 400;
+      display: inline-block;
+      align-self: flex-start;
+    }
+
+    .user-nickname {
+      flex: 1;
+      font-size: 30rpx;
+      font-weight: 700;
+      color: #5a6d7a;
+    }
+  }
 }
 </style>

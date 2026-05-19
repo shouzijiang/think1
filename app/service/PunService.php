@@ -1666,9 +1666,13 @@ class PunService
             $answersRaw = Config::get('pun_levels', []);
             $allKeys = array_keys($answersRaw);
             sort($allKeys);
-            $totalLevels = count($allKeys); // 使用总数量而不是最大的 key
-            $lastLevel = empty($allKeys) ? -1 : end($allKeys);
-            reset($allKeys);
+            // 初级（beginner）题号约定 ≥1，排除配置里误带的 0 等非法键，避免 currentLevel=0 导致前端拉 issue/0.json
+            $allKeys = array_values(array_filter($allKeys, static function ($k) use ($answersRaw) {
+                $id = (int) $k;
+                return $id >= 1 && isset($answersRaw[$k]) && is_array($answersRaw[$k]);
+            }));
+            $totalLevels = count($allKeys);
+            $lastLevel = $totalLevels > 0 ? (int) $allKeys[$totalLevels - 1] : -1;
             $passedLevels = $this->normalizePassedLevels($progress ? $progress['passed_levels'] : null);
             $skippedLevels = $this->getSkipLevels($userId, $mode, $answersRaw);
             // 确保进度里只保留配置中确实存在的题目ID
@@ -1678,16 +1682,17 @@ class PunService
             $maxPassed = empty($passedLevels) ? 0 : max($passedLevels);
             $currentLevel = null;
             foreach ($allKeys as $k) {
-                if (!in_array($k, $passedLevels, true) && !isset($skipSet[(int) $k])) {
-                    $currentLevel = $k;
+                $kid = (int) $k;
+                if (!in_array($kid, $passedLevels, true) && !isset($skipSet[$kid])) {
+                    $currentLevel = $kid;
                     break;
                 }
             }
-            if ($currentLevel === null && $maxPassed >= $lastLevel && in_array($lastLevel, $passedLevels, true)) {
+            if ($currentLevel === null && $lastLevel >= 1 && $maxPassed >= $lastLevel && in_array($lastLevel, $passedLevels, true)) {
                 $currentLevel = $maxPassed; // 初级原逻辑：全部通关后停留在最后一关
             }
             if ($currentLevel === null) {
-                $currentLevel = $allKeys[0] ?? 1;
+                $currentLevel = $totalLevels > 0 ? (int) $allKeys[0] : 1;
             }
 
             $result = array_merge($common, [

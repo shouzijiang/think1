@@ -13,6 +13,9 @@
       <view
         v-if="showLeft"
         class="nav-btn"
+        hover-class="nav-btn--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
         :style="leftBtnStyle"
         @click="onLeft"
       >
@@ -75,26 +78,29 @@ function onLeft() {
 <style lang="scss" scoped>
 @use '../styles/page-theme.scss' as *;
 
-.pun-page-nav__status {
-  display: block;
-}
+.pun-page-nav {
+  .pun-page-nav__status {
+    display: block;
+  }
 
-/* inset 顶栏：左右留白 */
-.nav-bar.pun-page-nav-bar--inset {
-  padding: 0 40rpx;
-  margin-bottom: 24rpx;
-}
-.pun-page-nav-bar--inset .nav-btn {
-  left: 40rpx;
-}
-.pun-page-nav-bar--inset .nav-icon {
-  font-size: 44rpx;
-  font-weight: bold;
-  line-height: 1;
-}
+  .nav-bar.pun-page-nav-bar--inset {
+    padding: 0 40rpx;
+    margin-bottom: 24rpx;
 
-.nav-btn-img {
-  width: 60rpx;
-  flex-shrink: 0;
+    .nav-btn {
+      left: 40rpx;
+    }
+
+    .nav-icon {
+      font-size: 44rpx;
+      font-weight: bold;
+      line-height: 1;
+    }
+  }
+
+  .nav-btn-img {
+    width: 60rpx;
+    flex-shrink: 0;
+  }
 }
 </style>
