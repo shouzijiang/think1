@@ -10,6 +10,7 @@ Route::group('auth', function () {
     // 需要认证的路由
     Route::group(function () {
         Route::post('user/update', 'Auth/updateUser');
+        Route::post('touch-login', 'Auth/touchLogin');
     })->middleware(\app\middleware\Auth::class);
 });
 

@@ -13,7 +13,7 @@
 ## 二、 数据库核心表结构
 
 ### 1. 公共与基础表
-- **users (或 pun_game_user)**: 用户基础信息表（openid, **mp_platform**（`weixin`/`douyin`，与登录端一致）, nickname, avatar，**last_login_at** 最近登录时间；微信登录成功时写入，`/cron/send-remind` 等逻辑依赖；老库迁移见 `docs/migrations/add_users_last_login_at.sql`；**小程序来源字段**见 `docs/migrations/add_users_mp_platform.sql`）
+- **users (或 pun_game_user)**: 用户基础信息表（openid, **mp_platform**（`weixin`/`douyin`，与登录端一致）, nickname, avatar，**last_login_at** 最近登录时间；小程序登录成功时写入，且已登录态会通过 `/auth/touch-login` 心跳按天刷新，`/cron/send-remind` 等逻辑依赖；老库迁移见 `docs/migrations/add_users_last_login_at.sql`；**小程序来源字段**见 `docs/migrations/add_users_mp_platform.sql`）
 
 ### 2. 谐音梗猜一猜游戏相关表
 - **pun_game_rank**: 游戏排行榜（user_id, max_level, max_level_mid, max_level_xhs；**last_pass_at_beginner / last_pass_at_mid / last_pass_at_xhs** 为各轨道最近一次通关时间，用于该榜**同分排序**；`updated_at` 仍为行级更新时间。同分排序规则：`ORDER BY 该轨最高关 DESC, COALESCE(该轨 last_pass_at_*, updated_at) DESC`）
@@ -44,6 +44,7 @@
 | `/auth/wechat/login` | POST | 微信 code 登录换取 Token | ❌ |
 | `/auth/douyin/login` | POST | 抖音 code 登录换取 Token | ❌ |
 | `/auth/user/update` | POST | 更新用户昵称和头像 | ✅ |
+| `/auth/touch-login` | POST | 已登录心跳刷新 `last_login_at`（用于本地 token 命中时补写最近登录） | ✅ |
 
 ### 2. 谐音梗猜一猜游戏模块 (Pun Game)
 | 接口路径 | 方法 | 说明 |

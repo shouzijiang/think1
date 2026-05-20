@@ -134,5 +134,24 @@ class Auth extends BaseController
             'avatar' => $data['avatar'] ?? null,
         ], '更新成功');
     }
+
+    /**
+     * 已登录心跳：刷新最近登录时间
+     */
+    public function touchLogin(Request $request)
+    {
+        $userId = (int)($request->user_id ?? 0);
+        if ($userId <= 0) {
+            return ResponseHelper::unauthorized();
+        }
+        $ok = $this->authService->touchLastLoginAt($userId);
+        if (!$ok) {
+            return ResponseHelper::error('刷新登录时间失败', 500);
+        }
+        return ResponseHelper::success([
+            'user_id' => $userId,
+            'last_login_at' => date('Y-m-d H:i:s'),
+        ], '刷新成功');
+    }
 }
 

@@ -15,6 +15,24 @@ use think\facade\Db;
 class AuthService
 {
     /**
+     * 更新最近登录时间（供已登录心跳调用）
+     * @param int $userId
+     * @return bool
+     */
+    public function touchLastLoginAt(int $userId): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+        $user = User::find($userId);
+        if (!$user) {
+            return false;
+        }
+        $user->last_login_at = date('Y-m-d H:i:s');
+        return (bool)$user->save();
+    }
+
+    /**
      * 微信登录
      * @param string $code
      * @return array|false

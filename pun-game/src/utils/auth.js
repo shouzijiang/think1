@@ -4,6 +4,29 @@ import { api } from './api'
 // 登录状态锁，防止并发调用
 let isLoggingIn = false
 let loginPromise = null
+const LAST_LOGIN_TOUCH_DATE_KEY = 'pun_last_login_touch_date'
+
+function getTodayKey() {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function touchLastLoginAtIfNeeded() {
+  try {
+    const today = getTodayKey()
+    const touchedDate = uni.getStorageSync(LAST_LOGIN_TOUCH_DATE_KEY)
+    if (touchedDate === today) return
+    api
+      .touchLogin()
+      .then(() => {
+        uni.setStorageSync(LAST_LOGIN_TOUCH_DATE_KEY, today)
+      })
+      .catch(() => {})
+  } catch {}
+}
 
 /**
  * 传给后端（如 auth 微信或抖音 login）的会话类型（与 JWT、users.mp_platform 等业务字段对应）。
@@ -53,6 +76,7 @@ export async function miniProgramLogin(forceRefresh = false) {
 
   // 检查是否已登录（除非强制刷新）
   if (checkLogin() && !forceRefresh) {
+    touchLastLoginAtIfNeeded()
     return Promise.resolve(uni.getStorageSync('userInfo'))
   }
 
@@ -79,6 +103,9 @@ export async function miniProgramLogin(forceRefresh = false) {
               avatar: result.avatar,
             }
             uni.setStorageSync('userInfo', stored)
+            try {
+              uni.setStorageSync(LAST_LOGIN_TOUCH_DATE_KEY, getTodayKey())
+            } catch {}
 
             // 上报买量渠道（首次登录后一次性上报）
             try {

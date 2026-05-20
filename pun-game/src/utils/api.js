@@ -392,6 +392,17 @@ export const api = {
   },
 
   /**
+   * 已登录心跳：刷新 users.last_login_at
+   */
+  touchLogin() {
+    return request({
+      url: '/auth/touch-login',
+      method: 'POST',
+      data: {},
+    })
+  },
+
+  /**
    * 论坛：获取帖子列表（分页）
    * @param {Object} params - { page?: number, page_size?: number }
    */
