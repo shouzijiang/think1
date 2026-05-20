@@ -34,16 +34,7 @@
 
       <view class="card-inner card-inner--stack">
         <PunGlobalWatermark />
-        <view v-if="wrongFloatItems.length" class="wrong-float-layer">
-          <view
-            v-for="item in wrongFloatItems"
-            :key="item.id"
-            class="wrong-float-item"
-            :style="getWrongFloatStyle(item)"
-          >
-            {{ item.text }}
-          </view>
-        </view>
+        <PunWrongAnswerFloat :items="wrongFloatItems" />
         <view class="stack-block">
           <image
             v-if="puzzle.imageUrlTop"
@@ -182,11 +173,13 @@ import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
 import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
 import PunHintOverlay from '../../components/PunHintOverlay.vue'
+import PunWrongAnswerFloat from '../../components/PunWrongAnswerFloat.vue'
 import { usePunPassSuccess } from '../composables/usePunPassSuccess'
 import { usePunShareReward } from '../../composables/usePunShareReward'
 import { usePunRewardedVideoHint } from '../composables/usePunRewardedVideoHint'
 import { usePunHanAnswerInput } from '../composables/usePunHanAnswerInput'
 import { usePunSkipLevel } from '../composables/usePunSkipLevel'
+import { useWrongAnswerFloat } from '../composables/useWrongAnswerFloat'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
 import { generatePassExplain } from '../utils/punPassExplain'
 import {
@@ -215,7 +208,7 @@ const submitting = ref(false)
 
 const feedback = ref([])
 const slotShake = ref(false)
-const wrongFloatItems = ref([])
+const { wrongFloatItems, pushWrongFloatText, clearWrongFloatText } = useWrongAnswerFloat()
 const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
 const passSuccessExplain = ref('')
 const hintLoading = ref(false)
@@ -250,50 +243,6 @@ const {
 
 function isSlotError(index) {
   return punIsSlotError(feedback.value, index)
-}
-
-const WRONG_FLOAT_POSITIONS = [
-  { top: 8, left: 3 },
-  { top: 24, left: 16 },
-  { top: 42, left: 8 },
-  { top: 60, left: 18 },
-  { top: 78, left: 5 },
-  { top: 10, left: 66 },
-  { top: 28, left: 80 },
-  { top: 46, left: 70 },
-  { top: 64, left: 84 },
-  { top: 82, left: 68 }
-]
-const WRONG_FLOAT_MAX = 10
-
-function pushWrongFloatText(chars) {
-  const text = String((chars || []).join('')).trim()
-  if (!text) return
-  const pos = WRONG_FLOAT_POSITIONS[Math.floor(Math.random() * WRONG_FLOAT_POSITIONS.length)]
-  const top = Math.max(2, Math.min(92, pos.top + (Math.random() * 8 - 4)))
-  const left = Math.max(2, Math.min(88, pos.left + (Math.random() * 8 - 4)))
-  const item = {
-    id: `${Date.now()}-${Math.random()}`,
-    text,
-    top,
-    left,
-    duration: 2800 + Math.floor(Math.random() * 1400),
-    delay: Math.floor(Math.random() * 300)
-  }
-  wrongFloatItems.value = [...wrongFloatItems.value, item].slice(-WRONG_FLOAT_MAX)
-}
-
-function clearWrongFloatText() {
-  wrongFloatItems.value = []
-}
-
-function getWrongFloatStyle(item) {
-  return {
-    top: `${item.top}%`,
-    left: `${item.left}%`,
-    animationDuration: `${item.duration}ms`,
-    animationDelay: `${item.delay}ms`
-  }
 }
 
 async function checkAnswer() {
@@ -706,35 +655,6 @@ onShareTimeline(() => {
   flex-direction: column;
   align-items: center;
 }
-.wrong-float-layer {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 20rpx;
-  height: 300rpx;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 4;
-}
-.wrong-float-item {
-  position: absolute;
-  max-width: 240rpx;
-  padding: 8rpx 16rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  line-height: 1.2;
-  color: rgba(185, 28, 28, 0.78);
-  background: rgba(254, 226, 226, 0.62);
-  border: 1rpx solid rgba(248, 113, 113, 0.3);
-  box-shadow: 0 6rpx 16rpx rgba(248, 113, 113, 0.12);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-  animation-name: wrong-float;
-  animation-timing-function: ease-in-out;
-  animation-iteration-count: infinite;
-  transform-origin: center center;
-}
 
 .answer-row--mid {
   border-bottom: 1rpx solid rgba(160, 190, 220, 0.35);
@@ -854,17 +774,6 @@ onShareTimeline(() => {
   }
 }
 
-@keyframes wrong-float {
-  0% {
-    transform: translate3d(0, 0, 0) rotate(-2deg);
-  }
-  50% {
-    transform: translate3d(10rpx, -12rpx, 0) rotate(2deg);
-  }
-  100% {
-    transform: translate3d(-6rpx, -4rpx, 0) rotate(-2deg);
-  }
-}
 </style>
 
 

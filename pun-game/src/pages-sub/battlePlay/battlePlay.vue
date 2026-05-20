@@ -62,6 +62,7 @@
       </view>
       <view class="card-inner card-inner--stack">
         <PunGlobalWatermark />
+        <PunWrongAnswerFloat :items="wrongFloatItems" />
         <view class="stack-block">
           <image
             v-if="puzzle.imageUrlTop"
@@ -197,9 +198,11 @@ import PunGlobalWatermark from '../../components/PunGlobalWatermark.vue'
 import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
 import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
 import PunHintOverlay from '../../components/PunHintOverlay.vue'
+import PunWrongAnswerFloat from '../../components/PunWrongAnswerFloat.vue'
 import { usePunPassSuccess } from '../composables/usePunPassSuccess'
 import { usePunRewardedVideoHint } from '../composables/usePunRewardedVideoHint'
 import { usePunHanAnswerInput } from '../composables/usePunHanAnswerInput'
+import { useWrongAnswerFloat } from '../composables/useWrongAnswerFloat'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
 import {
   punGetCachedHint,
@@ -266,6 +269,7 @@ const submitting = ref(false)
 
 const feedback = ref([])
 const slotShake = ref(false)
+const { wrongFloatItems, pushWrongFloatText, clearWrongFloatText } = useWrongAnswerFloat()
 const { showSuccess, runPassSuccess } = usePunPassSuccess()
 const hintLoading = ref(false)
 const hintAnswerQuota = ref(0)
@@ -385,6 +389,7 @@ async function checkAnswer() {
     })
     // 修改这行：因为 submitAnswer 返回的结果结构有可能是 { isCorrect: true } 或者是原格式，根据实际情况适配
     if (data && data.isCorrect) {
+      clearWrongFloatText()
       runPassSuccess({
         durationMs: 1000,
         afterPrepare: async () => {
@@ -421,6 +426,7 @@ async function checkAnswer() {
     }
 
     feedback.value = data.feedback || []
+    pushWrongFloatText(userAnswer)
     punScheduleWrongAnswerReset(slotShake, () => {
       answerChars.value = []
       answerInputValue.value = ''
@@ -795,6 +801,7 @@ async function syncBattleStateForWake() {
 }
 
 .card-inner--stack {
+  position: relative;
   padding: 36rpx 28rpx 72rpx;
   gap: 28rpx;
 }
