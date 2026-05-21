@@ -7,6 +7,19 @@ const DEFAULT_TIMEOUT = 12000
 const DEFAULT_GET_RETRY = 1
 const DEFAULT_RETRY_DELAY = 220
 const inFlightGetRequests = new Map()
+let tokenCache = ''
+let tokenCacheLoaded = false
+
+function getGlobalDataRef() {
+  try {
+    const app = typeof getApp === 'function' ? getApp() : null
+    if (!app) return null
+    if (!app.globalData) app.globalData = {}
+    return app.globalData
+  } catch {
+    return null
+  }
+}
 
 // 构建查询字符串（兼容微信小程序，不使用 URLSearchParams）
 function buildQueryString(params) {
@@ -21,7 +34,40 @@ function buildQueryString(params) {
 
 // 获取 token
 function getToken() {
-  return uni.getStorageSync('token') || ''
+  if (tokenCacheLoaded) return tokenCache
+  const globalData = getGlobalDataRef()
+  if (globalData && globalData.__punTokenCacheLoaded) {
+    tokenCache = globalData.__punTokenCache || ''
+    tokenCacheLoaded = true
+    return tokenCache
+  }
+  tokenCache = uni.getStorageSync('token') || ''
+  tokenCacheLoaded = true
+  if (globalData) {
+    globalData.__punTokenCache = tokenCache
+    globalData.__punTokenCacheLoaded = true
+  }
+  return tokenCache
+}
+
+function setTokenCache(token) {
+  tokenCache = token || ''
+  tokenCacheLoaded = true
+  const globalData = getGlobalDataRef()
+  if (globalData) {
+    globalData.__punTokenCache = tokenCache
+    globalData.__punTokenCacheLoaded = true
+  }
+}
+
+function clearTokenCache() {
+  tokenCache = ''
+  tokenCacheLoaded = true
+  const globalData = getGlobalDataRef()
+  if (globalData) {
+    globalData.__punTokenCache = ''
+    globalData.__punTokenCacheLoaded = true
+  }
 }
 
 function normalizeMethod(method) {
@@ -345,7 +391,7 @@ export const api = {
    */
   uploadAvatar(filePath) {
     const doUpload = () => new Promise((resolve, reject) => {
-      const token = uni.getStorageSync('token') || ''
+      const token = getToken()
       uni.uploadFile({
         url: BASE_URL + '/upload/avatar',
         filePath,
@@ -537,4 +583,8 @@ export const api = {
   getStreamerStats() {
     return request({ url: '/pun/streamer/stats', method: 'GET' })
   },
+
+  /** 登录态缓存：避免高频 getStorageSync */
+  setTokenCache,
+  clearTokenCache,
 }

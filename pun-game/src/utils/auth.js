@@ -5,6 +5,92 @@ import { api } from './api'
 let isLoggingIn = false
 let loginPromise = null
 const LAST_LOGIN_TOUCH_DATE_KEY = 'pun_last_login_touch_date'
+let authCacheLoaded = false
+let cachedToken = ''
+let cachedUserInfo = null
+let touchDateCacheLoaded = false
+let cachedTouchDate = ''
+
+function getGlobalDataRef() {
+  try {
+    const app = typeof getApp === 'function' ? getApp() : null
+    if (!app) return null
+    if (!app.globalData) app.globalData = {}
+    return app.globalData
+  } catch {
+    return null
+  }
+}
+
+function loadAuthCacheFromStorage() {
+  if (authCacheLoaded) return
+  const globalData = getGlobalDataRef()
+  if (globalData && globalData.__punAuthCacheLoaded) {
+    cachedToken = globalData.__punAuthToken || ''
+    cachedUserInfo = globalData.__punAuthUserInfo || null
+    authCacheLoaded = true
+    return
+  }
+  cachedToken = uni.getStorageSync('token') || ''
+  cachedUserInfo = uni.getStorageSync('userInfo') || null
+  authCacheLoaded = true
+  if (globalData) {
+    globalData.__punAuthToken = cachedToken
+    globalData.__punAuthUserInfo = cachedUserInfo
+    globalData.__punAuthCacheLoaded = true
+  }
+}
+
+function writeAuthCache(token, userInfo) {
+  cachedToken = token || ''
+  cachedUserInfo = userInfo || null
+  authCacheLoaded = true
+  const globalData = getGlobalDataRef()
+  if (globalData) {
+    globalData.__punAuthToken = cachedToken
+    globalData.__punAuthUserInfo = cachedUserInfo
+    globalData.__punAuthCacheLoaded = true
+  }
+}
+
+function clearAuthCache() {
+  cachedToken = ''
+  cachedUserInfo = null
+  authCacheLoaded = true
+  const globalData = getGlobalDataRef()
+  if (globalData) {
+    globalData.__punAuthToken = ''
+    globalData.__punAuthUserInfo = null
+    globalData.__punAuthCacheLoaded = true
+  }
+}
+
+function getLastTouchDate() {
+  if (touchDateCacheLoaded) return cachedTouchDate
+  const globalData = getGlobalDataRef()
+  if (globalData && globalData.__punLastTouchDateLoaded) {
+    cachedTouchDate = globalData.__punLastTouchDate || ''
+    touchDateCacheLoaded = true
+    return cachedTouchDate
+  }
+  cachedTouchDate = uni.getStorageSync(LAST_LOGIN_TOUCH_DATE_KEY) || ''
+  touchDateCacheLoaded = true
+  if (globalData) {
+    globalData.__punLastTouchDate = cachedTouchDate
+    globalData.__punLastTouchDateLoaded = true
+  }
+  return cachedTouchDate
+}
+
+function setLastTouchDate(value) {
+  cachedTouchDate = value || ''
+  touchDateCacheLoaded = true
+  const globalData = getGlobalDataRef()
+  if (globalData) {
+    globalData.__punLastTouchDate = cachedTouchDate
+    globalData.__punLastTouchDateLoaded = true
+  }
+}
 
 function getTodayKey() {
   const now = new Date()
@@ -17,12 +103,13 @@ function getTodayKey() {
 function touchLastLoginAtIfNeeded() {
   try {
     const today = getTodayKey()
-    const touchedDate = uni.getStorageSync(LAST_LOGIN_TOUCH_DATE_KEY)
+    const touchedDate = getLastTouchDate()
     if (touchedDate === today) return
     api
       .touchLogin()
       .then(() => {
         uni.setStorageSync(LAST_LOGIN_TOUCH_DATE_KEY, today)
+        setLastTouchDate(today)
       })
       .catch(() => {})
   } catch {}
@@ -58,10 +145,9 @@ function getUniLoginProvider() {
 
 // 检查登录状态（须同时具备 token 与有效 user_id，避免仅有脏 token 跳过登录导致页面无 userInfo）
 export function checkLogin() {
-  const token = uni.getStorageSync('token')
-  const userInfo = uni.getStorageSync('userInfo')
-  if (!token || !userInfo) return false
-  const uid = userInfo.user_id
+  loadAuthCacheFromStorage()
+  if (!cachedToken || !cachedUserInfo) return false
+  const uid = cachedUserInfo.user_id
   const n = Number(uid)
   return n > 0
 }
@@ -77,7 +163,7 @@ export async function miniProgramLogin(forceRefresh = false) {
   // 检查是否已登录（除非强制刷新）
   if (checkLogin() && !forceRefresh) {
     touchLastLoginAtIfNeeded()
-    return Promise.resolve(uni.getStorageSync('userInfo'))
+    return Promise.resolve(cachedUserInfo)
   }
 
   // 设置登录锁
@@ -103,8 +189,12 @@ export async function miniProgramLogin(forceRefresh = false) {
               avatar: result.avatar,
             }
             uni.setStorageSync('userInfo', stored)
+            writeAuthCache(result.token, stored)
+            api.setTokenCache(result.token)
             try {
-              uni.setStorageSync(LAST_LOGIN_TOUCH_DATE_KEY, getTodayKey())
+              const today = getTodayKey()
+              uni.setStorageSync(LAST_LOGIN_TOUCH_DATE_KEY, today)
+              setLastTouchDate(today)
             } catch {}
 
             // 上报买量渠道（首次登录后一次性上报）
@@ -158,6 +248,8 @@ export async function forceLogin() {
   // 清除登录状态
   uni.removeStorageSync('token')
   uni.removeStorageSync('userInfo')
+  clearAuthCache()
+  api.clearTokenCache()
   // 强制刷新登录
   return miniProgramLogin(true)
 }
@@ -171,6 +263,8 @@ export async function wechatLogin(forceRefresh = false) {
 export function logout() {
   uni.removeStorageSync('token')
   uni.removeStorageSync('userInfo')
+  clearAuthCache()
+  api.clearTokenCache()
   uni.switchTab({
     url: '/pages/index/index',
   })
@@ -178,7 +272,8 @@ export function logout() {
 
 // 获取用户信息（兼容历史缓存字段）
 export function getUserInfo() {
-  const info = uni.getStorageSync('userInfo') || null
+  loadAuthCacheFromStorage()
+  const info = cachedUserInfo
   if (!info || typeof info !== 'object') return info
   if (info.user_id == null && info.userId != null) {
     return { ...info, user_id: info.userId }
@@ -186,11 +281,19 @@ export function getUserInfo() {
   return info
 }
 
+// 读取当前登录 token（优先内存缓存，回退 storage）
+export function getAuthToken() {
+  loadAuthCacheFromStorage()
+  return cachedToken || ''
+}
+
 // 处理登录过期（401错误）
 export function handleLoginExpired() {
   // 清除登录信息
   uni.removeStorageSync('token')
   uni.removeStorageSync('userInfo')
+  clearAuthCache()
+  api.clearTokenCache()
 
   // 显示提示并重新加载小程序
   uni.showModal({

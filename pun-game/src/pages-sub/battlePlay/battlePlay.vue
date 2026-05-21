@@ -211,7 +211,7 @@ import {
   punRevealHintWithModal,
   punToastRevealHintAfterError
 } from '../utils/punPlayShared'
-import { getUserInfo } from '../../utils/auth'
+import { getUserInfo, getAuthToken, wechatLogin } from '../../utils/auth'
 import { useWechatPageShare } from '../composables/useWechatPageShare'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -633,7 +633,15 @@ function confirmBackToRoom() {
 }
 
 async function ensureBattleWsConnected() {
-  const token = uni.getStorageSync('token')
+  let token = getAuthToken()
+  if (!token) {
+    try {
+      await wechatLogin()
+      token = getAuthToken()
+    } catch (e) {
+      return
+    }
+  }
   if (!token) return
   const wasConnected = wsApi.isConnected && wsApi.isConnected()
   try {

@@ -20,6 +20,27 @@ let sfxErrorCtx = null
 let currentBgmUrl = ''
 let preloadStarted = false
 let preloadPromise = null
+const localAudioSwitchCache = Object.create(null)
+
+function getGlobalDataRef() {
+  try {
+    const app = typeof getApp === 'function' ? getApp() : null
+    if (!app) return null
+    if (!app.globalData) app.globalData = {}
+    return app.globalData
+  } catch {
+    return null
+  }
+}
+
+function getGlobalAudioSwitchCache() {
+  const globalData = getGlobalDataRef()
+  if (!globalData) return null
+  if (!globalData.__punAudioSwitchCache) {
+    globalData.__punAudioSwitchCache = Object.create(null)
+  }
+  return globalData.__punAudioSwitchCache
+}
 
 /**
  * 预热音频资源缓存，降低首次播放卡顿。
@@ -73,17 +94,43 @@ function applyCtxDefaults(ctx, loop) {
 }
 
 function readAudioSwitch(storageKey) {
+  if (Object.prototype.hasOwnProperty.call(localAudioSwitchCache, storageKey)) {
+    return localAudioSwitchCache[storageKey]
+  }
+  const globalCache = getGlobalAudioSwitchCache()
+  if (globalCache && Object.prototype.hasOwnProperty.call(globalCache, storageKey)) {
+    const val = !!globalCache[storageKey]
+    localAudioSwitchCache[storageKey] = val
+    return val
+  }
+
   try {
     const v = uni.getStorageSync(storageKey)
-    if (v === '' || v === undefined || v === null) return true
-    return v === true || v === 'true' || v === 1 || v === '1'
+    const val = (v === '' || v === undefined || v === null)
+      ? true
+      : (v === true || v === 'true' || v === 1 || v === '1')
+    localAudioSwitchCache[storageKey] = val
+    if (globalCache) {
+      globalCache[storageKey] = val
+    }
+    return val
   } catch {
+    localAudioSwitchCache[storageKey] = true
+    if (globalCache) {
+      globalCache[storageKey] = true
+    }
     return true
   }
 }
 
 function writeAudioSwitch(storageKey, on) {
-  uni.setStorageSync(storageKey, !!on)
+  const val = !!on
+  localAudioSwitchCache[storageKey] = val
+  const globalCache = getGlobalAudioSwitchCache()
+  if (globalCache) {
+    globalCache[storageKey] = val
+  }
+  uni.setStorageSync(storageKey, val)
 }
 
 export function isBgmEnabled() {

@@ -169,7 +169,7 @@ import { api } from '../../utils/api'
 import { wsApi } from '../utils/ws'
 import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
-import { getUserInfo, wechatLogin } from '../../utils/auth'
+import { getUserInfo, getAuthToken, wechatLogin } from '../../utils/auth'
 import { DEFAULT_AVATAR_URL } from '../../utils/defaultAvatar'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
@@ -393,11 +393,11 @@ async function joinByInput() {
     return
   }
 
-  let token = uni.getStorageSync('token')
+  let token = getAuthToken()
   if (!token) {
     try {
       await wechatLogin()
-      token = uni.getStorageSync('token')
+      token = getAuthToken()
     } catch (e) {
       uni.showToast({ title: '请先登录', icon: 'none' })
       return
@@ -538,7 +538,7 @@ function startJoinWaitTimeout(id) {
 async function rejoinCurrentRoomIfNeeded() {
   if (!roomId.value) return
   try {
-    const token = uni.getStorageSync('token')
+    const token = getAuthToken()
     if (!token) return
     const local = getUserInfo()
     if (local) {
@@ -558,10 +558,10 @@ async function initRoomPage(options) {
   // 监听 WebSocket 事件
   setupWsListeners()
   try {
-    let token = uni.getStorageSync('token')
+    let token = getAuthToken()
     if (!token) {
       await wechatLogin()
-      token = uni.getStorageSync('token')
+      token = getAuthToken()
     }
     if (!token) {
       throw new Error('登录失败')

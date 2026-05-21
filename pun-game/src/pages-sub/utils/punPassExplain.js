@@ -81,7 +81,7 @@ async function generateByCloud({ answer, hint }, onChunk) {
   const safeAnswer = normalizeText(answer)
   const safeHint = normalizeText(hint)
   const prompt = [
-    `重要：只解释${safeAnswer}这一个词，不要扯别的。用清奇的脑洞给它一个离谱但又好像有点道理的搞笑解释，一句话说完，40字左右，支持格式。`,
+    `重要：只解释${safeAnswer}这一个词，不要扯别的。用清奇的脑洞给它一个离谱但又好像有点道理的搞笑解释，一句话说完，50字左右，支持格式。`,
   ].filter(Boolean).join('')
 
   let lastErr = null
