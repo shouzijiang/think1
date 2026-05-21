@@ -25,7 +25,7 @@
 - **pun_game_mail**: 游戏站内信邮件主体表（支持全服 all 与单玩家 user）
 - **pun_game_mail_reads**: 游戏站内信已读记录表（按 user_id/mail_id 记录 read_at，用于列表角标）
 - **pun_reward_claim_record**: 统一领奖记录（`share` / `reward_video` / `daily_noon_hint_5` / `daily_watch_ad_hint_1` / `daily_battle_3_hint_3` / `permanent_set_avatar` / `permanent_set_nickname` / `permanent_my_mini_program_hint_3` 等）；**仅成功领取**写入一行（`status=success`）；业务拒绝与异常失败不落库（`status` 字段历史或其它脚本仍可为 rejected/failed）。若线上曾为 `permanent_my_mini_program_hint_5`，可执行 `docs/migrations/rename_permanent_my_mini_program_claim_type_hint_5_to_hint_3.sql` 统一类型名。
-- **pun_daily_answer_stat**: 每日答题次数统计（`user_id + stat_date` 唯一；用于“每日答题满20题后可领登录奖励+5次”）
+- **pun_daily_answer_stat**: 每日答对次数统计（`user_id + stat_date` 唯一；用于“每日答对满20题后可领登录奖励+5次”）
 - *(论坛相关表)*: 帖子表 (topic)、回复表 (reply)
 
 ### 3. 久坐提醒相关表
@@ -49,7 +49,7 @@
 ### 2. 谐音梗猜一猜游戏模块 (Pun Game)
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
-| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数）、`hintAnswerTotalUsed`（累计消耗答案次数）、`hintAnswerShareDailyMax`（分享日上限）、`hintAnswerShareDailyClaimed`（当日分享已领取次数，跨设备一致）、`dailyAnswerCount`（今日答题数）、`dailyAnswerRequired`（登录奖励所需答题数）、`dailyNoonTaskClaimed`（答题奖励是否已领）、`dailyAdTaskCount`（今日看广告任务已领取次数）、`dailyBattleCount`（当日已完成1V1局数）、`dailyBattleRequired`（1V1任务达标局数）、`dailyBattleTaskClaimed`（1V1任务是否已领）、`avatarTaskClaimed` / `nicknameTaskClaimed` / `myMiniProgramTaskClaimed`（永久任务是否已领） |
+| `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数）、`hintAnswerTotalUsed`（累计消耗答案次数）、`hintAnswerShareDailyMax`（分享日上限）、`hintAnswerShareDailyClaimed`（当日分享已领取次数，跨设备一致）、`dailyAnswerCount`（今日答对题数）、`dailyAnswerRequired`（登录奖励所需答对题数）、`dailyNoonTaskClaimed`（答题奖励是否已领）、`dailyAdTaskCount`（今日看广告任务已领取次数）、`dailyBattleCount`（当日已完成1V1局数）、`dailyBattleRequired`（1V1任务达标局数）、`dailyBattleTaskClaimed`（1V1任务是否已领）、`avatarTaskClaimed` / `nicknameTaskClaimed` / `myMiniProgramTaskClaimed`（永久任务是否已领） |
 | `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支） |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
 | `/pun/reward/claim` | POST | 统一领奖接口：`type=share/reward_video/daily_noon_hint_5/daily_watch_ad_hint_1/daily_battle_3_hint_3/permanent_set_avatar/permanent_set_nickname/permanent_my_mini_program_hint_3` 等；**成功领取**时写 `pun_reward_claim_record` |
@@ -85,7 +85,7 @@
 说明：
 - `type=share`：用于转发领奖，仍有 60 秒最小间隔与单日上限（5 次）风控。
 - `type=reward_video`：用于激励视频完整观看后领奖（与分享风控独立）。
-- `type=daily_noon_hint_5`：每个自然日（上海时区）限领一次 +5 次揭字配额，**不限制具体领取时段**；个人小程序场景下不要求订阅模板授权，但需当日答题达到阈值（当前 20 题）后才可领取。
+- `type=daily_noon_hint_5`：每个自然日（上海时区）限领一次 +5 次揭字配额，**不限制具体领取时段**；个人小程序场景下不要求订阅模板授权，但需当日答对达到阈值（当前 20 题）后才可领取。
 - `type=daily_watch_ad_hint_1`：看广告任务，完整观看后每次 +1 次揭字配额；当前不限制自然日领取次数，与 `reward_video` 领奖类型独立统计。
 - `type=daily_battle_3_hint_3`：每日 1V1 任务，当日完成 1V1 对局满 3 局后可领 +3 次揭字配额，自然日限领一次。
 - `type=permanent_my_mini_program_hint_3`：永久任务，全生命周期限领一次 +3 次揭字配额；须传 `launchScene`（与客户端 `uni.getLaunchOptionsSync().scene` 一致），且服务端校验为微信「我的小程序」入口（场景值 `1103`/`1104`）或抖音「我的-收藏」入口（`021003` / `21003`）。

@@ -279,7 +279,7 @@ class PunService
     }
 
     /**
-     * 记录用户当日答题次数（按 submitAnswer 调用计数，自然日 Asia/Shanghai）。
+     * 记录用户当日答对次数（仅答对计数，自然日 Asia/Shanghai）。
      */
     private function incrementDailyAnswerCount(int $userId): void
     {
@@ -1097,7 +1097,6 @@ class PunService
      */
     public function submitAnswer(int $userId, int $level, array $userAnswer, string $mode = 'beginner', string $questionBank = ''): array
     {
-        $this->incrementDailyAnswerCount($userId);
         $mode = $this->normalizeMode($mode);
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
@@ -1136,6 +1135,8 @@ class PunService
             $allCorrect = false;
         }
         if ($allCorrect) {
+            // 每日任务计数仅统计「答对」提交
+            $this->incrementDailyAnswerCount($userId);
             $this->removeSkipLevel($userId, $mode, $level, $mode === 'intermediate' ? $answersRaw : ($mode === 'xhs' || $mode === 'battle' ? $answersRaw : $answers));
             if ($mode === 'intermediate') {
                 $this->updateMidProgress($userId, $level, $answersRaw);
