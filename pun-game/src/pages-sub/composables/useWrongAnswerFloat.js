@@ -1,16 +1,16 @@
 import { ref } from 'vue'
 
 const WRONG_FLOAT_POSITIONS = [
-  { top: 8, left: 3 },
-  { top: 24, left: 16 },
-  { top: 42, left: 8 },
-  { top: 60, left: 18 },
-  { top: 78, left: 5 },
-  { top: 10, left: 66 },
-  { top: 28, left: 80 },
+  { top: 6, left: 2 },
+  { top: 24, left: 18 },
+  { top: 42, left: 4 },
+  { top: 60, left: 20 },
+  { top: 78, left: 6 },
+  { top: 10, left: 72 },
+  { top: 28, left: 86 },
   { top: 46, left: 70 },
-  { top: 64, left: 84 },
-  { top: 82, left: 68 }
+  { top: 64, left: 88 },
+  { top: 82, left: 72 }
 ]
 
 const WRONG_FLOAT_MAX = 10

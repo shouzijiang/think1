@@ -1,7 +1,11 @@
 <template>
   <view
     v-if="props.show"
-    :class="['pun-pass', `pun-pass--${props.variant}`, { 'pun-pass--interactive': props.showAction || props.tapAnywhere }]"
+    :class="[
+      'pun-pass',
+      `pun-pass--${props.variant}`,
+      { 'pun-pass--interactive': props.showAction || props.tapAnywhere },
+    ]"
     @click="handleOverlayClick"
   >
     <view class="pun-pass__scene">
@@ -18,12 +22,22 @@
 
       <!-- 放射状短线（轻量「礼花」感，纯 CSS） -->
       <view class="pun-pass__rays" aria-hidden="true">
-        <view v-for="(st, i) in RAY_STYLES" :key="'r' + i" class="pun-pass__ray" :style="st" />
+        <view
+          v-for="(st, i) in RAY_STYLES"
+          :key="'r' + i"
+          class="pun-pass__ray"
+          :style="st"
+        />
       </view>
 
       <!-- 飘落粒子 -->
       <view class="pun-pass__confetti" aria-hidden="true">
-        <view v-for="(st, i) in CONFETTI_STYLES" :key="'c' + i" class="pun-pass__confetti-piece" :style="st" />
+        <view
+          v-for="(st, i) in CONFETTI_STYLES"
+          :key="'c' + i"
+          class="pun-pass__confetti-piece"
+          :style="st"
+        />
       </view>
 
       <!-- 角标星光 -->
@@ -39,17 +53,19 @@
         <template v-if="props.variant === 'battle'">
           <text class="pun-pass__kicker pun-pass__kicker--battle">Nice!</text>
           <text class="pun-pass__headline pun-pass__headline--battle">回答正确~</text>
-          <text class="pun-pass__sub pun-pass__sub--battle">{{ resolveSubText('继续加油') }}</text>
+          <text class="pun-pass__sub pun-pass__sub--battle">{{
+            resolveSubText("继续加油")
+          }}</text>
         </template>
         <template v-else-if="props.variant === 'plain'">
           <text class="pun-pass__kicker">闯关成功</text>
           <text class="pun-pass__headline">回答正确~</text>
-          <text class="pun-pass__sub">{{ resolveSubText('太棒了') }}</text>
+          <text class="pun-pass__sub">{{ resolveSubText("太棒了") }}</text>
         </template>
         <template v-else>
           <text class="pun-pass__kicker">闯关成功</text>
           <text class="pun-pass__headline">回答正确~</text>
-          <text class="pun-pass__sub">{{ resolveSubText('继续下一关吧') }}</text>
+          <text class="pun-pass__sub">{{ resolveSubText("继续下一关吧") }}</text>
         </template>
 
         <button
@@ -67,88 +83,88 @@
 </template>
 
 <script setup>
-import { ref, watch, onUnmounted } from 'vue'
+import { ref, watch, onUnmounted } from "vue";
 
 /** 放射短线角度（静态样式，避免每次父组件重渲染时新建对象） */
 const RAY_STYLES = Array.from({ length: 16 }, (_, i) => ({
   transform: `rotate(${i * 22.5}deg)`,
-}))
+}));
 
 /** 彩色纸条初始水平位置与延迟 */
 const CONFETTI_STYLES = Array.from({ length: 18 }, (_, i) => {
-  const ii = i + 1
-  const left = 5 + ((ii * 17) % 90)
-  const delay = ((ii * 0.07) % 1).toFixed(2)
-  const hue = (ii * 47) % 360
+  const ii = i + 1;
+  const left = 5 + ((ii * 17) % 90);
+  const delay = ((ii * 0.07) % 1).toFixed(2);
+  const hue = (ii * 47) % 360;
   return {
     left: `${left}%`,
     animationDelay: `${delay}s`,
     backgroundColor: `hsla(${hue}, 85%, 62%, 0.95)`,
-  }
-})
+  };
+});
 
 /** 过关动画展示后延迟（毫秒），避免误触瞬间关闭 */
-const ACTION_UNLOCK_MS = 2000
+const ACTION_UNLOCK_MS = 2000;
 
 const props = defineProps({
   show: { type: Boolean, default: false },
   /** rich：经典绿调全屏；plain：小红书粉调；battle：对战蓝青调 */
   variant: {
     type: String,
-    default: 'rich',
-    validator: (v) => ['rich', 'plain', 'battle'].includes(v),
+    default: "rich",
+    validator: (v) => ["rich", "plain", "battle"].includes(v),
   },
   showAction: { type: Boolean, default: false },
-  actionText: { type: String, default: '下一关' },
+  actionText: { type: String, default: "下一关" },
   tapAnywhere: { type: Boolean, default: false },
-  subText: { type: String, default: '' },
-})
-const emit = defineEmits(['action'])
+  subText: { type: String, default: "" },
+});
+const emit = defineEmits(["action"]);
 
-const canInteract = ref(false)
-let unlockTimer = null
+const canInteract = ref(false);
+let unlockTimer = null;
 
 watch(
   () => props.show,
   (visible) => {
     if (unlockTimer) {
-      clearTimeout(unlockTimer)
-      unlockTimer = null
+      clearTimeout(unlockTimer);
+      unlockTimer = null;
     }
     if (visible) {
-      canInteract.value = false
+      canInteract.value = false;
       unlockTimer = setTimeout(() => {
-        unlockTimer = null
-        canInteract.value = true
-      }, ACTION_UNLOCK_MS)
+        unlockTimer = null;
+        canInteract.value = true;
+      }, ACTION_UNLOCK_MS);
     } else {
-      canInteract.value = false
+      canInteract.value = false;
     }
   },
-  { immediate: true },
-)
+  { immediate: true }
+);
 
 onUnmounted(() => {
   if (unlockTimer) {
-    clearTimeout(unlockTimer)
-    unlockTimer = null
+    clearTimeout(unlockTimer);
+    unlockTimer = null;
   }
-})
+});
 
 function handleOverlayClick() {
-  if (!props.showAction && !props.tapAnywhere) return
-  if (!canInteract.value) return
-  emit('action')
+  if (!props.showAction && !props.tapAnywhere) return;
+  if (!canInteract.value) return;
+  emit("action");
 }
 
 function handleActionClick() {
-  if (!canInteract.value) return
-  emit('action')
+  if (!canInteract.value) return;
+  emit("action");
 }
 
 function resolveSubText(fallback) {
-  const t = String(props.subText || '').trim()
-  return t || fallback
+  const t = String(props.subText || "").trim();
+  return t || fallback;
 }
 </script>
 
@@ -230,7 +246,11 @@ function resolveSubText(fallback) {
 .pun-pass__vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 90% 70% at 50% 45%, transparent 0%, rgba(0, 0, 0, 0.35) 100%);
+  background: radial-gradient(
+    ellipse 90% 70% at 50% 45%,
+    transparent 0%,
+    rgba(0, 0, 0, 0.35) 100%
+  );
   pointer-events: none;
 }
 
@@ -253,14 +273,14 @@ function resolveSubText(fallback) {
   height: 120rpx;
   border: 3rpx solid rgba(255, 255, 255, 0.55);
   border-radius: 50%;
-  animation: pun-pass-wave 1.4s ease-out infinite;
+  animation: pun-pass-wave 2s ease-out infinite;
 }
 
 .pun-pass__wave--d1 {
-  animation-delay: 0.35s;
+  animation-delay: 0.5s;
 }
 .pun-pass__wave--d2 {
-  animation-delay: 0.7s;
+  animation-delay: 0.9s;
 }
 
 @keyframes pun-pass-wave {
@@ -419,9 +439,7 @@ function resolveSubText(fallback) {
   font-weight: 900;
   line-height: 1.15;
   color: #fff;
-  text-shadow:
-    0 8rpx 32rpx rgba(0, 0, 0, 0.28),
-    0 0 40rpx rgba(255, 255, 255, 0.35);
+  text-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.28), 0 0 40rpx rgba(255, 255, 255, 0.35);
   margin-bottom: 20rpx;
   animation: pun-pass-hero-line 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both;
 }
