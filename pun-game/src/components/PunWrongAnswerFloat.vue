@@ -15,17 +15,17 @@
 const props = defineProps({
   items: {
     type: Array,
-    default: () => []
-  }
-})
+    default: () => [],
+  },
+});
 
 function getWrongFloatStyle(item) {
   return {
     top: `${item.top}%`,
     left: `${item.left}%`,
     animationDuration: `${item.duration}ms`,
-    animationDelay: `${item.delay}ms`
-  }
+    animationDelay: `${item.delay}ms`,
+  };
 }
 </script>
 
@@ -65,11 +65,17 @@ function getWrongFloatStyle(item) {
   0% {
     transform: translate3d(0, 0, 0) rotate(-2deg);
   }
+  25% {
+    transform: translate3d(8rpx, -8rpx, 0) rotate(1deg);
+  }
   50% {
     transform: translate3d(10rpx, -12rpx, 0) rotate(2deg);
   }
+  75% {
+    transform: translate3d(-6rpx, -6rpx, 0) rotate(-1deg);
+  }
   100% {
-    transform: translate3d(-6rpx, -4rpx, 0) rotate(-2deg);
+    transform: translate3d(0, 0, 0) rotate(-2deg);
   }
 }
 </style>

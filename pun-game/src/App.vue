@@ -1,5 +1,6 @@
 <script>
 import { wechatLogin } from './utils/auth'
+import { syncBgmByCurrentPage } from './utils/gameAudio'
 
 /** 小程序端：右上角菜单展示「转发」相关入口（需页面实现对应生命周期） */
 function enableMiniProgramShareMenu() {
@@ -18,6 +19,44 @@ function enableMiniProgramShareMenu() {
     fail(err) {
       console.warn('[showShareMenu]', err)
     },
+  })
+}
+
+let routeAudioHookInstalled = false
+
+function scheduleSyncBgmByCurrentPage() {
+  setTimeout(() => {
+    syncBgmByCurrentPage()
+  }, 0)
+}
+
+function installRouteAudioHook() {
+  if (routeAudioHookInstalled || typeof uni === 'undefined') return
+  routeAudioHookInstalled = true
+  const methodNames = ['navigateTo', 'redirectTo', 'reLaunch', 'switchTab', 'navigateBack']
+  methodNames.forEach((methodName) => {
+    const raw = uni[methodName]
+    if (typeof raw !== 'function') return
+    uni[methodName] = function patchedUniRoute(options = {}) {
+      const nextOptions = options && typeof options === 'object' ? { ...options } : {}
+      const rawSuccess = typeof nextOptions.success === 'function' ? nextOptions.success : null
+      const rawFail = typeof nextOptions.fail === 'function' ? nextOptions.fail : null
+      const rawComplete = typeof nextOptions.complete === 'function' ? nextOptions.complete : null
+      nextOptions.success = (...args) => {
+        try {
+          rawSuccess && rawSuccess(...args)
+        } finally {
+          scheduleSyncBgmByCurrentPage()
+        }
+      }
+      nextOptions.fail = (...args) => {
+        rawFail && rawFail(...args)
+      }
+      nextOptions.complete = (...args) => {
+        rawComplete && rawComplete(...args)
+      }
+      return raw.call(uni, nextOptions)
+    }
   })
 }
 
@@ -58,6 +97,8 @@ export default {
       })
     }
     enableMiniProgramShareMenu()
+    installRouteAudioHook()
+    scheduleSyncBgmByCurrentPage()
     // 云开发初始化（仅微信小程序，且已在 manifest.json 配置使用云开发）
     try {
       wx.cloud.init({
@@ -70,6 +111,7 @@ export default {
   onShow: function () {
     console.log('App Show')
     enableMiniProgramShareMenu()
+    scheduleSyncBgmByCurrentPage()
   },
   onHide: function () {
     console.log('App Hide')

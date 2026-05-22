@@ -21,6 +21,12 @@ let currentBgmUrl = ''
 let preloadStarted = false
 let preloadPromise = null
 const localAudioSwitchCache = Object.create(null)
+const PLAY_BGM_ROUTE_SET = new Set([
+  'pages-sub/play/play',
+  'pages-sub/playMid/playMid',
+  'pages-sub/playXhs/playXhs',
+  'pages-sub/battlePlay/battlePlay',
+])
 
 function getGlobalDataRef() {
   try {
@@ -247,7 +253,10 @@ function playBgmInner(url) {
   applyCtxDefaults(ctx, true)
 
   if (currentBgmUrl === url) {
-    playWhenReady(ctx, () => safePlay(ctx))
+    // 同一首歌：仅在暂停状态下恢复，避免切页时重复 play 导致重头播放
+    if (ctx.paused) {
+      playWhenReady(ctx, () => safePlay(ctx))
+    }
     return
   }
 
@@ -273,6 +282,39 @@ export function playBgmHome() {
 
 export function playBgmPlay() {
   playBgm(BGM_PLAY)
+}
+
+function normalizeRoute(route) {
+  if (!route) return ''
+  let next = String(route).trim()
+  if (!next) return ''
+  if (next.startsWith('/')) next = next.slice(1)
+  if (next.endsWith('.html')) next = next.slice(0, -5)
+  return next
+}
+
+export function syncBgmByRoute(route) {
+  const normalizedRoute = normalizeRoute(route)
+  if (!normalizedRoute) {
+    playBgmHome()
+    return
+  }
+  if (PLAY_BGM_ROUTE_SET.has(normalizedRoute)) {
+    playBgmPlay()
+    return
+  }
+  playBgmHome()
+}
+
+export function syncBgmByCurrentPage() {
+  try {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+    const current = Array.isArray(pages) && pages.length > 0 ? pages[pages.length - 1] : null
+    const route = current?.route || ''
+    syncBgmByRoute(route)
+  } catch (e) {
+    playBgmHome()
+  }
 }
 
 export function stopBgm() {

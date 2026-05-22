@@ -257,7 +257,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { getCurrentLevel, loadMidLevelList, loadXhsLevelList, pickMidLevelFromProgress, pickXhsLevelFromProgress } from '../../data/levels'
 import { wechatLogin } from '../../utils/auth'
 import { api } from '../../utils/api'
@@ -408,10 +408,6 @@ onShow(async () => {
   setTimeout(() => {
     preloadGameAudio()
   }, 500)
-})
-
-onHide(() => {
-  stopBgm()
 })
 
 onShareAppMessage(() => withShareReward({
