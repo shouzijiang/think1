@@ -97,7 +97,9 @@
     </view>
 
     <view class="stats">
-      <text class="stats-text">已有 {{ stats.players }} 位好友在玩 · 累计 {{ stats.answers }} 次答题</text>
+      <text class="stats-text"
+        >已有 {{ stats.players }} 位好友在玩 · 累计 {{ stats.answers }} 次答题</text
+      >
     </view>
 
     <!-- 本期更新弹窗 -->
@@ -105,13 +107,25 @@
       <view class="changelog-card" @click.stop>
         <text class="changelog-title">{{ changelogTitle }}</text>
         <scroll-view scroll-y class="changelog-scroll">
-          <view v-for="(line, idx) in changelogLines" :key="idx" class="changelog-line-wrap">
+          <view
+            v-for="(line, idx) in changelogLines"
+            :key="idx"
+            class="changelog-line-wrap"
+          >
             <text class="changelog-dot">•</text>
             <text class="changelog-line">{{ line }}</text>
           </view>
         </scroll-view>
-        <view class="changelog-suppress-row" @click.stop="changelogSuppressChecked = !changelogSuppressChecked">
-          <view :class="['changelog-suppress-check', { 'changelog-suppress-check--on': changelogSuppressChecked }]">
+        <view
+          class="changelog-suppress-row"
+          @click.stop="changelogSuppressChecked = !changelogSuppressChecked"
+        >
+          <view
+            :class="[
+              'changelog-suppress-check',
+              { 'changelog-suppress-check--on': changelogSuppressChecked },
+            ]"
+          >
             <text v-if="changelogSuppressChecked" class="changelog-suppress-tick">✓</text>
           </view>
           <text class="changelog-suppress-label">7天内不再展示</text>
@@ -204,12 +218,13 @@
       </view>
       <view class="toolbar-divider"></view>
       <view
-        class="toolbar-item"
+        class="toolbar-item toolbar-item--tasks-highlight"
         hover-class="toolbar-item--hover"
         :hover-start-time="20"
         :hover-stay-time="100"
         @click.stop="goTasks"
       >
+        <view class="toolbar-tasks-badge">H</view>
         <image
           class="btn-start-icon"
           src="https://sofun.online/static/mini/tasks.png"
@@ -256,12 +271,18 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import { getCurrentLevel, loadMidLevelList, loadXhsLevelList, pickMidLevelFromProgress, pickXhsLevelFromProgress } from '../../data/levels'
-import { wechatLogin } from '../../utils/auth'
-import { api } from '../../utils/api'
-import { useNavBar } from '../../composables/useNavBar'
+import { ref } from "vue";
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
+import {
+  getCurrentLevel,
+  loadMidLevelList,
+  loadXhsLevelList,
+  pickMidLevelFromProgress,
+  pickXhsLevelFromProgress,
+} from "../../data/levels";
+import { wechatLogin } from "../../utils/auth";
+import { api } from "../../utils/api";
+import { useNavBar } from "../../composables/useNavBar";
 import {
   isBgmEnabled,
   isSfxEnabled,
@@ -270,256 +291,275 @@ import {
   preloadGameAudio,
   playBgmHome,
   stopBgm,
-} from '../../utils/gameAudio'
-import { usePunShareReward } from '../../composables/usePunShareReward'
+} from "../../utils/gameAudio";
+import { usePunShareReward } from "../../composables/usePunShareReward";
 
-const { statusBarHeight, navBarHeight } = useNavBar()
+const { statusBarHeight, navBarHeight } = useNavBar();
 
-const hintShareQuotaRef = ref(0)
-const { withShareReward } = usePunShareReward(hintShareQuotaRef)
+const hintShareQuotaRef = ref(0);
+const { withShareReward } = usePunShareReward(hintShareQuotaRef);
 
-const CHANGELOG_SEEN_KEY = 'pun_changelog_suppress' // { version, until }
+const CHANGELOG_SEEN_KEY = "pun_changelog_suppress"; // { version, until }
 
 // 捕获买量渠道参数（?channel=xxx 或扫码 scene=xxx）
 onLoad((opts) => {
-  let channel = opts?.channel || ''
+  let channel = opts?.channel || "";
   if (!channel && opts?.scene) {
     try {
-      const decoded = decodeURIComponent(opts.scene)
-      const match = decoded.match(/channel=([^&]+)/)
-      if (match) channel = match[1]
+      const decoded = decodeURIComponent(opts.scene);
+      const match = decoded.match(/channel=([^&]+)/);
+      if (match) channel = match[1];
     } catch {}
   }
   if (channel && channel.length <= 64) {
-    uni.setStorageSync('pun_channel', channel)
+    uni.setStorageSync("pun_channel", channel);
   }
-})
+});
 
-const stats = ref({ players: 0, answers: 0 })
-const bgmOn = ref(isBgmEnabled())
-const sfxOn = ref(isSfxEnabled())
+const stats = ref({ players: 0, answers: 0 });
+const bgmOn = ref(isBgmEnabled());
+const sfxOn = ref(isSfxEnabled());
 
-const changelogVisible = ref(false)
-const changelogTitle = ref('本期更新')
-const changelogLines = ref([])
-const changelogVersion = ref('')
-const changelogSuppressChecked = ref(false)
+const changelogVisible = ref(false);
+const changelogTitle = ref("本期更新");
+const changelogLines = ref([]);
+const changelogVersion = ref("");
+const changelogSuppressChecked = ref(false);
 
 function dismissChangelog() {
   if (changelogVersion.value && changelogSuppressChecked.value) {
-    const until = Date.now() + 7 * 24 * 60 * 60 * 1000
+    const until = Date.now() + 7 * 24 * 60 * 60 * 1000;
     try {
-      uni.setStorageSync(CHANGELOG_SEEN_KEY, JSON.stringify({ version: changelogVersion.value, until }))
+      uni.setStorageSync(
+        CHANGELOG_SEEN_KEY,
+        JSON.stringify({ version: changelogVersion.value, until })
+      );
     } catch {}
   }
-  changelogVisible.value = false
+  changelogVisible.value = false;
 }
 
 async function loadHomeStats() {
   try {
-    const data = await api.getHomeStats()
-    if (!data || typeof data !== 'object') return
-    const p = data.players ?? data.player_count
-    const a = data.answers ?? data.answer_count
+    const data = await api.getHomeStats();
+    if (!data || typeof data !== "object") return;
+    const p = data.players ?? data.player_count;
+    const a = data.answers ?? data.answer_count;
     stats.value = {
-      players: typeof p === 'number' && !Number.isNaN(p) ? p : 0,
-      answers: typeof a === 'number' && !Number.isNaN(a) ? a : 0,
-    }
+      players: typeof p === "number" && !Number.isNaN(p) ? p : 0,
+      answers: typeof a === "number" && !Number.isNaN(a) ? a : 0,
+    };
   } catch (e) {
-    console.warn('home stats', e)
+    console.warn("home stats", e);
   }
 }
 
 async function tryShowChangelog() {
   try {
-    const data = await api.getChangelogLatest()
-    if (!data) return
-    const versionCode = data.versionCode ?? data.version_code
-    if (!versionCode) return
-    const lines = Array.isArray(data.lines) ? data.lines.filter(Boolean) : []
-    if (lines.length === 0) return
+    const data = await api.getChangelogLatest();
+    if (!data) return;
+    const versionCode = data.versionCode ?? data.version_code;
+    if (!versionCode) return;
+    const lines = Array.isArray(data.lines) ? data.lines.filter(Boolean) : [];
+    if (lines.length === 0) return;
 
     // 检查是否在 7 天内已勾选不展示（且是同一版本）
     try {
-      const raw = uni.getStorageSync(CHANGELOG_SEEN_KEY)
+      const raw = uni.getStorageSync(CHANGELOG_SEEN_KEY);
       if (raw) {
-        const saved = JSON.parse(raw)
+        const saved = JSON.parse(raw);
         if (
           saved.version === String(versionCode) &&
-          typeof saved.until === 'number' &&
+          typeof saved.until === "number" &&
           Date.now() < saved.until
-        ) return // 7 天内且同版本 → 不展示
+        )
+          return; // 7 天内且同版本 → 不展示
       }
     } catch {}
 
-    changelogSuppressChecked.value = false
-    changelogTitle.value = data.title || '本期更新'
-    changelogLines.value = lines
-    changelogVersion.value = String(versionCode)
-    changelogVisible.value = true
+    changelogSuppressChecked.value = false;
+    changelogTitle.value = data.title || "本期更新";
+    changelogLines.value = lines;
+    changelogVersion.value = String(versionCode);
+    changelogVisible.value = true;
   } catch (e) {
-    console.warn('changelog', e)
+    console.warn("changelog", e);
   }
 }
 
 function toggleBgm() {
-  const next = !bgmOn.value
-  bgmOn.value = next
-  setBgmEnabled(next)
+  const next = !bgmOn.value;
+  bgmOn.value = next;
+  setBgmEnabled(next);
   if (next) {
-    playBgmHome()
+    playBgmHome();
   } else {
-    stopBgm()
+    stopBgm();
   }
 }
 
 function toggleSfx() {
-  const next = !sfxOn.value
-  sfxOn.value = next
-  setSfxEnabled(next)
+  const next = !sfxOn.value;
+  sfxOn.value = next;
+  setSfxEnabled(next);
 }
 
 onShow(async () => {
   try {
     // 确保登录完成后再读取本地 userInfo，避免 onShow 过早读取
-    await wechatLogin()
+    await wechatLogin();
   } catch (e) {
     // 登录失败也不阻断页面展示
-    console.warn('wechatLogin 失败', e)
+    console.warn("wechatLogin 失败", e);
   }
 
   // 兜底上报渠道：已登录用户扫码进入时 auth.js 不走登录流程，pun_channel 不会被消费
   try {
-    const pendingChannel = uni.getStorageSync('pun_channel')
+    const pendingChannel = uni.getStorageSync("pun_channel");
     if (pendingChannel) {
-      api.reportChannel(pendingChannel).catch(() => {})
-      uni.removeStorageSync('pun_channel')
+      api.reportChannel(pendingChannel).catch(() => {});
+      uni.removeStorageSync("pun_channel");
     }
   } catch {}
 
-  bgmOn.value = isBgmEnabled()
-  sfxOn.value = isSfxEnabled()
+  bgmOn.value = isBgmEnabled();
+  sfxOn.value = isSfxEnabled();
   if (bgmOn.value) {
-    playBgmHome()
+    playBgmHome();
   }
-  loadHomeStats()
-  tryShowChangelog()
+  loadHomeStats();
+  tryShowChangelog();
   // 延迟预加载音频，避免和首屏 API 请求抢带宽导致超时
   setTimeout(() => {
-    preloadGameAudio()
-  }, 500)
-})
+    preloadGameAudio();
+  }, 500);
+});
 
-onShareAppMessage(() => withShareReward({
-  title: '谐音梗猜一猜，看图填词挑战脑洞！',
-  path: '/pages/index/index',
-}))
+onShareAppMessage(() =>
+  withShareReward({
+    title: "谐音梗猜一猜，看图填词挑战脑洞！",
+    path: "/pages/index/index",
+  })
+);
 onShareTimeline(() => ({
-  title: '谐音梗猜一猜 · 看图填词',
-  query: '',
-}))
+  title: "谐音梗猜一猜 · 看图填词",
+  query: "",
+}));
 
 function goRank() {
-  uni.navigateTo({ url: '/pages-sub/rank/rank' })
+  uni.navigateTo({ url: "/pages-sub/rank/rank" });
 }
 function goMine() {
-  uni.navigateTo({ url: '/pages-sub/mine/mine' })
+  uni.navigateTo({ url: "/pages-sub/mine/mine" });
 }
 function goTasks() {
-  uni.navigateTo({ url: '/pages-sub/tasks/tasks' })
+  uni.navigateTo({ url: "/pages-sub/tasks/tasks" });
 }
 function goMail() {
-  uni.navigateTo({ url: '/pages-sub/mail/mail' })
+  uni.navigateTo({ url: "/pages-sub/mail/mail" });
 }
 function goForum() {
-  uni.navigateTo({ url: '/pages-sub/forum/forum' })
+  uni.navigateTo({ url: "/pages-sub/forum/forum" });
 }
 function goLevels() {
-  uni.navigateTo({ url: '/pages-sub/levels/levels' })
+  uni.navigateTo({ url: "/pages-sub/levels/levels" });
 }
 
 function goBattle() {
-  uni.navigateTo({ url: '/pages-sub/battleRoom/battleRoom' })
+  uni.navigateTo({ url: "/pages-sub/battleRoom/battleRoom" });
 }
 
 function goStreamer() {
-  uni.navigateTo({ url: '/pages-sub/streamer/streamer' })
+  uni.navigateTo({ url: "/pages-sub/streamer/streamer" });
 }
 
 async function startGameXhs() {
   // uni.showToast({ title: '4月15号上线,尽情期待~', icon: 'none' })
-  const goPlay = (lv) => { uni.navigateTo({ url: `/pages-sub/playXhs/playXhs?level=${lv}` }) }
+  const goPlay = (lv) => {
+    uni.navigateTo({ url: `/pages-sub/playXhs/playXhs?level=${lv}` });
+  };
   try {
-    const data = await api.getLevelProgress({ gameTier: 'xhs' })
-    const list = await loadXhsLevelList()
-    const totalRaw = data && data.totalLevels != null ? Number(data.totalLevels) : list.length
-    const total = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : list.length
-    const passedCount = data && Array.isArray(data.passedLevels)
-      ? new Set(
-        data.passedLevels
-          .map((x) => Number(x))
-          .filter((x) => Number.isFinite(x) && list.includes(x))
-      ).size
-      : 0
+    const data = await api.getLevelProgress({ gameTier: "xhs" });
+    const list = await loadXhsLevelList();
+    const totalRaw =
+      data && data.totalLevels != null ? Number(data.totalLevels) : list.length;
+    const total = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : list.length;
+    const passedCount =
+      data && Array.isArray(data.passedLevels)
+        ? new Set(
+            data.passedLevels
+              .map((x) => Number(x))
+              .filter((x) => Number.isFinite(x) && list.includes(x))
+          ).size
+        : 0;
     if (total > 0 && passedCount >= total) {
-      uni.showToast({ title: '专辑持续更新中，敬请期待~', icon: 'none' })
-      return
+      uni.showToast({ title: "专辑持续更新中，敬请期待~", icon: "none" });
+      return;
     }
-    const lv = pickXhsLevelFromProgress(data)
-    goPlay(lv != null ? lv : 1)
+    const lv = pickXhsLevelFromProgress(data);
+    goPlay(lv != null ? lv : 1);
   } catch {
-    goPlay(1)
+    goPlay(1);
   }
 }
 async function startGameMid() {
-  const goPlay = (lv) => { uni.navigateTo({ url: `/pages-sub/playMid/playMid?level=${lv}` }) }
+  const goPlay = (lv) => {
+    uni.navigateTo({ url: `/pages-sub/playMid/playMid?level=${lv}` });
+  };
   try {
-    const data = await api.getLevelProgress({ gameTier: 'mid' })
-    const list = await loadMidLevelList()
-    const totalRaw = data && data.totalLevels != null ? Number(data.totalLevels) : list.length
-    const total = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : list.length
-    const passedCount = data && Array.isArray(data.passedLevels)
-      ? new Set(
-        data.passedLevels
-          .map((x) => Number(x))
-          .filter((x) => Number.isFinite(x) && list.includes(x))
-      ).size
-      : 0
+    const data = await api.getLevelProgress({ gameTier: "mid" });
+    const list = await loadMidLevelList();
+    const totalRaw =
+      data && data.totalLevels != null ? Number(data.totalLevels) : list.length;
+    const total = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : list.length;
+    const passedCount =
+      data && Array.isArray(data.passedLevels)
+        ? new Set(
+            data.passedLevels
+              .map((x) => Number(x))
+              .filter((x) => Number.isFinite(x) && list.includes(x))
+          ).size
+        : 0;
     if (total > 0 && passedCount >= total) {
-      uni.showToast({ title: '关卡持续更新中,敬请期待,您可以前往我的关卡继续游玩~', icon: 'none' })
-      return
+      uni.showToast({
+        title: "关卡持续更新中,敬请期待,您可以前往我的关卡继续游玩~",
+        icon: "none",
+      });
+      return;
     }
-    const lv = pickMidLevelFromProgress(data)
-    goPlay(lv != null && lv > 0 ? lv : 0)
+    const lv = pickMidLevelFromProgress(data);
+    goPlay(lv != null && lv > 0 ? lv : 0);
   } catch {
-    goPlay(0)
+    goPlay(0);
   }
 }
 
 function startGame() {
-  const goPlay = (level) => { uni.navigateTo({ url: `/pages-sub/play/play?level=${level}` }) }
-  api.getLevelProgress({ gameTier: 'beginner' })
+  const goPlay = (level) => {
+    uni.navigateTo({ url: `/pages-sub/play/play?level=${level}` });
+  };
+  api
+    .getLevelProgress({ gameTier: "beginner" })
     .then((data) => {
-      const totalRaw = data && data.totalLevels != null ? Number(data.totalLevels) : NaN
+      const totalRaw = data && data.totalLevels != null ? Number(data.totalLevels) : NaN;
       if (!Number.isFinite(totalRaw) || totalRaw < 1) {
-        uni.showToast({ title: '无法获取关卡信息，请稍后重试', icon: 'none' })
-        return
+        uni.showToast({ title: "无法获取关卡信息，请稍后重试", icon: "none" });
+        return;
       }
-      const cap = totalRaw
-      const curRaw = data && data.currentLevel != null ? Number(data.currentLevel) : NaN
+      const cap = totalRaw;
+      const curRaw = data && data.currentLevel != null ? Number(data.currentLevel) : NaN;
       if (!Number.isFinite(curRaw) || curRaw < 1) {
-        goPlay(1)
-        return
+        goPlay(1);
+        return;
       }
       if (curRaw >= cap) {
-        uni.showToast({ title: '恭喜通关全部梗图填词！', icon: 'none', duration: 2000 })
-        return
+        uni.showToast({ title: "恭喜通关全部梗图填词！", icon: "none", duration: 2000 });
+        return;
       }
-      goPlay(curRaw)
+      goPlay(curRaw);
     })
-    .catch(() => goPlay(getCurrentLevel()))
+    .catch(() => goPlay(getCurrentLevel()));
 }
-
 </script>
 
 <style lang="scss" scoped>
@@ -547,11 +587,16 @@ function startGame() {
   flex-direction: column;
   align-items: center;
   margin: 4vh 0 9vh;
-  animation: float 1s ease-in-out infinite;
+  // animation: float 2s ease-in-out infinite;
 }
 @keyframes float {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
 }
 .hero-badge {
   width: 200rpx;
@@ -563,7 +608,8 @@ function startGame() {
   align-items: center;
   justify-content: center;
   margin: 24rpx auto 30rpx;
-  box-shadow: 0 12rpx 32rpx rgba(169, 201, 238, 0.35), 0 4rpx 0 rgba(255, 255, 255, 0.8) inset;
+  box-shadow: 0 12rpx 32rpx rgba(169, 201, 238, 0.35),
+    0 4rpx 0 rgba(255, 255, 255, 0.8) inset;
   transform: rotate(-4deg);
   overflow: hidden;
   box-sizing: border-box;
@@ -626,15 +672,12 @@ function startGame() {
     rgb(245, 175, 200) 55%,
     rgb(231, 139, 174) 100%
   );
-  color: #B83B5E;
+  color: #b83b5e;
   border: 2rpx solid rgba(255, 255, 255, 0.64);
-  box-shadow:
-    0 20rpx 30rpx rgba(245, 137, 163, 0.36),
-    0 12rpx 0 rgba(189, 90, 126, 0.26),
-    inset 0 2rpx 0 rgba(255, 255, 255, 0.2),
-    inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
+  box-shadow: 0 20rpx 30rpx rgba(245, 137, 163, 0.36), 0 12rpx 0 rgba(189, 90, 126, 0.26),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.2), inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -650,7 +693,7 @@ function startGame() {
     pointer-events: none;
   }
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     left: 8%;
     bottom: 12%;
@@ -668,32 +711,20 @@ function startGame() {
 
   /* 经典：青绿主色 rgb(102, 222, 209) */
   &.btn-start-2 {
-    background: linear-gradient(
-      180deg,
-      #8bd4ff 0%,
-      #56b4f8 55%,
-      #2f8fe5 100%
-    );
+    background: linear-gradient(180deg, #8bd4ff 0%, #56b4f8 55%, #2f8fe5 100%);
     color: #fff;
     border: 2rpx solid rgba(255, 255, 255, 0.64);
-    box-shadow:
-      0 20rpx 30rpx rgba(79, 167, 245, 0.42),
-      0 12rpx 0 rgba(34, 108, 186, 0.3),
-      inset 0 2rpx 0 rgba(255, 255, 255, 0.2),
-      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
+    box-shadow: 0 20rpx 30rpx rgba(79, 167, 245, 0.42), 0 12rpx 0 rgba(34, 108, 186, 0.3),
+      inset 0 2rpx 0 rgba(255, 255, 255, 0.2), inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
   }
 
   &.btn-start-xhs {
-
     /* 主按钮：薄荷绿实底 + 白字 */
     background: linear-gradient(180deg, #ffe49a 0%, #ffc857 55%, #f4a62a 100%);
     color: #fff;
     border: 2rpx solid rgba(255, 255, 255, 0.68);
-    box-shadow:
-      0 22rpx 32rpx rgba(255, 190, 74, 0.42),
-      0 12rpx 0 rgba(184, 118, 18, 0.34),
-      inset 0 2rpx 0 rgba(255, 255, 255, 0.4),
-      inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.16);
+    box-shadow: 0 22rpx 32rpx rgba(255, 190, 74, 0.42), 0 12rpx 0 rgba(184, 118, 18, 0.34),
+      inset 0 2rpx 0 rgba(255, 255, 255, 0.4), inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.16);
 
     .btn-icon-img {
       width: 40rpx;
@@ -718,7 +749,7 @@ function startGame() {
     letter-spacing: 0.4em;
     font-weight: bold;
   }
-  
+
   .btn-start-text2 {
     font-size: 22rpx;
     display: block;
@@ -735,11 +766,8 @@ function startGame() {
 .btn-start--hover {
   transform: translateY(10rpx) scale(0.985);
   filter: brightness(0.97);
-  box-shadow:
-    0 4rpx 8rpx rgba(0, 0, 0, 0.2),
-    0 1rpx 0 rgba(0, 0, 0, 0.12),
-    inset 0 3rpx 0 rgba(255, 255, 255, 0.2),
-    inset 0 -8rpx 12rpx rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.2), 0 1rpx 0 rgba(0, 0, 0, 0.12),
+    inset 0 3rpx 0 rgba(255, 255, 255, 0.2), inset 0 -8rpx 12rpx rgba(0, 0, 0, 0.2);
 }
 .btn-start-icon {
   width: 44rpx;
@@ -769,25 +797,22 @@ function startGame() {
   color: #3a86da;
   font-size: 26rpx;
   // font-weight: 700;
-  box-shadow:
-    0 18rpx 24rpx rgba(169, 201, 238, 0.26),
-    0 10rpx 0 rgba(117, 154, 194, 0.28),
-    inset 0 2rpx 0 rgba(255, 255, 255, 0.5),
-    inset 0 -8rpx 12rpx rgba(54, 84, 120, 0.12);
+  box-shadow: 0 18rpx 24rpx rgba(169, 201, 238, 0.26), 0 10rpx 0 rgba(117, 154, 194, 0.28),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.5), inset 0 -8rpx 12rpx rgba(54, 84, 120, 0.12);
   border: 2rpx solid rgba(169, 201, 238, 0.62);
   transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
   overflow: hidden;
   position: relative;
   font-weight: none;
 
-  &.btn-entry--battle{
+  &.btn-entry--battle {
     .btn-text {
       font-size: 26rpx;
     }
   }
 }
 .btn-entry::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -802,7 +827,7 @@ function startGame() {
   pointer-events: none;
 }
 .btn-entry::after {
-  content: '';
+  content: "";
   position: absolute;
   left: 10%;
   bottom: 12%;
@@ -820,11 +845,8 @@ function startGame() {
 .btn-entry--hover {
   transform: translateY(8rpx) scale(0.985);
   filter: brightness(0.97);
-  box-shadow:
-    0 4rpx 8rpx rgba(84, 116, 154, 0.24),
-    0 1rpx 0 rgba(84, 116, 154, 0.16),
-    inset 0 2rpx 0 rgba(255, 255, 255, 0.24),
-    inset 0 -7rpx 10rpx rgba(54, 84, 120, 0.2);
+  box-shadow: 0 4rpx 8rpx rgba(84, 116, 154, 0.24), 0 1rpx 0 rgba(84, 116, 154, 0.16),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.24), inset 0 -7rpx 10rpx rgba(54, 84, 120, 0.2);
 }
 .btn-icon {
   font-size: 36rpx;
@@ -860,8 +882,13 @@ function startGame() {
 }
 
 @keyframes battleBadgePulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.08); }
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
 }
 
 .stats {
@@ -939,19 +966,20 @@ function startGame() {
   border: 2rpx solid rgba(255, 255, 255, 0.85);
   border-right: none;
   background: linear-gradient(160deg, #c084fc 0%, #a855f7 55%, #9333ea 100%);
-  box-shadow:
-    0 8rpx 28rpx rgba(168, 85, 247, 0.5),
+  box-shadow: 0 8rpx 28rpx rgba(168, 85, 247, 0.5),
     inset 0 2rpx 0 rgba(255, 255, 255, 0.35);
   overflow: hidden;
-  animation: streamer-float-wiggle 3s ease-in-out infinite;
+  // animation: streamer-float-wiggle 3s ease-in-out infinite;
 }
 
 .streamer-float::before {
-  content: '';
+  content: "";
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 50%;
-  background: linear-gradient(to bottom, rgba(255,255,255,0.28) 0%, transparent 100%);
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.28) 0%, transparent 100%);
   pointer-events: none;
   border-radius: 24rpx 0 0 0;
 }
@@ -1004,19 +1032,38 @@ function startGame() {
 }
 
 @keyframes streamer-float-wiggle {
-  0%, 100% { transform: translateY(-50%) rotate(0deg); }
-  25% { transform: translateY(-52%) rotate(2deg); }
-  75% { transform: translateY(-48%) rotate(-2deg); }
+  0%,
+  100% {
+    transform: translateY(-50%) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-52%) rotate(2deg);
+  }
+  75% {
+    transform: translateY(-48%) rotate(-2deg);
+  }
 }
 
 @keyframes streamer-icon-bounce {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-4rpx) scale(1.12); }
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4rpx) scale(1.12);
+  }
 }
 
 @keyframes streamer-dot-pulse {
-  0%, 100% { opacity: 0.9; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.7); }
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
 }
 
 .daily-task-float-icon {
@@ -1061,6 +1108,74 @@ function startGame() {
   filter: brightness(0.96);
 }
 
+.toolbar-item--tasks-highlight {
+  position: relative;
+  border-radius: 12rpx;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 246, 221, 0.95),
+    rgba(255, 236, 185, 0.88)
+  );
+  box-shadow: 0 10rpx 24rpx rgba(245, 185, 47, 0.26);
+  animation: tasksPulse 1.9s ease-in-out infinite;
+}
+
+.toolbar-item--tasks-highlight .btn-start-icon {
+  animation: tasksIconBounce 1.5s ease-in-out infinite;
+}
+
+.toolbar-tasks-badge {
+  position: absolute;
+  top: 2rpx;
+  right: 0rpx;
+  min-width: 34rpx;
+  height: 22rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #ff5f6d, #ff8a00);
+  color: #fff;
+  font-size: 16rpx;
+  font-weight: 800;
+  line-height: 22rpx;
+  text-align: center;
+  letter-spacing: 0.03em;
+  box-shadow: 0 6rpx 14rpx rgba(255, 95, 109, 0.35);
+  animation: tasksBadgePop 1.3s ease-in-out infinite;
+}
+
+@keyframes tasksPulse {
+  0%,
+  100% {
+    transform: translateY(0);
+    box-shadow: 0 10rpx 24rpx rgba(245, 185, 47, 0.2);
+  }
+  50% {
+    transform: translateY(-2rpx);
+    box-shadow: 0 14rpx 30rpx rgba(245, 185, 47, 0.32);
+  }
+}
+
+@keyframes tasksIconBounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3rpx);
+  }
+}
+
+@keyframes tasksBadgePop {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+}
+
 .toolbar-item--asset-highlight {
   position: relative;
   border-radius: 6rpx;
@@ -1074,7 +1189,8 @@ function startGame() {
 }
 
 @keyframes assetPulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 0 0 rgba(245, 196, 73, 0.35);
     transform: translateY(0);
   }
@@ -1085,7 +1201,8 @@ function startGame() {
 }
 
 @keyframes assetIconBob {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -1219,6 +1336,4 @@ function startGame() {
   font-weight: 700;
   color: #fff;
 }
-
 </style>
-
