@@ -24,125 +24,6 @@
         </view>
       </view>
 
-      <!-- 永久任务 -->
-      <view class="task-section">
-        <view class="task-section-header task-section-header--permanent">
-          <view class="task-section-header-left">
-            <text class="task-section-icon">🏆</text>
-            <text class="task-section-title">永久任务</text>
-          </view>
-          <text class="task-section-badge">限领一次</text>
-        </view>
-        <view class="task-row">
-          <view class="task-row-info">
-            <text class="task-row-icon">🖼️</text>
-            <view class="task-row-main">
-              <text class="task-row-name">首次设置头像</text>
-              <text class="task-row-sub"
-                >设置头像后可领 <text class="task-row-reward">+3次</text> 查看答案</text
-              >
-            </view>
-          </view>
-          <button
-            class="task-btn"
-            :class="avatarTaskClaimed ? 'task-btn--done' : 'task-btn--permanent'"
-            :disabled="avatarTaskClaimed || avatarTaskClaimLoading"
-            @click.stop="claimAvatarTask"
-          >
-            {{
-              avatarTaskClaimed ? "✓ 已领取" : avatarTaskClaimLoading ? "领取中…" : "领取"
-            }}
-          </button>
-        </view>
-        <view class="task-divider" />
-        <view class="task-row">
-          <view class="task-row-info">
-            <text class="task-row-icon">✏️</text>
-            <view class="task-row-main">
-              <text class="task-row-name">首次设置昵称</text>
-              <text class="task-row-sub"
-                >设置昵称后可领 <text class="task-row-reward">+3次</text> 查看答案</text
-              >
-            </view>
-          </view>
-          <button
-            class="task-btn"
-            :class="nicknameTaskClaimed ? 'task-btn--done' : 'task-btn--permanent'"
-            :disabled="nicknameTaskClaimed || nicknameTaskClaimLoading"
-            @click.stop="claimNicknameTask"
-          >
-            {{
-              nicknameTaskClaimed
-                ? "✓ 已领取"
-                : nicknameTaskClaimLoading
-                ? "领取中…"
-                : "领取"
-            }}
-          </button>
-        </view>
-        <view class="task-divider" />
-        <view class="task-row">
-          <view class="task-row-info">
-            <text class="task-row-icon">⭐</text>
-            <view class="task-row-main">
-              <text class="task-row-name">收藏到我的小程序</text>
-              <text class="task-row-sub">
-                添加到微信「我的小程序」或抖音「我的收藏」后，<text
-                  class="task-row-reward"
-                  >从该入口进入</text
-                >
-                可领 <text class="task-row-reward">+3次</text>
-                <template v-if="!myMiniProgramTaskClaimed && !launchFromMyMiniOrCollect">
-                  · 请关闭小程序后从上述入口重新打开
-                </template>
-              </text>
-            </view>
-          </view>
-          <button
-            class="task-btn"
-            :class="
-              myMiniProgramTaskClaimed
-                ? 'task-btn--done'
-                : launchFromMyMiniOrCollect
-                ? 'task-btn--permanent'
-                : 'task-btn--goto'
-            "
-            :disabled="myMiniProgramTaskClaimed || myMiniProgramTaskLoading"
-            @click.stop="claimMyMiniProgramTask"
-          >
-            {{
-              myMiniProgramTaskClaimed
-                ? "✓ 已领取"
-                : myMiniProgramTaskLoading
-                ? "领取中…"
-                : "领取"
-            }}
-          </button>
-        </view>
-        <view class="task-divider" />
-        <view class="task-row">
-          <view class="task-row-info">
-            <text class="task-row-icon">⭐</text>
-            <view class="task-row-main">
-              <text class="task-row-name">给小程序评分</text>
-              <text class="task-row-sub"
-                >评分后可领 <text class="task-row-reward">+3次</text> 查看答案</text
-              >
-            </view>
-          </view>
-          <button
-            class="task-btn"
-            :class="rateTaskClaimed ? 'task-btn--done' : 'task-btn--permanent'"
-            :disabled="rateTaskClaimed || rateTaskClaimLoading"
-            @click.stop="claimRateTask"
-          >
-            {{
-              rateTaskClaimed ? "✓ 已领取" : rateTaskClaimLoading ? "领取中…" : "去评分"
-            }}
-          </button>
-        </view>
-      </view>
-
       <!-- 每日任务 -->
       <view class="task-section">
         <view class="task-section-header task-section-header--daily">
@@ -342,6 +223,125 @@
                   ? "领取中…"
                   : "领取"
                 : "去对局"
+            }}
+          </button>
+        </view>
+      </view>
+
+      <!-- 永久任务 -->
+      <view class="task-section">
+        <view class="task-section-header task-section-header--permanent">
+          <view class="task-section-header-left">
+            <text class="task-section-icon">🏆</text>
+            <text class="task-section-title">永久任务</text>
+          </view>
+          <text class="task-section-badge">限领一次</text>
+        </view>
+        <view class="task-row">
+          <view class="task-row-info">
+            <text class="task-row-icon">🖼️</text>
+            <view class="task-row-main">
+              <text class="task-row-name">首次设置头像</text>
+              <text class="task-row-sub"
+                >设置头像后可领 <text class="task-row-reward">+3次</text> 查看答案</text
+              >
+            </view>
+          </view>
+          <button
+            class="task-btn"
+            :class="avatarTaskClaimed ? 'task-btn--done' : 'task-btn--permanent'"
+            :disabled="avatarTaskClaimed || avatarTaskClaimLoading"
+            @click.stop="claimAvatarTask"
+          >
+            {{
+              avatarTaskClaimed ? "✓ 已领取" : avatarTaskClaimLoading ? "领取中…" : "领取"
+            }}
+          </button>
+        </view>
+        <view class="task-divider" />
+        <view class="task-row">
+          <view class="task-row-info">
+            <text class="task-row-icon">✏️</text>
+            <view class="task-row-main">
+              <text class="task-row-name">首次设置昵称</text>
+              <text class="task-row-sub"
+                >设置昵称后可领 <text class="task-row-reward">+3次</text> 查看答案</text
+              >
+            </view>
+          </view>
+          <button
+            class="task-btn"
+            :class="nicknameTaskClaimed ? 'task-btn--done' : 'task-btn--permanent'"
+            :disabled="nicknameTaskClaimed || nicknameTaskClaimLoading"
+            @click.stop="claimNicknameTask"
+          >
+            {{
+              nicknameTaskClaimed
+                ? "✓ 已领取"
+                : nicknameTaskClaimLoading
+                ? "领取中…"
+                : "领取"
+            }}
+          </button>
+        </view>
+        <view class="task-divider" />
+        <view class="task-row">
+          <view class="task-row-info">
+            <text class="task-row-icon">⭐</text>
+            <view class="task-row-main">
+              <text class="task-row-name">收藏到我的小程序</text>
+              <text class="task-row-sub">
+                添加到微信「我的小程序」或抖音「我的收藏」后，<text
+                  class="task-row-reward"
+                  >从该入口进入</text
+                >
+                可领 <text class="task-row-reward">+3次</text>
+                <template v-if="!myMiniProgramTaskClaimed && !launchFromMyMiniOrCollect">
+                  · 请关闭小程序后从上述入口重新打开
+                </template>
+              </text>
+            </view>
+          </view>
+          <button
+            class="task-btn"
+            :class="
+              myMiniProgramTaskClaimed
+                ? 'task-btn--done'
+                : launchFromMyMiniOrCollect
+                ? 'task-btn--permanent'
+                : 'task-btn--goto'
+            "
+            :disabled="myMiniProgramTaskClaimed || myMiniProgramTaskLoading"
+            @click.stop="claimMyMiniProgramTask"
+          >
+            {{
+              myMiniProgramTaskClaimed
+                ? "✓ 已领取"
+                : myMiniProgramTaskLoading
+                ? "领取中…"
+                : "领取"
+            }}
+          </button>
+        </view>
+        <view class="task-divider" />
+        <view class="task-row">
+          <view class="task-row-info">
+            <text class="task-row-icon">⭐</text>
+            <view class="task-row-main">
+              <text class="task-row-name">给小程序评分</text>
+              <text class="task-row-sub"
+                >评分后可领 <text class="task-row-reward">+3次</text> 查看答案</text
+              >
+            </view>
+          </view>
+          <button
+            class="task-btn"
+            :class="rateTaskClaimed ? 'task-btn--done' : 'task-btn--permanent'"
+            :disabled="rateTaskClaimed || rateTaskClaimLoading"
+            @click.stop="claimRateTask"
+          >
+            {{
+              rateTaskClaimed ? "✓ 已领取" : rateTaskClaimLoading ? "领取中…" : "去评分"
             }}
           </button>
         </view>
