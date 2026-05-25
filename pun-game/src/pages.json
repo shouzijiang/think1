@@ -116,13 +116,6 @@
             "navigationStyle": "custom",
             "navigationBarTitleText": "邀请好友赚收益"
           }
-        },
-        {
-          "path": "forum/forum",
-          "style": {
-            "navigationStyle": "custom",
-            "navigationBarTitleText": "闲聊"
-          }
         }
       ]
     }
