@@ -232,15 +232,18 @@ async function checkAnswer() {
     const data = await api.submitAnswer(level.value, userAnswer)
     if (data.isCorrect) {
       const solvedAnswer = userAnswer.join('')
+      const rawNextLevel = data && data.nextLevel != null ? Number(data.nextLevel) : null
+      const rawTotalLevels = data && data.totalLevels != null ? Number(data.totalLevels) : NaN
+      const submitResult = {
+        nextLevel: Number.isFinite(rawNextLevel) ? rawNextLevel : null,
+        totalLevels: Number.isFinite(rawTotalLevels) && rawTotalLevels > 0 ? rawTotalLevels : NaN,
+      }
       runPassSuccess({
         durationMs: 1500,
         manualClose: true,
         afterPrepare: async () => {
-          const [resolved] = await Promise.all([
-            resolveNextBeginnerLevel(),
-            preparePassExplain(solvedAnswer),
-          ])
-          return resolved
+          await preparePassExplain(solvedAnswer)
+          return submitResult
         },
         onAfter: (prep) => {
           const goHomeAllClear = () => {
@@ -342,30 +345,6 @@ async function preparePassExplain(answerText) {
       flushTimer = null
     }
     passSuccessExplain.value = '这题的谐音转折很妙，抓住关键词就豁然开朗。'
-  }
-}
-
-/**
- * 下一关与总关数均来自 /pun/level/progress（后端按 pun_levels 配置计算），前端不写死关数。
- * @returns {{ nextLevel: number|null, totalLevels: number }}
- */
-async function resolveNextBeginnerLevel() {
-  try {
-    const prog = await api.getLevelProgress({ gameTier: 'beginner' })
-    const totalRaw = prog && prog.totalLevels != null ? Number(prog.totalLevels) : NaN
-    const totalLevels = Number.isFinite(totalRaw) && totalRaw > 0 ? totalRaw : NaN
-
-    const candidate = prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
-    if (Number.isFinite(candidate) && candidate > 0 && candidate !== level.value) {
-      return { nextLevel: candidate, totalLevels }
-    }
-    const fallback = level.value + 1
-    if (Number.isFinite(totalLevels) && fallback > totalLevels) {
-      return { nextLevel: null, totalLevels }
-    }
-    return { nextLevel: fallback, totalLevels }
-  } catch (_) {
-    return { nextLevel: level.value + 1, totalLevels: NaN }
   }
 }
 

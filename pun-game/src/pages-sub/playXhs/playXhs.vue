@@ -130,7 +130,6 @@ import {
 } from '@dcloudio/uni-app'
 import {
   getXhsLevelPuzzle,
-  getXhsNextLevel,
   loadXhsLevelList,
   pickXhsLevelFromProgress,
   prefetchNextXhsLevelImage
@@ -224,15 +223,14 @@ async function checkAnswer() {
     if (data.isCorrect) {
       clearWrongFloatText()
       const solvedAnswer = userAnswer.join('')
+      const rawNextLevel = data && data.nextLevel != null ? Number(data.nextLevel) : null
+      const submitNextLevel = Number.isFinite(rawNextLevel) ? rawNextLevel : null
       runPassSuccess({
         durationMs: 1200,
         manualClose: true,
         afterPrepare: async () => {
-          const [nextLevel] = await Promise.all([
-            resolveNextXhsLevel(),
-            preparePassExplain(solvedAnswer),
-          ])
-          return nextLevel
+          await preparePassExplain(solvedAnswer)
+          return submitNextLevel
         },
         onAfter: (nextLevel) => {
           if (nextLevel == null) {
@@ -310,22 +308,6 @@ async function preparePassExplain(answerText) {
     }
     passSuccessExplain.value = '这题的谐音转折很妙，抓住关键词就豁然开朗。'
   }
-}
-
-async function resolveNextXhsLevel() {
-  try {
-    const prog = await api.getLevelProgress({ gameTier: 'xhs' })
-    const candidate =
-      prog && prog.currentLevel != null ? Number(prog.currentLevel) : NaN
-    if (
-      Number.isFinite(candidate) &&
-      candidate > 0 &&
-      candidate !== level.value
-    ) {
-      return candidate
-    }
-  } catch (_) {}
-  return getXhsNextLevel(level.value)
 }
 
 async function onRevealHint() {

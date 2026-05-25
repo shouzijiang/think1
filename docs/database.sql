@@ -96,6 +96,12 @@ CREATE TABLE `pun_user_hint_quota` (
   UNIQUE KEY `uk_user_id` (`user_id`),
   CONSTRAINT `fk_pun_hint_quota_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜揭字次数配额';
+-- 若线上已存在表，按以下顺序执行迁移 SQL：
+UPDATE `pun_user_hint_quota`
+SET
+  `quota` = `quota` + 5,
+  `updated_at` = NOW()
+WHERE `user_id` = 1;
 
 -- 7c. 老库一次性给全员 +10 次揭字：见 `docs/migrations/add_hint_quota_10_all_users.sql`（勿重复执行）
 -- 7d. 揭字累计消耗：见 `docs/migrations/add_pun_user_hint_quota_total_used.sql`（勿重复执行）

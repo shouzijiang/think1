@@ -50,7 +50,7 @@
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
 | `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数）、`hintAnswerTotalUsed`（累计消耗答案次数）、`hintAnswerShareDailyMax`（分享日上限）、`hintAnswerShareDailyClaimed`（当日分享已领取次数，跨设备一致）、`dailyAnswerCount`（今日答对题数）、`dailyAnswerRequired`（登录奖励所需答对题数）、`dailyNoonTaskClaimed`（答题奖励是否已领）、`dailyAdTaskCount`（今日看广告任务已领取次数）、`dailyBattleCount`（当日已完成1V1局数）、`dailyBattleRequired`（1V1任务达标局数）、`dailyBattleTaskClaimed`（1V1任务是否已领）、`avatarTaskClaimed` / `nicknameTaskClaimed` / `myMiniProgramTaskClaimed`（永久任务是否已领） |
-| `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支） |
+| `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支）；答对时 `data` 直接返回 `nextLevel`、`totalLevels`，前端可直接跳关，无需再请求 `/pun/level/progress` |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
 | `/pun/reward/claim` | POST | 统一领奖接口：`type=share/reward_video/daily_noon_hint_5/daily_watch_ad_hint_1/daily_battle_3_hint_3/permanent_set_avatar/permanent_set_nickname/permanent_my_mini_program_hint_3` 等；**成功领取**时写 `pun_reward_claim_record` |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
@@ -140,6 +140,7 @@
 - **全局访问审计与 IP 黑名单**：`app/middleware.php` 已注册 `AccessLogAndIpBlacklist`。配置见 `config/ip_guard.php`：`blacklist` 为拒绝访问的 IP 列表（支持 IPv4 前缀规则如 `192.168.1.*`），命中返回 HTTP 403（JSON `code=403`）；`access_log_enabled` 控制是否对**所有**请求记一条访问日志（JSON 单行，含解析后的客户端 IP、`X-Forwarded-For`/`X-Real-IP` 原文、方法、路径、UA、耗时、HTTP 状态等，**不记录** `Authorization` 内容，仅 `has_auth`）。日志通道为 `request_audit`，默认写入 `runtime/log/request_audit.log`（见 `config/log.php`）。**黑名单命中**无论是否开启访问日志都会记一条。若部署在反向代理后，请正确配置 ThinkPHP 对代理 IP 的信任策略，否则 `$request->ip()` 可能始终为代理机 IP。
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
 - **中级/小红书进度策略**：提交答案 `/pun/answer/submit` 时，`mid` 轨仍按题库顺序推进（仅当前可玩关通过才写进度）；`xhs` 轨支持回跳/跨关练习，只要题目存在且答对即可写入 `passed_levels_xhs` 并更新 `max_level_xhs`。
+- **答题后跳关返回**：`/pun/answer/submit` 在答对时会直接返回 `nextLevel`（无下一关时为 `null`）与 `totalLevels`，用于前端直接跳转下一关，避免再额外请求 `/pun/level/progress`。
 - **passedLevels 顺序约定**：`/pun/level/progress` 返回的 `passedLevels` 按题库关卡定义顺序返回（而非答题时间顺序），避免出现如 `222` 后才出现 `7` 的展示问题。
 - **xhs 当前关选择规则**：`/pun/level/progress?gameTier=xhs` 的 `currentLevel` 按关卡号升序计算，返回“最小的未通过且存在的关卡号”；例如已通过 7/8/9 时优先返回 10，若 10 不存在则返回 11（依此类推）。
 - **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；**揭字剩余次数**存于 **`pun_user_hint_quota`**（按用户一行）。对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
