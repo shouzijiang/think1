@@ -1115,6 +1115,8 @@ class PunService
         }
         $feedback = [];
         $allCorrect = true;
+        $nextLevel = null;
+        $nextTotalLevels = 0;
 
         if (!is_array($userAnswer)) {
             $userAnswer = [];
@@ -1146,8 +1148,60 @@ class PunService
                 $this->updateRankAndProgress($userId, $level, $mode);
             }
             // mode === 'battle' 时，不更新个人进度和排行榜，对战逻辑在 WebSocket 中处理
+            if ($mode !== 'battle') {
+                $nextMeta = $this->resolveNextLevelAfterCorrect($userId, $level, $mode);
+                $nextLevel = $nextMeta['nextLevel'];
+                $nextTotalLevels = $nextMeta['totalLevels'];
+            }
         }
-        return ['isCorrect' => $allCorrect, 'feedback' => $feedback];
+        return [
+            'isCorrect' => $allCorrect,
+            'feedback' => $feedback,
+            'nextLevel' => $allCorrect ? $nextLevel : null,
+            'totalLevels' => $allCorrect ? $nextTotalLevels : 0,
+        ];
+    }
+
+    /**
+     * 单机闯关答对后，直接给前端返回下一关，避免前端再请求 /pun/level/progress。
+     *
+     * @return array{nextLevel:?int,totalLevels:int}
+     */
+    private function resolveNextLevelAfterCorrect(int $userId, int $answeredLevel, string $mode): array
+    {
+        if ($mode === 'battle') {
+            return ['nextLevel' => null, 'totalLevels' => 0];
+        }
+
+        $progress = $this->getLevelProgress($userId, $mode);
+        $totalLevels = max(0, (int) ($progress['totalLevels'] ?? 0));
+        $currentRaw = $progress['currentLevel'] ?? null;
+        $currentLevel = is_numeric($currentRaw) ? (int) $currentRaw : null;
+
+        // beginner 兼容历史 currentLevel 语义：全部通关时可能停留在最后一关，需显式转成 nextLevel=null
+        if ($mode === 'beginner') {
+            $passedRaw = isset($progress['passedLevels']) && is_array($progress['passedLevels'])
+                ? $progress['passedLevels']
+                : [];
+            $passedLevels = array_values(array_unique(array_map('intval', $passedRaw)));
+
+            if ($totalLevels > 0 && count($passedLevels) >= $totalLevels) {
+                return ['nextLevel' => null, 'totalLevels' => $totalLevels];
+            }
+
+            if ($currentLevel !== null && $currentLevel > 0 && $currentLevel !== $answeredLevel) {
+                return ['nextLevel' => $currentLevel, 'totalLevels' => $totalLevels];
+            }
+
+            $fallback = $answeredLevel + 1;
+            if ($totalLevels > 0 && $fallback > $totalLevels) {
+                return ['nextLevel' => null, 'totalLevels' => $totalLevels];
+            }
+
+            return ['nextLevel' => $fallback, 'totalLevels' => $totalLevels];
+        }
+
+        return ['nextLevel' => $currentLevel, 'totalLevels' => $totalLevels];
     }
 
     /**
