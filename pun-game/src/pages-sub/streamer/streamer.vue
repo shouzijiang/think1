@@ -274,10 +274,17 @@ function back() {
   uni.navigateBack({ delta: 1, fail: () => uni.reLaunch({ url: '/pages/index/index' }) })
 }
 
-onShareAppMessage(() => ({
-  title: `邀请你来玩谐音梗猜一猜，用我的专属链接进入`,
-  path: `/pages/index/index?channel=${userId.value}`,
-}))
+onShareAppMessage(() => {
+  const shareChannel =
+    channel.value ||
+    (userId.value ? `streamer_${userId.value}` : '')
+  return {
+    title: `邀请你来玩谐音梗猜一猜，用我的专属链接进入`,
+    path: shareChannel
+      ? `/pages/index/index?channel=${encodeURIComponent(shareChannel)}`
+      : '/pages/index/index',
+  }
+})
 
 onShow(() => {
   loadUserId()
