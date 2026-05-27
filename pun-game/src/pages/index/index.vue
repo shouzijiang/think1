@@ -32,8 +32,8 @@
         :hover-stay-time="100"
         @click="startGameXhs"
       >
-        <text class="btn-start-text">开始游戏</text>
-        <text class="btn-start-text btn-start-text2">(小红书专辑)</text>
+        <text class="btn-start-text btn-start-text1">开始游戏</text>
+        <text class="btn-start-text btn-start-text2">(小红书专辑-高级难度)</text>
       </view>
       <view class="start-sub-row">
         <view
@@ -747,11 +747,12 @@ function startGame() {
   padding: 36rpx 40rpx;
   font-size: 46rpx;
   flex-direction: column;
-  line-height: 1;
-  .btn-start-text {
+  line-height: 1.2;
+  .btn-start-text1 {
     // 字间距
     letter-spacing: 0.4em;
     font-weight: bold;
+    color: #d11348;
   }
 
   .btn-start-text2 {
