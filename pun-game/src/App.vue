@@ -1,5 +1,4 @@
 <script>
-import { wechatLogin } from './utils/auth'
 import { syncBgmByCurrentPage } from './utils/gameAudio'
 
 /** 小程序端：右上角菜单展示「转发」相关入口（需页面实现对应生命周期） */
@@ -23,6 +22,8 @@ function enableMiniProgramShareMenu() {
 }
 
 let routeAudioHookInstalled = false
+let appLaunchAt = 0
+const APP_SHOW_BGM_SYNC_DELAY_MS = 2000
 
 function scheduleSyncBgmByCurrentPage() {
   setTimeout(() => {
@@ -60,11 +61,24 @@ function installRouteAudioHook() {
   })
 }
 
+let cloudInited = false
+
+function initWxCloudLazy() {
+  if (cloudInited || typeof wx === 'undefined' || typeof wx.cloud?.init !== 'function') return
+  cloudInited = true
+  try {
+    wx.cloud.init({
+      env: 'aaa-d6g7scjdwfbee4d24',
+    })
+  } catch {
+    /* noop */
+  }
+}
+
 export default {
-  onLaunch: async function () {
+  onLaunch: function () {
     console.log('App Launch')
-    // 小程序登录（微信/抖音）
-    await wechatLogin()
+    appLaunchAt = Date.now()
 
     // 小程序更新检测
     if (uni.canIUse('getUpdateManager')) {
@@ -98,20 +112,16 @@ export default {
     }
     enableMiniProgramShareMenu()
     installRouteAudioHook()
-    scheduleSyncBgmByCurrentPage()
-    // 云开发初始化（仅微信小程序，且已在 manifest.json 配置使用云开发）
-    try {
-      wx.cloud.init({
-        env: "aaa-d6g7scjdwfbee4d24"
-      });
-    } catch (error) {
-      
-    }
+    // 登录与 BGM 由首页 onShow 处理，避免阻塞 App.onLaunch 首屏
+    setTimeout(initWxCloudLazy, 0)
   },
   onShow: function () {
     console.log('App Show')
     enableMiniProgramShareMenu()
-    scheduleSyncBgmByCurrentPage()
+    // 冷启动前 2s 由首页延迟播 BGM，避免与首屏抢资源
+    if (Date.now() - appLaunchAt >= APP_SHOW_BGM_SYNC_DELAY_MS) {
+      scheduleSyncBgmByCurrentPage()
+    }
   },
   onHide: function () {
     console.log('App Hide')

@@ -282,13 +282,19 @@ import {
 } from "../../data/levels";
 import { wechatLogin } from "../../utils/auth";
 import { api } from "../../utils/api";
+import {
+  setPendingChannel,
+  peekPendingChannel,
+  clearPendingChannel,
+  getJsonStorageCached,
+  setJsonStorageCached,
+} from "../../utils/storageCache";
 import { useNavBar } from "../../composables/useNavBar";
 import {
   isBgmEnabled,
   isSfxEnabled,
   setBgmEnabled,
   setSfxEnabled,
-  preloadGameAudio,
   playBgmHome,
   stopBgm,
 } from "../../utils/gameAudio";
@@ -300,6 +306,7 @@ const hintShareQuotaRef = ref(0);
 const { withShareReward } = usePunShareReward(hintShareQuotaRef);
 
 const CHANGELOG_SEEN_KEY = "pun_changelog_suppress"; // { version, until }
+let indexBgmBootstrapped = false;
 
 // 捕获买量渠道参数（?channel=xxx 或扫码 scene=xxx）
 onLoad((opts) => {
@@ -311,8 +318,8 @@ onLoad((opts) => {
       if (match) channel = match[1];
     } catch {}
   }
-  if (channel && channel.length <= 64) {
-    uni.setStorageSync("pun_channel", channel);
+  if (channel) {
+    setPendingChannel(channel);
   }
 });
 
@@ -329,12 +336,10 @@ const changelogSuppressChecked = ref(false);
 function dismissChangelog() {
   if (changelogVersion.value && changelogSuppressChecked.value) {
     const until = Date.now() + 7 * 24 * 60 * 60 * 1000;
-    try {
-      uni.setStorageSync(
-        CHANGELOG_SEEN_KEY,
-        JSON.stringify({ version: changelogVersion.value, until })
-      );
-    } catch {}
+    setJsonStorageCached(CHANGELOG_SEEN_KEY, {
+      version: changelogVersion.value,
+      until,
+    });
   }
   changelogVisible.value = false;
 }
@@ -364,18 +369,15 @@ async function tryShowChangelog() {
     if (lines.length === 0) return;
 
     // 检查是否在 7 天内已勾选不展示（且是同一版本）
-    try {
-      const raw = uni.getStorageSync(CHANGELOG_SEEN_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (
-          saved.version === String(versionCode) &&
-          typeof saved.until === "number" &&
-          Date.now() < saved.until
-        )
-          return; // 7 天内且同版本 → 不展示
-      }
-    } catch {}
+    const saved = getJsonStorageCached(CHANGELOG_SEEN_KEY);
+    if (
+      saved &&
+      saved.version === String(versionCode) &&
+      typeof saved.until === "number" &&
+      Date.now() < saved.until
+    ) {
+      return; // 7 天内且同版本 → 不展示
+    }
 
     changelogSuppressChecked.value = false;
     changelogTitle.value = data.title || "本期更新";
@@ -413,26 +415,28 @@ onShow(async () => {
     console.warn("wechatLogin 失败", e);
   }
 
-  // 兜底上报渠道：已登录用户扫码进入时 auth.js 不走登录流程，pun_channel 不会被消费
-  try {
-    const pendingChannel = uni.getStorageSync("pun_channel");
-    if (pendingChannel) {
-      api.reportChannel(pendingChannel).catch(() => {});
-      uni.removeStorageSync("pun_channel");
-    }
-  } catch {}
+  // 兜底上报渠道：已登录用户扫码进入时 auth.js 不走登录流程
+  const pendingChannel = peekPendingChannel();
+  if (pendingChannel) {
+    api.reportChannel(pendingChannel).catch(() => {});
+    clearPendingChannel();
+  }
 
   bgmOn.value = isBgmEnabled();
   sfxOn.value = isSfxEnabled();
   if (bgmOn.value) {
-    playBgmHome();
+    if (!indexBgmBootstrapped) {
+      indexBgmBootstrapped = true;
+      // 首屏渲染后再播 BGM（仅预加载首页 BGM，由 playBgmHome 触发）
+      setTimeout(() => {
+        if (isBgmEnabled()) playBgmHome();
+      }, 1200);
+    } else {
+      playBgmHome();
+    }
   }
   loadHomeStats();
   tryShowChangelog();
-  // 延迟预加载音频，避免和首屏 API 请求抢带宽导致超时
-  setTimeout(() => {
-    preloadGameAudio();
-  }, 500);
 });
 
 onShareAppMessage(() =>

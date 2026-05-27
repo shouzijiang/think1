@@ -12,14 +12,15 @@ const BGM_HOME = 'https://static2.sofun.online/mp3/BGMMain.mp3'
 const BGM_PLAY = 'https://static2.sofun.online/mp3/BGMGame1.mp3'
 const SFX_CONGRATS = 'https://static2.sofun.online/mp3/SFXCongrats.mp3'
 const SFX_ERROR = 'https://static2.sofun.online/mp3/error.mp3'
-const AUDIO_PRELOAD_LIST = [BGM_HOME, BGM_PLAY, SFX_CONGRATS, SFX_ERROR]
-
 let bgmCtx = null
 let sfxCongratsCtx = null
 let sfxErrorCtx = null
 let currentBgmUrl = ''
-let preloadStarted = false
-let preloadPromise = null
+/** 远程 URL -> downloadFile 的 tempFilePath（播放用本地路径，避免重复 GET） */
+/** @type {Map<string, string>} */
+const urlToLocalPath = new Map()
+/** @type {Map<string, Promise<string>>} */
+const downloadPromises = new Map()
 const localAudioSwitchCache = Object.create(null)
 const PLAY_BGM_ROUTE_SET = new Set([
   'pages-sub/play/play',
@@ -48,35 +49,75 @@ function getGlobalAudioSwitchCache() {
   return globalData.__punAudioSwitchCache
 }
 
+function canDownloadAudio() {
+  return typeof uni !== 'undefined' && typeof uni.downloadFile === 'function'
+}
+
 /**
- * 预热音频资源缓存，降低首次播放卡顿。
- * 说明：downloadFile 在小程序/uni 环境可触发本地缓存命中；失败时静默降级。
+ * 下载音频并返回可播放 src（优先 tempFilePath，失败则回退远程 URL）。
+ * @param {string} url
+ * @returns {Promise<string>}
  */
-export function preloadGameAudio() {
-  if (preloadStarted) {
-    return preloadPromise || Promise.resolve()
+function ensureAudioSrc(url) {
+  if (!url) return Promise.resolve('')
+  const local = urlToLocalPath.get(url)
+  if (local) return Promise.resolve(local)
+  if (downloadPromises.has(url)) {
+    return downloadPromises.get(url)
   }
-  preloadStarted = true
-  if (typeof uni === 'undefined' || typeof uni.downloadFile !== 'function') {
-    preloadPromise = Promise.resolve()
-    return preloadPromise
+  if (!canDownloadAudio()) {
+    return Promise.resolve(url)
   }
 
-  preloadPromise = Promise.all(
-    AUDIO_PRELOAD_LIST.map(
-      (url) =>
-        new Promise((resolve) => {
-          uni.downloadFile({
-            url,
-            complete: () => resolve(),
-          })
-        })
-    )
-  )
-    .then(() => {})
-    .catch(() => {})
+  const p = new Promise((resolve) => {
+    uni.downloadFile({
+      url,
+      success(res) {
+        if (res.statusCode === 200 && res.tempFilePath) {
+          urlToLocalPath.set(url, res.tempFilePath)
+          resolve(res.tempFilePath)
+          return
+        }
+        resolve(url)
+      },
+      fail() {
+        resolve(url)
+      },
+    })
+  }).finally(() => {
+    downloadPromises.delete(url)
+  })
 
-  return preloadPromise
+  downloadPromises.set(url, p)
+  return p
+}
+
+/**
+ * 按 URL 预热音频（已下载过的 URL 会跳过）。
+ * @param {string[]} urls
+ */
+export function preloadAudioUrls(urls) {
+  if (!Array.isArray(urls) || urls.length === 0) {
+    return Promise.resolve()
+  }
+  const pending = urls.filter((url) => url && !urlToLocalPath.has(url))
+  if (pending.length === 0) {
+    return Promise.resolve()
+  }
+  return Promise.all(pending.map((url) => ensureAudioSrc(url))).then(() => {})
+}
+
+/**
+ * 兼容旧调用：默认仅预加载首页 BGM，避免启动时并行下载全部 mp3。
+ * @param {string[]} [urls]
+ */
+export function preloadGameAudio(urls = [BGM_HOME]) {
+  return preloadAudioUrls(urls)
+}
+
+/** 闯关页进入前可预加载游戏 BGM 与常用音效 */
+export function preloadGameAudioForPlay() {
+  return preloadAudioUrls([BGM_PLAY, SFX_CONGRATS, SFX_ERROR])
 }
 
 function applyCtxDefaults(ctx, loop) {
@@ -247,12 +288,17 @@ function playWhenReady(ctx, playFn) {
   }
 }
 
-function playBgmInner(url) {
+/**
+ * @param {string} remoteUrl 逻辑曲目 id（远程 URL）
+ * @param {string} playSrc 实际传给 InnerAudioContext 的 src
+ */
+function playBgmInner(remoteUrl, playSrc) {
   if (!isBgmEnabled()) return
   const ctx = getBgmContextInner()
   applyCtxDefaults(ctx, true)
+  const src = playSrc || urlToLocalPath.get(remoteUrl) || remoteUrl
 
-  if (currentBgmUrl === url) {
+  if (currentBgmUrl === remoteUrl) {
     // 同一首歌：仅在暂停状态下恢复，避免切页时重复 play 导致重头播放
     if (ctx.paused) {
       playWhenReady(ctx, () => safePlay(ctx))
@@ -260,20 +306,22 @@ function playBgmInner(url) {
     return
   }
 
-  currentBgmUrl = url
+  currentBgmUrl = remoteUrl
   try {
     ctx.stop()
   } catch (e) {
     /* noop */
   }
-  ctx.src = url
+  ctx.src = src
   playWhenReady(ctx, () => safePlay(ctx))
 }
 
 function playBgm(url) {
   if (!isBgmEnabled()) return
-  preloadGameAudio()
-  playBgmInner(url)
+  ensureAudioSrc(url).then((src) => {
+    if (!isBgmEnabled()) return
+    playBgmInner(url, src)
+  })
 }
 
 export function playBgmHome() {
@@ -327,32 +375,28 @@ export function stopBgm() {
   }
 }
 
+function playSfxOnce(remoteUrl, getCtx) {
+  ensureAudioSrc(remoteUrl).then((src) => {
+    const ctx = getCtx()
+    applyCtxDefaults(ctx, false)
+    try {
+      ctx.stop()
+    } catch (e) {
+      /* noop */
+    }
+    ctx.src = src
+    playWhenReady(ctx, () => safePlay(ctx))
+  })
+}
+
 export function playCongratsOnce() {
   if (!isSfxEnabled()) return
-  preloadGameAudio()
-  const ctx = getCongratsContext()
-  applyCtxDefaults(ctx, false)
-  try {
-    ctx.stop()
-  } catch (e) {
-    /* noop */
-  }
-  ctx.src = SFX_CONGRATS
-  playWhenReady(ctx, () => safePlay(ctx))
+  playSfxOnce(SFX_CONGRATS, getCongratsContext)
 }
 
 export function playErrorOnce() {
   if (!isSfxEnabled()) return
-  preloadGameAudio()
-  const ctx = getErrorContext()
-  applyCtxDefaults(ctx, false)
-  try {
-    ctx.stop()
-  } catch (e) {
-    /* noop */
-  }
-  ctx.src = SFX_ERROR
-  playWhenReady(ctx, () => safePlay(ctx))
+  playSfxOnce(SFX_ERROR, getErrorContext)
 }
 
 function stopCongratsSfx() {

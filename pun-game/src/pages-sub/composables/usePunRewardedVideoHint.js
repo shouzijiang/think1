@@ -1,6 +1,13 @@
 import { onBeforeUnmount } from 'vue'
 import { api } from '../../utils/api'
-import { REWARDED_VIDEO_AD_UNIT_ID } from '../constants/rewardedVideoAd'
+import {
+  createManagedRewardedVideoAd,
+  destroyRewardedVideoAd,
+  isRewardedVideoSupported,
+  rewardedVideoFailToast,
+  safeOffRewardedVideoClose,
+  showRewardedVideoAd,
+} from '../utils/rewardedVideoRunner'
 
 /**
  * 揭字次数为 0 时：拉起激励视频（微信/抖音小程序），完整观看后调用后端发放 +1 次答案次数。
@@ -12,24 +19,17 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
   let videoAd = null
   let adBusy = false
 
+  function invalidateAd() {
+    videoAd = null
+    adBusy = false
+  }
+
   function ensureVideoAd() {
-    if (videoAd) {
+    if (videoAd && typeof videoAd.show === 'function') {
       return videoAd
     }
-    const creator = typeof wx !== 'undefined' && typeof wx.createRewardedVideoAd === 'function'
-      ? wx.createRewardedVideoAd
-      : (typeof tt !== 'undefined' && typeof tt.createRewardedVideoAd === 'function'
-        ? tt.createRewardedVideoAd
-        : null)
-    if (!creator) {
-      return null
-    }
-    const ad = creator({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
-    ad.onLoad(() => {})
-    ad.onError((err) => {
-      console.error('激励视频广告', err)
-    })
-    videoAd = ad
+    videoAd = null
+    videoAd = createManagedRewardedVideoAd({ onInvalid: invalidateAd })
     return videoAd
   }
 
@@ -40,6 +40,11 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
     if (adBusy) {
       return false
     }
+    if (!isRewardedVideoSupported()) {
+      uni.showToast({ title: '当前环境不支持激励视频', icon: 'none' })
+      return false
+    }
+
     const ad = ensureVideoAd()
     if (!ad) {
       uni.showToast({ title: '当前环境不支持激励视频', icon: 'none' })
@@ -58,9 +63,7 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
       }
 
       const onClose = (res) => {
-        try {
-          ad.offClose(onClose)
-        } catch (_) {}
+        safeOffRewardedVideoClose(ad, onClose)
 
         if (res && res.isEnded) {
           api
@@ -83,36 +86,28 @@ export function usePunRewardedVideoHint(hintAnswerQuotaRef) {
         }
       }
 
-      ad.onClose(onClose)
-
-      const showAd = () => {
-        ad.show()
-          .then(() => {})
-          .catch(() => {
-            ad.load()
-              .then(() => ad.show())
-              .catch((err) => {
-                console.error('激励视频显示失败', err)
-                try {
-                  ad.offClose(onClose)
-                } catch (_) {}
-                uni.showToast({ title: '广告加载失败，请稍后重试', icon: 'none' })
-                finish(false)
-              })
-          })
+      if (typeof ad.onClose !== 'function') {
+        rewardedVideoFailToast(new Error('广告实例无效'))
+        finish(false)
+        return
       }
 
-      showAd()
+      ad.onClose(onClose)
+
+      showRewardedVideoAd(ad)
+        .catch((err) => {
+          console.warn('[rewardedVideo] show failed', err)
+          safeOffRewardedVideoClose(ad, onClose)
+          invalidateAd()
+          rewardedVideoFailToast(err)
+          finish(false)
+        })
     })
   }
 
   onBeforeUnmount(() => {
-    if (videoAd && typeof videoAd.destroy === 'function') {
-      try {
-        videoAd.destroy()
-      } catch (_) {}
-      videoAd = null
-    }
+    destroyRewardedVideoAd(videoAd)
+    videoAd = null
     adBusy = false
   })
 

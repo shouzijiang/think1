@@ -364,7 +364,15 @@ import { useNavBar } from "../../composables/useNavBar";
 import { usePunShareReward } from "../../composables/usePunShareReward";
 import { SHARE_SUCCESS_THRESHOLD_MS } from "../utils/punPlayShared";
 import { api } from "../../utils/api";
-import { REWARDED_VIDEO_AD_UNIT_ID } from "../constants/rewardedVideoAd";
+import {
+  createManagedRewardedVideoAd,
+  destroyRewardedVideoAd,
+  isRewardedVideoSupported,
+  rewardedVideoFailToast,
+  safeGetLaunchScene,
+  safeOffRewardedVideoClose,
+  showRewardedVideoAd,
+} from "../utils/rewardedVideoRunner";
 import PunPageNavBar from "../../components/PunPageNavBar.vue";
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar();
@@ -449,24 +457,30 @@ onShareAppMessage(() =>
 );
 onShareTimeline(() => withShareReward({ title: "任务中心 · 谐音梗猜一猜" }));
 
-function isLaunchFromMyMiniOrCollectScene() {
+function readLaunchSceneSafe(getter) {
   try {
-    const enterOpts =
-      typeof uni.getEnterOptionsSync === "function" ? uni.getEnterOptionsSync() : null;
-    const launchOpts =
-      typeof uni.getLaunchOptionsSync === "function" ? uni.getLaunchOptionsSync() : null;
-    const scenes = [enterOpts?.scene, launchOpts?.scene].filter(Boolean);
-    if (scenes.length === 0) return false;
-    const validScenes = [1103, 1104, 21003];
-    for (const scene of scenes) {
-      const n = Number(scene);
-      if (!Number.isNaN(n) && validScenes.includes(n)) return true;
-      if (String(scene) === "021003") return true;
-    }
-    return false;
+    if (typeof getter !== "function") return null;
+    const opts = getter();
+    const scene = opts?.scene;
+    return scene != null && scene !== "" ? scene : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function isLaunchFromMyMiniOrCollectScene() {
+  const scenes = [
+    readLaunchSceneSafe(uni.getEnterOptionsSync),
+    readLaunchSceneSafe(uni.getLaunchOptionsSync),
+  ].filter(Boolean);
+  if (scenes.length === 0) return false;
+  const validScenes = [1103, 1104, 21003];
+  for (const scene of scenes) {
+    const n = Number(scene);
+    if (!Number.isNaN(n) && validScenes.includes(n)) return true;
+    if (String(scene) === "021003") return true;
+  }
+  return false;
 }
 
 function setRefIfChanged(refObj, next) {
@@ -597,26 +611,26 @@ function goHome() {
 }
 
 // ── 广告 ────────────────────────────────────────────────
+function invalidateMineDailyVideoAd() {
+  mineDailyVideoAd = null;
+  mineDailyVideoBusy = false;
+}
+
 function ensureMineDailyVideoAd() {
-  if (mineDailyVideoAd) return mineDailyVideoAd;
-  const creator =
-    typeof wx !== "undefined" && typeof wx.createRewardedVideoAd === "function"
-      ? wx.createRewardedVideoAd
-      : typeof tt !== "undefined" && typeof tt.createRewardedVideoAd === "function"
-      ? tt.createRewardedVideoAd
-      : null;
-  if (!creator) return null;
-  try {
-    mineDailyVideoAd = creator({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID });
-    mineDailyVideoAd.onError(() => {});
-  } catch {
-    mineDailyVideoAd = null;
+  if (mineDailyVideoAd && typeof mineDailyVideoAd.show === "function") {
+    return mineDailyVideoAd;
   }
+  mineDailyVideoAd = null;
+  mineDailyVideoAd = createManagedRewardedVideoAd({ onInvalid: invalidateMineDailyVideoAd });
   return mineDailyVideoAd;
 }
 
 function watchDailyTaskAd() {
   if (mineDailyVideoBusy) return Promise.resolve(false);
+  if (!isRewardedVideoSupported()) {
+    uni.showToast({ title: "当前环境不支持激励视频", icon: "none" });
+    return Promise.resolve(false);
+  }
   const ad = ensureMineDailyVideoAd();
   if (!ad) {
     uni.showToast({ title: "当前环境不支持激励视频", icon: "none" });
@@ -632,40 +646,21 @@ function watchDailyTaskAd() {
       resolve(ok);
     };
     const onClose = (res) => {
-      try {
-        ad.offClose(onClose);
-      } catch (_) {}
+      safeOffRewardedVideoClose(ad, onClose);
       finish(!!(res && res.isEnded));
     };
-    function loadAdWithTimeout(adInstance, ms = 10000) {
-      return new Promise((res, rej) => {
-        const t = setTimeout(() => rej(new Error("广告加载超时")), ms);
-        adInstance
-          .load()
-          .then(() => {
-            clearTimeout(t);
-            res();
-          })
-          .catch((e) => {
-            clearTimeout(t);
-            rej(e);
-          });
-      });
+    if (typeof ad.onClose !== "function") {
+      rewardedVideoFailToast(new Error("广告实例无效"));
+      finish(false);
+      return;
     }
     ad.onClose(onClose);
-    ad.show()
-      .catch(() => loadAdWithTimeout(ad, 10000).then(() => ad.show()))
+    showRewardedVideoAd(ad)
       .catch((err) => {
-        try {
-          ad.offClose(onClose);
-        } catch (_) {}
-        uni.showToast({
-          title:
-            err.message === "广告加载超时"
-              ? "广告加载超时，请稍后重试"
-              : "广告加载失败，请稍后重试",
-          icon: "none",
-        });
+        console.warn("[rewardedVideo] show failed", err);
+        safeOffRewardedVideoClose(ad, onClose);
+        invalidateMineDailyVideoAd();
+        rewardedVideoFailToast(err);
         finish(false);
       });
   });
@@ -801,14 +796,7 @@ async function claimMyMiniProgramTask() {
   }
   myMiniProgramTaskLoading.value = true;
   try {
-    let launchScene;
-    try {
-      const enter =
-        typeof uni.getEnterOptionsSync === "function" ? uni.getEnterOptionsSync() : null;
-      launchScene = enter?.scene ?? uni.getLaunchOptionsSync()?.scene;
-    } catch {
-      launchScene = undefined;
-    }
+    const launchScene = safeGetLaunchScene();
     const data = await api.claimReward({
       type: "permanent_my_mini_program_hint_3",
       launchScene,
@@ -877,11 +865,7 @@ onBeforeUnmount(() => {
     shareLoadingTimer = null;
   }
   shareClaimLoading.value = false;
-  if (mineDailyVideoAd && typeof mineDailyVideoAd.destroy === "function") {
-    try {
-      mineDailyVideoAd.destroy();
-    } catch (_) {}
-  }
+  destroyRewardedVideoAd(mineDailyVideoAd);
   mineDailyVideoAd = null;
   mineDailyVideoBusy = false;
 });
