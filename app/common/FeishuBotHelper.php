@@ -117,21 +117,29 @@ class FeishuBotHelper
         int $challengerId,
         string $creatorNickname,
         string $challengerNickname,
-        string $questionBank = ''
+        string $questionBank = '',
+        string $creatorRemark = '',
+        string $challengerRemark = ''
     ): void {
         $bankLabel = match ($questionBank) {
             'mid', 'intermediate' => '经典题库',
             'xhs'                 => '小红书题库',
             default               => $questionBank !== '' ? $questionBank : '未知',
         };
+        $safeCreatorNickname = $creatorNickname !== '' ? $creatorNickname : '(未知)';
+        $safeChallengerNickname = $challengerNickname !== '' ? $challengerNickname : '(未知)';
+        $safeCreatorRemark = $creatorRemark !== '' ? $creatorRemark : '-';
+        $safeChallengerRemark = $challengerRemark !== '' ? $challengerRemark : '-';
         $text = sprintf(
-            "[谐音对战] 对局开始\n房间号：%s\n题库：%s\n房主 userId：%d\n挑战者 userId：%d\n房主：%s\n挑战者：%s",
+            "[谐音对战] 对局开始\n房间号：%s\n题库：%s\n房主 userId：%d nickname：%s remark：%s\n挑战者 userId：%d nickname：%s remark：%s",
             $roomId,
             $bankLabel,
             $creatorId,
+            $safeCreatorNickname,
+            $safeCreatorRemark,
             $challengerId,
-            $creatorNickname !== '' ? $creatorNickname : '(未知)',
-            $challengerNickname !== '' ? $challengerNickname : '(未知)'
+            $safeChallengerNickname,
+            $safeChallengerRemark
         );
         self::sendText($text);
     }
