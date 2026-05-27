@@ -17,6 +17,15 @@ $pt-shadow-soft: rgba(169, 201, 238, 0.22);
 $pt-text: #5a6d7a;
 $pt-muted: #8eadcf;
 
+/* 全局系统字体（圆润现代，iOS/Android/H5 回退一致） */
+$pt-font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Microsoft YaHei',
+  'Noto Sans SC', sans-serif;
+
+@mixin pt-font-body {
+  font-family: $pt-font-family;
+  -webkit-font-smoothing: antialiased;
+}
+
 /* ========== 背景层：模板结构 bg-wrap > bg-gradient + bg-dots + bg-glow（可选）========== */
 .pt-bg-wrap,
 .bg-wrap {

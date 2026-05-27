@@ -129,6 +129,11 @@ export default {
 }
 </script>
 
-<style>
-/*每个页面公共css */
+<style lang="scss">
+@use '@/styles/page-theme.scss' as *;
+
+page {
+  @include pt-font-body;
+  color: $pt-text;
+}
 </style>
