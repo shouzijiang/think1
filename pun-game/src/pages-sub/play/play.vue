@@ -111,7 +111,7 @@ import { usePunShareReward } from '../../composables/usePunShareReward'
 import { usePunRewardedVideoHint } from '../composables/usePunRewardedVideoHint'
 import { usePunSkipLevel } from '../composables/usePunSkipLevel'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
-import { generatePassExplain } from '../utils/punPassExplain'
+import { resolvePassExplain } from '../utils/punPassExplain'
 import {
   punGetCachedHint,
   punIsSlotError,
@@ -231,7 +231,6 @@ async function checkAnswer() {
   try {
     const data = await api.submitAnswer(level.value, userAnswer)
     if (data.isCorrect) {
-      const solvedAnswer = userAnswer.join('')
       const rawNextLevel = data && data.nextLevel != null ? Number(data.nextLevel) : null
       const rawTotalLevels = data && data.totalLevels != null ? Number(data.totalLevels) : NaN
       const submitResult = {
@@ -242,7 +241,7 @@ async function checkAnswer() {
         durationMs: 1500,
         manualClose: true,
         afterPrepare: async () => {
-          await preparePassExplain(solvedAnswer)
+          applyPassExplain(data.passExplain)
           return submitResult
         },
         onAfter: (prep) => {
@@ -297,55 +296,8 @@ async function checkAnswer() {
   }
 }
 
-async function preparePassExplain(answerText) {
-  passSuccessExplain.value = '正在生成趣味解读…'
-  let lastRendered = passSuccessExplain.value
-  let pendingText = ''
-  let flushTimer = null
-  let lastFlushAt = 0
-  const FLUSH_INTERVAL_MS = 100
-  const flushExplain = (force = false) => {
-    if (!pendingText && !force) return
-    const next = pendingText || lastRendered
-    if (next !== lastRendered) {
-      passSuccessExplain.value = next
-      lastRendered = next
-    }
-  }
-  const scheduleExplainUpdate = (partial) => {
-    pendingText = String(partial || '')
-    const now = Date.now()
-    const elapsed = now - lastFlushAt
-    if (elapsed >= FLUSH_INTERVAL_MS) {
-      lastFlushAt = now
-      flushExplain()
-      return
-    }
-    if (flushTimer) return
-    flushTimer = setTimeout(() => {
-      flushTimer = null
-      lastFlushAt = Date.now()
-      flushExplain()
-    }, FLUSH_INTERVAL_MS - elapsed)
-  }
-  try {
-    const finalText = await generatePassExplain(
-      { answer: answerText, hint: puzzle.value.hintText || '', gameTier: 'beginner' },
-      scheduleExplainUpdate,
-    )
-    if (flushTimer) {
-      clearTimeout(flushTimer)
-      flushTimer = null
-    }
-    pendingText = String(finalText || '')
-    flushExplain(true)
-  } catch (_) {
-    if (flushTimer) {
-      clearTimeout(flushTimer)
-      flushTimer = null
-    }
-    passSuccessExplain.value = '这题的谐音转折很妙，抓住关键词就豁然开朗。'
-  }
+function applyPassExplain(apiExplain) {
+  passSuccessExplain.value = resolvePassExplain(apiExplain)
 }
 
 async function onRevealHint() {

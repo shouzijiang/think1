@@ -14,6 +14,7 @@ use think\facade\Log;
 class PunLevelAiExplainService
 {
     public const DEFAULT_FALLBACK = '请点击进入下一关吧~';
+
     /** @var array<string, array<int, array>>|null */
     private static ?array $issueListCache = null;
 
@@ -43,34 +44,49 @@ class PunLevelAiExplainService
     {
         $tier = self::normalizeGameTier($mode);
         if ($tier === '' || $levelNo < 0 || ($tier !== 'mid' && $levelNo <= 0)) {
+            $this->logExplainFail('invalid_params', ['mode' => $mode, 'level' => $levelNo]);
             return $this->fallbackText();
         }
 
         try {
             $meta = $this->getLevelMeta($tier, $levelNo);
         } catch (\InvalidArgumentException $e) {
+            $this->logExplainFail('level_meta_not_found', [
+                'tier'  => $tier,
+                'level' => $levelNo,
+                'err'   => $e->getMessage(),
+            ]);
             return $this->fallbackText();
         }
 
-        $aiText = $this->generateExplainText((string) $meta['answer'], (string) $meta['hint']);
+        $aiText = $this->generateExplainText((string) $meta['answer'], (string) $meta['hint'], [
+            'tier'  => $tier,
+            'level' => $levelNo,
+        ]);
         if ($aiText !== '') {
             try {
                 $this->upsertExplain($tier, $levelNo, $aiText);
             } catch (\Throwable $e) {
-                Log::warning(sprintf(
-                    'pun level explain upsert failed: tier=%s level=%d err=%s',
-                    $tier,
-                    $levelNo,
-                    $e->getMessage()
-                ));
+                $this->logExplainFail('upsert_failed', [
+                    'tier'  => $tier,
+                    'level' => $levelNo,
+                    'err'   => $e->getMessage(),
+                ]);
             }
             return $aiText;
         }
 
         $cached = $this->getExplainText($mode, $levelNo);
         if ($cached !== '') {
+            Log::info('[pun-explain] use_cached', ['tier' => $tier, 'level' => $levelNo]);
             return $cached;
         }
+
+        $this->logExplainFail('fallback', [
+            'tier'   => $tier,
+            'level'  => $levelNo,
+            'reason' => 'ai_empty_and_no_cache',
+        ]);
 
         return $this->fallbackText();
     }
@@ -139,7 +155,7 @@ class PunLevelAiExplainService
     }
 
     /**
-     * 构建与前端 punPassExplain.js 一致的 prompt。
+     * 构建趣味解读 prompt（与历史小程序端一致）。
      */
     public function buildPrompt(string $answer, string $hint): string
     {
@@ -150,46 +166,270 @@ class PunLevelAiExplainService
     }
 
     /**
-     * 调用 OpenAI 兼容接口生成解读；未配置或失败时返回空字符串。
+     * 调用 CloudBase OpenAI 兼容接口生成解读；失败时返回空字符串。
+     *
+     * @param array{tier?:string,level?:int} $ctx
      */
-    public function generateExplainText(string $answer, string $hint): string
+    public function generateExplainText(string $answer, string $hint, array $ctx = []): string
     {
         $cfg = Config::get('pun_ai', []);
         if (empty($cfg['explain_enabled'])) {
+            $this->logExplainFail('ai_disabled', $ctx);
             return '';
         }
 
-        $url = trim((string) ($cfg['explain_api_url'] ?? ''));
         $key = trim((string) ($cfg['explain_api_key'] ?? ''));
-        $model = trim((string) ($cfg['explain_model'] ?? 'deepseek-v3.2'));
+        $provider = trim((string) ($cfg['explain_provider'] ?? 'hunyuan-v3'));
+        $model = trim((string) ($cfg['explain_model'] ?? 'hy3-preview'));
+        $url = $this->resolveChatCompletionsUrl($cfg, $provider);
+
         if ($url === '' || $key === '') {
+            $this->logExplainFail('missing_config', array_merge($ctx, [
+                'has_url' => $url !== '',
+                'has_key' => $key !== '',
+            ]));
             return '';
         }
 
         $payload = [
-            'model'    => $model,
-            'messages' => [
+            'model'       => $model,
+            'messages'    => [
                 ['role' => 'user', 'content' => $this->buildPrompt($answer, $hint)],
             ],
             'temperature' => 0.7,
+            'stream'      => false,
         ];
 
-        $body = $this->httpPostJson($url, $payload, [
+        $result = $this->httpPostJson($url, $payload, [
             'Authorization: Bearer ' . $key,
             'Content-Type: application/json',
         ]);
 
+        $body = $result['body'];
+        $httpCode = $result['http_code'];
+        $curlError = $result['curl_error'];
+
+        if ($curlError !== '') {
+            $this->logExplainFail('curl_error', array_merge($ctx, [
+                'url'   => $this->maskUrl($url),
+                'err'   => $curlError,
+                'model' => $model,
+            ]));
+            return '';
+        }
+
         if ($body === '') {
+            $this->logExplainFail('empty_body', array_merge($ctx, [
+                'url'       => $this->maskUrl($url),
+                'http_code' => $httpCode,
+                'model'     => $model,
+                'provider'  => $provider,
+            ]));
             return '';
         }
 
         $json = json_decode($body, true);
         if (!is_array($json)) {
+            $this->logExplainFail('invalid_json', array_merge($ctx, [
+                'url'       => $this->maskUrl($url),
+                'http_code' => $httpCode,
+                'model'     => $model,
+                'snippet'   => $this->snippet($body),
+            ]));
             return '';
         }
 
+        if (!empty($json['error']) || (!empty($json['code']) && is_string($json['code']))) {
+            $errDetail = '';
+            if (!empty($json['error'])) {
+                $errDetail = is_array($json['error'])
+                    ? json_encode($json['error'], JSON_UNESCAPED_UNICODE)
+                    : (string) $json['error'];
+            } else {
+                $errDetail = (string) $json['code'] . ': ' . (string) ($json['message'] ?? '');
+            }
+            $this->logExplainFail('api_error', array_merge($ctx, [
+                'url'       => $this->maskUrl($url),
+                'http_code' => $httpCode,
+                'model'     => $model,
+                'provider'  => $provider,
+                'error'     => $errDetail,
+            ]));
+            return '';
+        }
+
+        if ($httpCode >= 400) {
+            $this->logExplainFail('http_error', array_merge($ctx, [
+                'url'       => $this->maskUrl($url),
+                'http_code' => $httpCode,
+                'model'     => $model,
+                'snippet'   => $this->snippet($body),
+            ]));
+            return '';
+        }
+
+        $content = $this->extractMessageContent($json);
+        $text = $this->normalizeText($content);
+        if ($text === '') {
+            $this->logExplainFail('empty_content', array_merge($ctx, [
+                'url'       => $this->maskUrl($url),
+                'http_code' => $httpCode,
+                'model'     => $model,
+                'provider'  => $provider,
+                'snippet'   => $this->snippet($body),
+            ]));
+            return '';
+        }
+
+        return $text;
+    }
+
+    /**
+     * 解析 chat/completions 完整 URL。
+     * - 已含 chat/completions：原样使用
+     * - 仅为网关根域名：拼 /v1/ai/{provider}/chat/completions（对齐 CloudBase OpenAPI ai_model）
+     * - 若域名子段与 API Key JWT 中 project_id 不一致，自动替换为 Key 对应环境 ID
+     *
+     * @param array<string,mixed> $cfg
+     */
+    private function resolveChatCompletionsUrl(array $cfg, string $provider): string
+    {
+        $raw = trim((string) ($cfg['explain_api_url'] ?? ''));
+        if ($raw === '') {
+            return '';
+        }
+
+        if (stripos($raw, 'chat/completions') !== false) {
+            return rtrim($raw, '/');
+        }
+
+        $key = trim((string) ($cfg['explain_api_key'] ?? ''));
+        $base = $this->normalizeGatewayBaseUrl(rtrim($raw, '/'), $key);
+        $group = $provider !== '' ? $provider : 'hunyuan-v3';
+
+        return $base . '/v1/ai/' . rawurlencode($group) . '/chat/completions';
+    }
+
+    /**
+     * 从 CloudBase API Key（JWT）解析环境 ID，用于修正网关域名。
+     */
+    private function extractEnvIdFromApiKey(string $key): string
+    {
+        $token = trim($key);
+        if ($token === '') {
+            return '';
+        }
+
+        $parts = explode('.', $token);
+        if (count($parts) < 2) {
+            return '';
+        }
+
+        $payload = $parts[1];
+        $payload .= str_repeat('=', (4 - strlen($payload) % 4) % 4);
+        $json = base64_decode(strtr($payload, '-_', '+/'), true);
+        if ($json === false) {
+            return '';
+        }
+
+        $data = json_decode($json, true);
+        if (!is_array($data)) {
+            return '';
+        }
+
+        foreach (['project_id', 'aud', 'env_id'] as $field) {
+            if (!empty($data[$field]) && is_string($data[$field])) {
+                return $data[$field];
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * 规范化 CloudBase 网关根 URL（补 scheme、用 Key 修正 env 子域）。
+     */
+    private function normalizeGatewayBaseUrl(string $raw, string $apiKey): string
+    {
+        if (!preg_match('#^https?://#i', $raw)) {
+            return 'https://' . $raw . '.api.tcloudbasegateway.com';
+        }
+
+        $envFromKey = $this->extractEnvIdFromApiKey($apiKey);
+        if ($envFromKey === '') {
+            return rtrim($raw, '/');
+        }
+
+        $parts = parse_url($raw);
+        if (!is_array($parts) || empty($parts['host'])) {
+            return rtrim($raw, '/');
+        }
+
+        $host = (string) $parts['host'];
+        if (preg_match('#^([^.]+)\.(api(?:\.intl)?\.tcloudbasegateway\.com)$#i', $host, $m)) {
+            if ($m[1] !== $envFromKey) {
+                $scheme = $parts['scheme'] ?? 'https';
+                $host = $envFromKey . '.' . $m[2];
+
+                return $scheme . '://' . $host;
+            }
+        }
+
+        return rtrim($raw, '/');
+    }
+
+    /**
+     * @param array<string,mixed> $json
+     */
+    private function extractMessageContent(array $json): string
+    {
         $content = $json['choices'][0]['message']['content'] ?? '';
-        return $this->normalizeText(is_string($content) ? $content : '');
+        if (is_string($content) && $content !== '') {
+            return $content;
+        }
+
+        // 部分网关把文本放在 choices[0].text
+        $legacy = $json['choices'][0]['text'] ?? '';
+        if (is_string($legacy) && $legacy !== '') {
+            return $legacy;
+        }
+
+        return '';
+    }
+
+    /**
+     * @param array<string,mixed> $context
+     */
+    private function logExplainFail(string $reason, array $context = []): void
+    {
+        $msg = '[pun-explain] ' . $reason;
+        if ($context !== []) {
+            $msg .= ' ' . json_encode($context, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        }
+        Log::warning($msg);
+    }
+
+    private function maskUrl(string $url): string
+    {
+        $parts = parse_url($url);
+        if (!is_array($parts)) {
+            return '[invalid-url]';
+        }
+        $scheme = $parts['scheme'] ?? 'https';
+        $host = $parts['host'] ?? '';
+        $path = $parts['path'] ?? '';
+
+        return $scheme . '://' . $host . $path;
+    }
+
+    private function snippet(string $body, int $max = 400): string
+    {
+        $text = preg_replace('/\s+/u', ' ', $body) ?? '';
+        if (mb_strlen($text) <= $max) {
+            return $text;
+        }
+
+        return mb_substr($text, 0, $max) . '...';
     }
 
     /**
@@ -314,32 +554,42 @@ class PunLevelAiExplainService
      */
     private function httpGetJson(string $url): ?array
     {
-        $body = $this->httpRequest('GET', $url, null, []);
-        if ($body === '') {
+        $result = $this->httpRequest('GET', $url, null, []);
+        if ($result['body'] === '') {
             return null;
         }
-        $json = json_decode($body, true);
+        $json = json_decode($result['body'], true);
 
         return is_array($json) ? $json : null;
     }
 
     /**
      * @param array<string,mixed> $payload
+     * @return array{body:string,http_code:int,curl_error:string}
      */
-    private function httpPostJson(string $url, array $payload, array $headers = []): string
+    private function httpPostJson(string $url, array $payload, array $headers = []): array
     {
         return $this->httpRequest('POST', $url, json_encode($payload, JSON_UNESCAPED_UNICODE), $headers);
     }
 
-    private function httpRequest(string $method, string $url, ?string $body, array $headers): string
+    /**
+     * @return array{body:string,http_code:int,curl_error:string}
+     */
+    private function httpRequest(string $method, string $url, ?string $body, array $headers): array
     {
+        $empty = ['body' => '', 'http_code' => 0, 'curl_error' => ''];
+
         $ch = curl_init();
+        if ($ch === false) {
+            return ['body' => '', 'http_code' => 0, 'curl_error' => 'curl_init failed'];
+        }
+
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 8);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 35);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 
         if (strtoupper($method) === 'POST') {
@@ -353,14 +603,13 @@ class PunLevelAiExplainService
 
         $response = curl_exec($ch);
         $err = curl_error($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($err) {
-            Log::warning('PunLevelAiExplain http error: ' . $err);
-
-            return '';
-        }
-
-        return is_string($response) ? $response : '';
+        return [
+            'body'       => is_string($response) ? $response : '',
+            'http_code'  => $httpCode,
+            'curl_error' => is_string($err) ? $err : '',
+        ];
     }
 }

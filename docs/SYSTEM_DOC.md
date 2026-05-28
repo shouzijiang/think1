@@ -142,7 +142,7 @@
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
 - **中级/小红书进度策略**：提交答案 `/pun/answer/submit` 时，`mid` 轨仍按题库顺序推进（仅当前可玩关通过才写进度）；`xhs` 轨支持回跳/跨关练习，只要题目存在且答对即可写入 `passed_levels_xhs` 并更新 `max_level_xhs`。
 - **答题后跳关返回**：`/pun/answer/submit` 在答对时会直接返回 `nextLevel`（无下一关时为 `null`）、`totalLevels` 与 `passExplain`（实时 AI → 写 `pun_level_ai_explain` → 失败读历史 → 兜底「请点击进入下一关吧~」），用于前端展示通关解读并跳关。
-- **关卡 AI 解读**：`.env` 配置 `PUN_EXPLAIN_AI_ENABLED=1`、`PUN_EXPLAIN_AI_URL`、`PUN_EXPLAIN_AI_KEY`；可选 `PUN_EXPLAIN_FALLBACK` 自定义兜底文案。表结构见 `docs/migrations/add_pun_level_ai_explain.sql`。
+- **关卡 AI 解读**：`.env` 配置 `PUN_EXPLAIN_AI_ENABLED=1`、`PUN_EXPLAIN_AI_URL`（CloudBase 网关根域名或完整 chat/completions URL，域名须与 Key 环境一致）、`PUN_EXPLAIN_AI_KEY`、`PUN_EXPLAIN_AI_PROVIDER`（默认 `hunyuan-v3`）、`PUN_EXPLAIN_AI_MODEL`（默认 `hy3-preview`）；失败日志关键字 `[pun-explain]` 见 `runtime/log/`（含 JSON 上下文）。
 - **passedLevels 顺序约定**：`/pun/level/progress` 返回的 `passedLevels` 按题库关卡定义顺序返回（而非答题时间顺序），避免出现如 `222` 后才出现 `7` 的展示问题。
 - **xhs 当前关选择规则**：`/pun/level/progress?gameTier=xhs` 的 `currentLevel` 按关卡号升序计算，返回“最小的未通过且存在的关卡号”；例如已通过 7/8/9 时优先返回 10，若 10 不存在则返回 11（依此类推）。
 - **分步提示**：`/pun/level/reveal-hint` 步数存于 **Cache（文件缓存等）**，非 DB；**揭字剩余次数**存于 **`pun_user_hint_quota`**（按用户一行）。对战模式会校验 `pun_game_battle_record` 与 `levels_json` 与题目一致。
@@ -151,7 +151,7 @@
 
 ### 3. 运维扩展（可选）
 - **飞书机器人（对战开房/开局通知）**：在根目录 `.env` 配置 `FEISHU_WEBHOOK_URL`、`FEISHU_WEBHOOK_SECRET`（勿提交仓库）。逻辑见 `app/common/FeishuBotHelper.php`，由 `BattleService::createRoom` 与 `WebSocket` 对局开始时触发。
-- **关卡 AI 解读（可选）**：`.env` 配置 `PUN_EXPLAIN_AI_ENABLED=1`、`PUN_EXPLAIN_AI_URL`（OpenAI 兼容 chat/completions）、`PUN_EXPLAIN_AI_KEY`、`PUN_EXPLAIN_AI_MODEL`；可选 `PUN_EXPLAIN_FALLBACK`（默认「请点击进入下一关吧~」）。答对时在 submit 内实时生成并写入 `pun_level_ai_explain`。
+- **关卡 AI 解读（可选）**：`.env` 配置 `PUN_EXPLAIN_AI_ENABLED=1`、`PUN_EXPLAIN_AI_URL`（如 `https://{envId}.api.intl.tcloudbasegateway.com`，须与 API Key 所属环境 ID 一致；代码会自动拼 `/v1/ai/{provider}/chat/completions`，并在域名子段与 Key 不一致时用 JWT 内 `project_id` 修正）、`PUN_EXPLAIN_AI_KEY`、`PUN_EXPLAIN_AI_PROVIDER=hunyuan-v3`、`PUN_EXPLAIN_AI_MODEL=hy3-preview`；失败时在 `runtime/log/` 搜索 `[pun-explain]`（日志含 JSON 上下文：`http_code`、`error`、`snippet` 等）。
 - **站内信入信**：不向客户端开放发送接口；在 MySQL 中 `INSERT` `pun_game_mail`（见上节「站内信」与迁移脚本注释示例）。
 
 ---

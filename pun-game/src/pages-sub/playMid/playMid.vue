@@ -180,7 +180,7 @@ import { usePunHanAnswerInput } from '../composables/usePunHanAnswerInput'
 import { usePunSkipLevel } from '../composables/usePunSkipLevel'
 import { useWrongAnswerFloat } from '../composables/useWrongAnswerFloat'
 import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
-import { generatePassExplain } from '../utils/punPassExplain'
+import { resolvePassExplain } from '../utils/punPassExplain'
 import {
   punGetCachedHint,
   punIsSlotError,
@@ -258,14 +258,13 @@ async function checkAnswer() {
     })
     if (data.isCorrect) {
       clearWrongFloatText()
-      const solvedAnswer = userAnswer.join('')
       const rawNextLevel = data && data.nextLevel != null ? Number(data.nextLevel) : null
       const submitNextLevel = Number.isFinite(rawNextLevel) ? rawNextLevel : null
       runPassSuccess({
         durationMs: 1500,
         manualClose: true,
         afterPrepare: async () => {
-          await preparePassExplain(solvedAnswer)
+          applyPassExplain(data.passExplain)
           return submitNextLevel
         },
         onAfter: (nextLevel) => {
@@ -300,16 +299,8 @@ async function checkAnswer() {
   }
 }
 
-async function preparePassExplain(answerText) {
-  passSuccessExplain.value = '正在生成趣味解读…'
-  try {
-    passSuccessExplain.value = await generatePassExplain(
-      { answer: answerText, hint: puzzle.value.keywordHint || '', gameTier: 'mid' },
-      (partial) => { passSuccessExplain.value = partial },
-    )
-  } catch (_) {
-    passSuccessExplain.value = '这题的谐音转折很妙，抓住关键词就豁然开朗。'
-  }
+function applyPassExplain(apiExplain) {
+  passSuccessExplain.value = resolvePassExplain(apiExplain)
 }
 
 function back() {
