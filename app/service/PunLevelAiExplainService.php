@@ -9,7 +9,7 @@ use think\facade\Config;
 use think\facade\Log;
 
 /**
- * 关卡 AI 趣味解读：答对时实时调 AI 生成并入库；失败则读表内历史；均无则返回兜底文案。
+ * 关卡 AI 趣味解读：submit 优先读表；表无记录时才调 AI 并落库。
  */
 class PunLevelAiExplainService
 {
@@ -38,7 +38,7 @@ class PunLevelAiExplainService
     }
 
     /**
-     * 答对后解析趣味解读：优先实时 AI 生成并写入表；失败则读历史；无历史则兜底。
+     * 答对后解析趣味解读：优先读表；无记录再调 AI 生成并写入；仍失败则兜底。
      */
     public function resolvePassExplain(string $mode, int $levelNo): string
     {
@@ -46,6 +46,11 @@ class PunLevelAiExplainService
         if ($tier === '' || $levelNo < 0 || ($tier !== 'mid' && $levelNo <= 0)) {
             $this->logExplainFail('invalid_params', ['mode' => $mode, 'level' => $levelNo]);
             return $this->fallbackText();
+        }
+
+        $cached = $this->getExplainText($mode, $levelNo);
+        if ($cached !== '') {
+            return $cached;
         }
 
         try {
@@ -76,12 +81,6 @@ class PunLevelAiExplainService
             return $aiText;
         }
 
-        $cached = $this->getExplainText($mode, $levelNo);
-        if ($cached !== '') {
-            Log::info('[pun-explain] use_cached', ['tier' => $tier, 'level' => $levelNo]);
-            return $cached;
-        }
-
         $this->logExplainFail('fallback', [
             'tier'   => $tier,
             'level'  => $levelNo,
@@ -89,6 +88,102 @@ class PunLevelAiExplainService
         ]);
 
         return $this->fallbackText();
+    }
+
+    /**
+     * 批量预生成：遍历指定轨道全部关卡，缺失则生成并入库。
+     *
+     * @return array{generated:int,skipped:int,failed:int}
+     */
+    public function generateMissingForTier(string $gameTier, int $limit = 0, bool $force = false): array
+    {
+        $tier = self::normalizeGameTier($gameTier);
+        if ($tier === '') {
+            throw new \InvalidArgumentException('gameTier 须为 beginner / mid / xhs');
+        }
+
+        $cfg = Config::get('pun_ai', []);
+        if (empty($cfg['explain_enabled'])) {
+            throw new \RuntimeException('PUN_EXPLAIN_AI_ENABLED 未开启，无法批量生成');
+        }
+
+        $stats = ['generated' => 0, 'skipped' => 0, 'failed' => 0];
+        $levelNos = $this->listLevelNumbers($tier);
+        $attempted = 0;
+
+        foreach ($levelNos as $levelNo) {
+            if (!$force && $this->getExplainText($tier, $levelNo) !== '') {
+                $stats['skipped']++;
+                continue;
+            }
+
+            if ($limit > 0 && $attempted >= $limit) {
+                break;
+            }
+            $attempted++;
+
+            try {
+                $meta = $this->getLevelMeta($tier, $levelNo);
+            } catch (\InvalidArgumentException $e) {
+                $stats['failed']++;
+                $this->logExplainFail('batch_level_meta_not_found', [
+                    'tier'  => $tier,
+                    'level' => $levelNo,
+                    'err'   => $e->getMessage(),
+                ]);
+                continue;
+            }
+
+            $aiText = $this->generateExplainText((string) $meta['answer'], (string) $meta['hint'], [
+                'tier'  => $tier,
+                'level' => $levelNo,
+            ]);
+            if ($aiText === '') {
+                $stats['failed']++;
+                continue;
+            }
+
+            try {
+                $this->upsertExplain($tier, $levelNo, $aiText);
+                $stats['generated']++;
+            } catch (\Throwable $e) {
+                $stats['failed']++;
+                $this->logExplainFail('batch_upsert_failed', [
+                    'tier'  => $tier,
+                    'level' => $levelNo,
+                    'err'   => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function listLevelNumbers(string $gameTier): array
+    {
+        $tier = self::normalizeGameTier($gameTier);
+        $configKey = match ($tier) {
+            'beginner' => 'pun_levels',
+            'mid'      => 'pun_levels_issue2',
+            'xhs'      => 'pun_levels_issue3',
+            default    => '',
+        };
+        if ($configKey === '') {
+            return [];
+        }
+
+        $answers = Config::get($configKey, []);
+        if (!is_array($answers)) {
+            return [];
+        }
+
+        $levels = array_map('intval', array_keys($answers));
+        sort($levels, SORT_NUMERIC);
+
+        return $levels;
     }
 
     private function fallbackText(): string

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * 关卡 AI 趣味解读（答对时 submit 实时调用）
+ * 关卡 AI 趣味解读（批量预生成 + submit 读表，表无记录时才调 AI）
  *
  * CloudBase 对齐官方 Node 示例：
  *   ai.createModel("hunyuan-v3") + model.streamText({ model: "hy3-preview", ... })

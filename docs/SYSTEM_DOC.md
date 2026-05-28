@@ -25,7 +25,7 @@
 - **pun_game_mail**: 游戏站内信邮件主体表（支持全服 all 与单玩家 user）
 - **pun_game_mail_reads**: 游戏站内信已读记录表（按 user_id/mail_id 记录 read_at，用于列表角标）
 - **pun_reward_claim_record**: 统一领奖记录（`share` / `reward_video` / `daily_noon_hint_5` / `daily_watch_ad_hint_1` / `daily_battle_3_hint_3` / `permanent_set_avatar` / `permanent_set_nickname` / `permanent_my_mini_program_hint_3` 等）；**仅成功领取**写入一行（`status=success`）；业务拒绝与异常失败不落库（`status` 字段历史或其它脚本仍可为 rejected/failed）。若线上曾为 `permanent_my_mini_program_hint_5`，可执行 `docs/migrations/rename_permanent_my_mini_program_claim_type_hint_5_to_hint_3.sql` 统一类型名。
-- **pun_level_ai_explain**: 关卡 AI 趣味解读（`game_tier`：`beginner`/`mid`/`xhs`，`level_no` 关卡编号，`explain_text` 文案）；答对时 `/pun/answer/submit` 实时调 AI 生成并写入，失败则读表内历史，均无则返回兜底文案
+- **pun_level_ai_explain**: 关卡 AI 趣味解读（`game_tier`：`beginner`/`mid`/`xhs`，`level_no` 关卡编号，`explain_text` 文案）；建议 `php think pun:generate-level-explain` 批量预生成；答对时 `/pun/answer/submit` **优先读表**，无记录才调 AI 落库
 - **pun_daily_answer_stat**: 每日答对次数统计（`user_id + stat_date` 唯一；用于“每日答对满20题后可领登录奖励+5次”）
 - *(论坛相关表)*: 帖子表 (topic)、回复表 (reply)
 
@@ -51,7 +51,7 @@
 | 接口路径 | 方法 | 说明 |
 | --- | --- | --- |
 | `/pun/level/progress` | GET | 获取当前进度（支持 `gameTier=beginner/mid/xhs`）；`data` 中含 `hintAnswerQuota`（揭字剩余次数）、`hintAnswerTotalUsed`（累计消耗答案次数）、`hintAnswerShareDailyMax`（分享日上限）、`hintAnswerShareDailyClaimed`（当日分享已领取次数，跨设备一致）、`dailyAnswerCount`（今日答对题数）、`dailyAnswerRequired`（登录奖励所需答对题数）、`dailyNoonTaskClaimed`（答题奖励是否已领）、`dailyAdTaskCount`（今日看广告任务已领取次数）、`dailyBattleCount`（当日已完成1V1局数）、`dailyBattleRequired`（1V1任务达标局数）、`dailyBattleTaskClaimed`（1V1任务是否已领）、`avatarTaskClaimed` / `nicknameTaskClaimed` / `myMiniProgramTaskClaimed`（永久任务是否已领） |
-| `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支）；答对时 `data` 直接返回 `nextLevel`、`totalLevels`、`passExplain`（实时 AI 生成并入库，失败读历史，无历史为兜底文案），前端可直接跳关 |
+| `/pun/answer/submit` | POST | 提交答题结果（包含初级/中级/小红书专辑逻辑分支）；答对时 `data` 直接返回 `nextLevel`、`totalLevels`、`passExplain`（优先读 `pun_level_ai_explain`，无记录才调 AI），前端可直接跳关 |
 | `/pun/level/reveal-hint` | POST | **分步揭字提示**（每次多揭示一字，未揭示位为 `_`，字与字之间空格分隔；步数服务端缓存）。需 Token。Body 见下表 |
 | `/pun/reward/claim` | POST | 统一领奖接口：`type=share/reward_video/daily_noon_hint_5/daily_watch_ad_hint_1/daily_battle_3_hint_3/permanent_set_avatar/permanent_set_nickname/permanent_my_mini_program_hint_3` 等；**成功领取**时写 `pun_reward_claim_record` |
 | `/pun/changelog/latest` | GET | 获取最新一条已发布的「本期更新」说明（无需 Token；无数据时 `data` 为 `null`） |
@@ -141,7 +141,7 @@
 - **全局访问审计与 IP 黑名单**：`app/middleware.php` 已注册 `AccessLogAndIpBlacklist`。配置见 `config/ip_guard.php`：`blacklist` 为拒绝访问的 IP 列表（支持 IPv4 前缀规则如 `192.168.1.*`），命中返回 HTTP 403（JSON `code=403`）；`access_log_enabled` 控制是否对**所有**请求记一条访问日志（JSON 单行，含解析后的客户端 IP、`X-Forwarded-For`/`X-Real-IP` 原文、方法、路径、UA、耗时、HTTP 状态等，**不记录** `Authorization` 内容，仅 `has_auth`）。日志通道为 `request_audit`，默认写入 `runtime/log/request_audit.log`（见 `config/log.php`）。**黑名单命中**无论是否开启访问日志都会记一条。若部署在反向代理后，请正确配置 ThinkPHP 对代理 IP 的信任策略，否则 `$request->ip()` 可能始终为代理机 IP。
 - **分层架构**：Controller 仅负责接收参数与返回统一格式的 JSON，复杂逻辑（如 AI 绘图请求、闯关跳级判定）需下沉到 Service 层。
 - **中级/小红书进度策略**：提交答案 `/pun/answer/submit` 时，`mid` 轨仍按题库顺序推进（仅当前可玩关通过才写进度）；`xhs` 轨支持回跳/跨关练习，只要题目存在且答对即可写入 `passed_levels_xhs` 并更新 `max_level_xhs`。
-- **答题后跳关返回**：`/pun/answer/submit` 在答对时会直接返回 `nextLevel`（无下一关时为 `null`）、`totalLevels` 与 `passExplain`（实时 AI → 写 `pun_level_ai_explain` → 失败读历史 → 兜底「请点击进入下一关吧~」），用于前端展示通关解读并跳关。
+- **答题后跳关返回**：`/pun/answer/submit` 在答对时会直接返回 `nextLevel`、`totalLevels` 与 `passExplain`（读 `pun_level_ai_explain` → 无记录才调 AI 写入 → 兜底）。**批量预生成**：`php think pun:generate-level-explain --tier=beginner|mid|xhs|all [--limit=N] [--force]`。
 - **关卡 AI 解读**：`.env` 配置 `PUN_EXPLAIN_AI_ENABLED=1`、`PUN_EXPLAIN_AI_URL`（CloudBase 网关根域名或完整 chat/completions URL，域名须与 Key 环境一致）、`PUN_EXPLAIN_AI_KEY`、`PUN_EXPLAIN_AI_PROVIDER`（默认 `hunyuan-v3`）、`PUN_EXPLAIN_AI_MODEL`（默认 `hy3-preview`）；失败日志关键字 `[pun-explain]` 见 `runtime/log/`（含 JSON 上下文）。
 - **passedLevels 顺序约定**：`/pun/level/progress` 返回的 `passedLevels` 按题库关卡定义顺序返回（而非答题时间顺序），避免出现如 `222` 后才出现 `7` 的展示问题。
 - **xhs 当前关选择规则**：`/pun/level/progress?gameTier=xhs` 的 `currentLevel` 按关卡号升序计算，返回“最小的未通过且存在的关卡号”；例如已通过 7/8/9 时优先返回 10，若 10 不存在则返回 11（依此类推）。
