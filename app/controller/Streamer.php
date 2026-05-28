@@ -6,6 +6,7 @@ use app\BaseController;
 use app\common\ResponseHelper;
 use app\common\WechatHelper;
 use app\service\ChannelService;
+use app\service\StreamerSettlementService;
 use think\Request;
 
 /**
@@ -16,10 +17,13 @@ class Streamer extends BaseController
 {
     private ChannelService $channelService;
 
+    private StreamerSettlementService $settlementService;
+
     protected function initialize()
     {
         parent::initialize();
         $this->channelService = new ChannelService();
+        $this->settlementService = new StreamerSettlementService();
     }
 
     /**
@@ -51,7 +55,10 @@ class Streamer extends BaseController
     {
         $userId = (int) $request->user_id;
         $info   = $this->channelService->getStreamerInviteInfo($userId);
-        $info['userId'] = $userId; // 方便前端/调试确认是哪个用户
-        return ResponseHelper::success($info);
+        $earnings = $this->settlementService->getEarningsSummary($userId, $info['channel']);
+
+        return ResponseHelper::success(array_merge($info, $earnings, [
+            'userId' => $userId,
+        ]));
     }
 }

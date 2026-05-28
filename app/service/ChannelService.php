@@ -71,10 +71,10 @@ class ChannelService
             ->where('event_type', 'login')
             ->count();
 
-        // 累计看视频次数
+        // 累计激励视频次数（仅 reward_video 计收益，不含 daily_watch_ad_hint_1）
         $videoCount = (int) Db::name('pun_game_channel_events')
             ->where('channel', $channel)
-            ->whereIn('event_type', ['reward_video', 'daily_watch_ad_hint_1'])
+            ->where('event_type', 'reward_video')
             ->count();
 
         return [

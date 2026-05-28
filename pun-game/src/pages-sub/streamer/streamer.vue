@@ -15,7 +15,7 @@
 
     <!-- 邀请码区域 -->
     <view class="qr-card">
-      <text class="qr-title">📡 你的专属邀请码</text>
+      <text class="qr-title">📡 你的专属邀请码,你的ID：{{ userId || "加载中…" }}</text>
       <text class="qr-desc">扫码或者分享链接进入的好友即自动绑定，获取收益</text>
 
       <view class="qr-wrap">
@@ -30,13 +30,13 @@
           show-menu-by-longpress
         />
         <view v-else class="qr-placeholder qr-placeholder--error">
-          <text class="qr-loading-text">请生成您的专属邀请码。你的ID：{{ userId || '加载中…' }}</text>
+          <text class="qr-loading-text">请生成您的专属邀请码。</text>
         </view>
       </view>
 
       <view class="qr-actions">
         <button class="qr-btn" :disabled="qrLoading" @click="loadQrCode">
-          {{ qrLoading ? '生成中…' : (hasQr ? '刷新二维码' : '生成专属二维码') }}
+          {{ qrLoading ? "生成中…" : hasQr ? "刷新二维码" : "生成专属二维码" }}
         </button>
         <button v-if="hasQr" class="qr-btn qr-btn--save" @click="saveQrCode">
           保存到相册
@@ -71,14 +71,37 @@
           <view class="stat-divider" />
           <view class="stat-item">
             <text class="stat-num stat-num--blue">{{ stats.videoCount }}</text>
-            <text class="stat-label">累计看视频</text>
+            <text class="stat-label">累计激励视频</text>
           </view>
         </view>
         <view class="stats-row">
           <view class="stat-item">
-            <text class="stat-num stat-num--blue">{{ (stats.videoCount * 0.01).toFixed(2) }}元</text>
-            <text class="stat-label">展示为预估收益，收益达到1元即可提现</text>
+            <text class="stat-num stat-num--gold">{{
+              formatMoneyDisplay(stats.totalPaid)
+            }}</text>
+            <text class="stat-label">已结算金额(元)</text>
           </view>
+          <view class="stat-divider" />
+          <view class="stat-item">
+            <text class="stat-num stat-num--orange">{{
+              formatMoneyDisplay(stats.unsettledGross)
+            }}</text>
+            <text class="stat-label">待结算(元)</text>
+          </view>
+          <view class="stat-divider" />
+          <view class="stat-item">
+            <text class="stat-num stat-num--blue">{{
+              formatMoneyDisplay(stats.balance)
+            }}</text>
+            <text class="stat-label">可提现余额(元)</text>
+          </view>
+        </view>
+        <view class="stats-earn-tip">
+          <text v-if="stats.lastSettledDate"
+            >已结算至 {{ formatSettledDate(stats.lastSettledDate) }}</text
+          >
+          <text v-else>尚未结算，待结算按全平台单价累计</text>
+          <text> · 满 {{ stats.withdrawMin }} 元可提现</text>
         </view>
       </template>
     </view>
@@ -101,196 +124,243 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { onShow, onShareAppMessage } from '@dcloudio/uni-app'
-import { api } from '../../utils/api'
-import { useNavBar } from '../../composables/useNavBar'
-import { getUserInfo } from '../../utils/auth'
-import PunPageNavBar from '../../components/PunPageNavBar.vue'
+import { ref, computed } from "vue";
+import { onShow, onShareAppMessage } from "@dcloudio/uni-app";
+import { api } from "../../utils/api";
+import { useNavBar } from "../../composables/useNavBar";
+import { getUserInfo } from "../../utils/auth";
+import PunPageNavBar from "../../components/PunPageNavBar.vue";
 
-const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar();
 
-const QR_STORAGE_KEY = 'streamer_qr_base64'
+const QR_STORAGE_KEY = "streamer_qr_base64";
 
-const hasQr = ref(false)
-const qrTempPath = ref('') // 本地临时文件路径，用于长按保存
-const qrLoading = ref(false)
-const channel = ref('')
-const userId = ref('')
-let qrBase64Cache = ''
+const hasQr = ref(false);
+const qrTempPath = ref(""); // 本地临时文件路径，用于长按保存
+const qrLoading = ref(false);
+const channel = ref("");
+const userId = ref("");
+let qrBase64Cache = "";
 
 // base64 → 临时文件，供长按保存使用
 function writeQrTempFile(base64) {
   // #ifdef MP-WEIXIN
   try {
-    const fs = wx.getFileSystemManager()
-    const filePath = `${wx.env.USER_DATA_PATH}/streamer_qr_preview.png`
-    fs.writeFileSync(filePath, base64, 'base64')
-    qrTempPath.value = filePath
+    const fs = wx.getFileSystemManager();
+    const filePath = `${wx.env.USER_DATA_PATH}/streamer_qr_preview.png`;
+    fs.writeFileSync(filePath, base64, "base64");
+    qrTempPath.value = filePath;
   } catch (e) {
-    qrTempPath.value = ''
+    qrTempPath.value = "";
   }
   // #endif
 }
 
 // 从本地缓存读取 userId
 function loadUserId() {
-  const info = getUserInfo()
-  userId.value = info?.user_id ? String(info.user_id) : ''
+  const info = getUserInfo();
+  userId.value = info?.user_id ? String(info.user_id) : "";
 }
 
 // 从 storage 恢复二维码
 function restoreQrFromStorage() {
   try {
-    const saved = uni.getStorageSync(QR_STORAGE_KEY)
+    const saved = uni.getStorageSync(QR_STORAGE_KEY);
     if (saved) {
-      qrBase64Cache = String(saved)
-      hasQr.value = true
-      writeQrTempFile(saved)
+      qrBase64Cache = String(saved);
+      hasQr.value = true;
+      writeQrTempFile(saved);
     }
   } catch (e) {}
 }
 
-    const stats = ref({ totalUsers: 0, loginCount: 0, videoCount: 0 })
-const statsLoading = ref(false)
+const stats = ref({
+  totalUsers: 0,
+  loginCount: 0,
+  videoCount: 0,
+  totalPaid: "0.000",
+  unsettledGross: "0.000",
+  balance: "0.000",
+  lastSettledDate: null,
+  withdrawMin: "1",
+  canWithdraw: false,
+});
+const statsLoading = ref(false);
+
+/** 金额展示：截断 3 位小数，不四舍五入（与后端一致） */
+function formatMoneyYuan(value) {
+  const raw = String(value ?? "").trim();
+  if (raw === "" || raw === "null" || raw === "undefined") return "0.000";
+  const negative = raw.startsWith("-");
+  const num = negative ? raw.slice(1) : raw;
+  if (!/^\d+(\.\d+)?$/.test(num)) return "0.000";
+  const [intPart, decPart = ""] = num.split(".");
+  const dec = (decPart + "000").slice(0, 3);
+  return `${negative ? "-" : ""}${intPart}.${dec}`;
+}
+
+/** 页面展示：金额为 0 时显示 —，避免未结算时满屏 0.000 */
+function formatMoneyDisplay(value) {
+  const formatted = formatMoneyYuan(value);
+  return formatted === "0.000" ? "—" : formatted;
+}
+
+/** 结算日期：小程序模板里 YYYY-MM-DD 会被当成减法，改用中文日期 */
+function formatSettledDate(value) {
+  const raw = String(value ?? "")
+    .trim()
+    .slice(0, 10);
+  const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!matched) return raw;
+  const [, year, month, day] = matched;
+  return `${year}年${Number(month)}月${Number(day)}日`;
+}
 
 async function loadQrCode() {
-  if (qrLoading.value) return
-  qrLoading.value = true
+  if (qrLoading.value) return;
+  qrLoading.value = true;
   try {
-    const data = await api.getStreamerQrCode()
-    const nextBase64 = data.qrBase64 || ''
-    qrBase64Cache = String(nextBase64)
-    hasQr.value = !!nextBase64
-    channel.value = data.channel || ''
+    const data = await api.getStreamerQrCode();
+    const nextBase64 = data.qrBase64 || "";
+    qrBase64Cache = String(nextBase64);
+    hasQr.value = !!nextBase64;
+    channel.value = data.channel || "";
     if (nextBase64) {
-      try { uni.setStorageSync(QR_STORAGE_KEY, nextBase64) } catch (e) {}
-      writeQrTempFile(nextBase64)
+      try {
+        uni.setStorageSync(QR_STORAGE_KEY, nextBase64);
+      } catch (e) {}
+      writeQrTempFile(nextBase64);
     } else {
-      qrTempPath.value = ''
+      qrTempPath.value = "";
     }
   } catch (e) {
-    uni.showToast({ title: e?.message || '生成失败', icon: 'none' })
+    uni.showToast({ title: e?.message || "生成失败", icon: "none" });
   } finally {
-    qrLoading.value = false
+    qrLoading.value = false;
   }
 }
 
 async function loadStats() {
-  statsLoading.value = true
+  statsLoading.value = true;
   try {
-    const data = await api.getStreamerStats()
+    const data = await api.getStreamerStats();
     stats.value = {
       totalUsers: Number(data?.totalUsers || 0),
       loginCount: Number(data?.loginCount || 0),
       videoCount: Number(data?.videoCount || 0),
-    }
-    if (!channel.value && data.channel) channel.value = data.channel
+      totalPaid: String(data?.totalPaid ?? "0.000"),
+      unsettledGross: String(data?.unsettledGross ?? "0.000"),
+      balance: String(data?.balance ?? "0.000"),
+      lastSettledDate: data?.lastSettledDate
+        ? String(data.lastSettledDate).slice(0, 10)
+        : null,
+      withdrawMin: String(data?.withdrawMin ?? "1"),
+      canWithdraw: !!data?.canWithdraw,
+    };
+    if (!channel.value && data.channel) channel.value = data.channel;
   } catch (e) {
-    uni.showToast({ title: '数据加载失败', icon: 'none' })
+    uni.showToast({ title: "数据加载失败", icon: "none" });
   } finally {
-    statsLoading.value = false
+    statsLoading.value = false;
   }
 }
 
 function saveQrCode() {
-  if (!qrBase64Cache) return
+  if (!qrBase64Cache) return;
   // #ifdef MP-WEIXIN
   const doSave = () => {
-    const fs = wx.getFileSystemManager()
-    const filePath = `${wx.env.USER_DATA_PATH}/streamer_qr_${Date.now()}.png`
+    const fs = wx.getFileSystemManager();
+    const filePath = `${wx.env.USER_DATA_PATH}/streamer_qr_${Date.now()}.png`;
     fs.writeFile({
       filePath,
       data: qrBase64Cache,
-      encoding: 'base64',
+      encoding: "base64",
       success: () => {
         wx.saveImageToPhotosAlbum({
           filePath,
-          success: () => uni.showToast({ title: '已保存到相册', icon: 'success' }),
+          success: () => uni.showToast({ title: "已保存到相册", icon: "success" }),
           fail: () => {
             wx.showModal({
-              title: '提示',
-              content: '请长按二维码保存，或者在设置中开启相册权限后重试',
-              confirmText: '去设置',
+              title: "提示",
+              content: "请长按二维码保存，或者在设置中开启相册权限后重试",
+              confirmText: "去设置",
               success: (res) => {
-                if (res.confirm) wx.openSetting()
+                if (res.confirm) wx.openSetting();
               },
-            })
+            });
           },
-        })
+        });
       },
-      fail: () => uni.showToast({ title: '文件写入失败', icon: 'none' }),
-    })
-  }
+      fail: () => uni.showToast({ title: "文件写入失败", icon: "none" }),
+    });
+  };
 
   const albumDeniedModal = () => {
     wx.showModal({
-      title: '提示',
-      content: '请长按二维码保存，或在设置中开启「保存到相册」权限后重试',
-      confirmText: '去设置',
+      title: "提示",
+      content: "请长按二维码保存，或在设置中开启「保存到相册」权限后重试",
+      confirmText: "去设置",
       success: (r) => {
-        if (!r.confirm) return
+        if (!r.confirm) return;
         wx.openSetting({
           success: (openRes) => {
-            if (openRes.authSetting['scope.writePhotosAlbum']) doSave()
+            if (openRes.authSetting["scope.writePhotosAlbum"]) doSave();
           },
-        })
+        });
       },
-    })
-  }
+    });
+  };
 
   wx.getSetting({
     success: (res) => {
-      const album = res.authSetting['scope.writePhotosAlbum']
+      const album = res.authSetting["scope.writePhotosAlbum"];
       if (album === true) {
-        doSave()
-        return
+        doSave();
+        return;
       }
       // 用户曾拒绝：authorize 不会再弹系统授权框，只能去设置里打开
       if (album === false) {
-        albumDeniedModal()
-        return
+        albumDeniedModal();
+        return;
       }
       wx.authorize({
-        scope: 'scope.writePhotosAlbum',
+        scope: "scope.writePhotosAlbum",
         success: doSave,
         fail: albumDeniedModal,
-      })
+      });
     },
     fail: doSave, // getSetting 失败时直接尝试保存
-  })
+  });
   // #endif
   // #ifndef MP-WEIXIN
-  uni.showToast({ title: '请截图保存', icon: 'none' })
+  uni.showToast({ title: "请截图保存", icon: "none" });
   // #endif
 }
 
 function formatTime(str) {
-  if (!str) return ''
-  return str.slice(0, 16).replace('T', ' ')
+  if (!str) return "";
+  return str.slice(0, 16).replace("T", " ");
 }
 
 function back() {
-  uni.navigateBack({ delta: 1, fail: () => uni.reLaunch({ url: '/pages/index/index' }) })
+  uni.navigateBack({ delta: 1, fail: () => uni.reLaunch({ url: "/pages/index/index" }) });
 }
 
 onShareAppMessage(() => {
-  const shareChannel =
-    channel.value ||
-    (userId.value ? `streamer_${userId.value}` : '')
+  const shareChannel = channel.value || (userId.value ? `streamer_${userId.value}` : "");
   return {
     title: `邀请你来玩谐音梗猜一猜，用我的专属链接进入`,
     path: shareChannel
       ? `/pages/index/index?channel=${encodeURIComponent(shareChannel)}`
-      : '/pages/index/index',
-  }
-})
+      : "/pages/index/index",
+  };
+});
 
 onShow(() => {
-  loadUserId()
-  restoreQrFromStorage()
-  loadStats()
-})
+  loadUserId();
+  restoreQrFromStorage();
+  loadStats();
+});
 </script>
 
 <style lang="scss" scoped>
@@ -309,7 +379,7 @@ onShow(() => {
   z-index: 2;
   background: rgba(255, 255, 255, 0.92);
   border-radius: 28rpx;
-  padding: 36rpx 32rpx;
+  padding: 26rpx 22rpx;
   margin-bottom: 28rpx;
   box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.18);
   border: 2rpx solid rgba(169, 201, 238, 0.4);
@@ -408,7 +478,7 @@ onShow(() => {
   z-index: 2;
   background: rgba(255, 255, 255, 0.92);
   border-radius: 28rpx;
-  padding: 36rpx 32rpx;
+  padding: 26rpx 22rpx;
   margin-bottom: 28rpx;
   box-shadow: 0 6rpx 20rpx rgba(169, 201, 238, 0.18);
   border: 2rpx solid rgba(169, 201, 238, 0.4);
@@ -494,8 +564,25 @@ onShow(() => {
   color: #5a6d7a;
   line-height: 1;
 }
-.stat-num--green { color: #6fb868; }
-.stat-num--blue  { color: #42a5f5; }
+.stat-num--green {
+  color: #6fb868;
+}
+.stat-num--blue {
+  color: #42a5f5;
+}
+.stat-num--gold {
+  color: #d4a017;
+}
+.stat-num--orange {
+  color: #f59e0b;
+}
+.stats-earn-tip {
+  font-size: 22rpx;
+  color: #8eadcf;
+  line-height: 1.6;
+  padding: 0 8rpx 8rpx;
+  text-align: center;
+}
 .stat-label {
   font-size: 22rpx;
   color: #8eadcf;
@@ -520,7 +607,9 @@ onShow(() => {
   padding: 18rpx 0;
   border-bottom: 1rpx solid rgba(169, 201, 238, 0.2);
 }
-.user-item:last-child { border-bottom: none; }
+.user-item:last-child {
+  border-bottom: none;
+}
 .user-avatar {
   width: 72rpx;
   height: 72rpx;
@@ -535,7 +624,9 @@ onShow(() => {
   justify-content: center;
   font-size: 34rpx;
 }
-.user-info { flex: 1; }
+.user-info {
+  flex: 1;
+}
 .user-name {
   font-size: 28rpx;
   font-weight: 600;

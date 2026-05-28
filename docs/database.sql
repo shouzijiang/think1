@@ -117,6 +117,31 @@ CREATE TABLE `pun_level_ai_explain` (
   KEY `idx_game_tier` (`game_tier`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗关卡 AI 趣味解读';
 
+-- 7e. 买量渠道行为（见 docs/migrations/add_channel_tracking.sql）
+-- 7f. 邀请人结算（见 docs/migrations/add_streamer_settlement.sql）
+CREATE TABLE IF NOT EXISTS `pun_game_channel_unit_price` (
+  `stat_date`           date          NOT NULL COMMENT '统计日',
+  `video_total_amount`  decimal(10,2) NOT NULL DEFAULT 0.00 COMMENT '当日视频广告总收入(手填)',
+  `video_unit_price`    decimal(10,4) NOT NULL DEFAULT 0.0000 COMMENT '单条视频单价(截断4位)',
+  `video_claim_count`   int unsigned  NOT NULL DEFAULT 0 COMMENT '除数：当日全站 reward_video 成功次数',
+  `remark`              varchar(255)  DEFAULT NULL,
+  `updated_at`          datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`stat_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='买量渠道全平台每日视频单价';
+
+CREATE TABLE IF NOT EXISTS `pun_game_streamer_payout` (
+  `id`               int unsigned  NOT NULL AUTO_INCREMENT,
+  `streamer_user_id` int unsigned  NOT NULL COMMENT '邀请人 users.id',
+  `channel`          varchar(64)   NOT NULL COMMENT 'streamer_{userId}',
+  `period_end`       date          NOT NULL COMMENT '本次已结算到的最后一天(含)',
+  `paid_amount`      decimal(10,2) NOT NULL DEFAULT 0.00 COMMENT '本次实际打款金额',
+  `paid_at`          datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `remark`           varchar(255)  DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_streamer_user` (`streamer_user_id`),
+  KEY `idx_channel` (`channel`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='邀请人打款/结算记录';
+
 -- 7c. 老库一次性给全员 +10 次揭字：见 `docs/migrations/add_hint_quota_10_all_users.sql`（勿重复执行）
 -- 7d. 揭字累计消耗：见 `docs/migrations/add_pun_user_hint_quota_total_used.sql`（勿重复执行）
 

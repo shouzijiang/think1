@@ -27,6 +27,9 @@
 - **pun_reward_claim_record**: 统一领奖记录（`share` / `reward_video` / `daily_noon_hint_5` / `daily_watch_ad_hint_1` / `daily_battle_3_hint_3` / `permanent_set_avatar` / `permanent_set_nickname` / `permanent_my_mini_program_hint_3` 等）；**仅成功领取**写入一行（`status=success`）；业务拒绝与异常失败不落库（`status` 字段历史或其它脚本仍可为 rejected/failed）。若线上曾为 `permanent_my_mini_program_hint_5`，可执行 `docs/migrations/rename_permanent_my_mini_program_claim_type_hint_5_to_hint_3.sql` 统一类型名。
 - **pun_level_ai_explain**: 关卡 AI 趣味解读（`game_tier`：`beginner`/`mid`/`xhs`，`level_no` 关卡编号，`explain_text` 文案）；建议 `php think pun:generate-level-explain` 批量预生成；答对时 `/pun/answer/submit` **优先读表**，无记录才调 AI 落库
 - **pun_daily_answer_stat**: 每日答对次数统计（`user_id + stat_date` 唯一；用于“每日答对满20题后可领登录奖励+5次”）
+- **pun_game_channel_events**: 买量/邀请渠道行为（`channel` 如 `streamer_{userId}`，`event_type`：`login`/`reward_video`/`daily_watch_ad_hint_1`）；迁移见 `docs/migrations/add_channel_tracking.sql`
+- **pun_game_channel_unit_price**: 全平台每日视频单价；`php think pun:sync-channel-unit-price --date=... --total=...` 写入总收入并按全站 `reward_video` 成功次数换算 `video_unit_price`（**截断保留 4 位小数，不四舍五入**）；**仅 reward_video 计邀请收益**
+- **pun_game_streamer_payout**: 邀请人打款记录（`streamer_user_id`、`period_end` 已结算截止日含当天、`paid_amount` 打款金额；手填表录入，无后台）
 - *(论坛相关表)*: 帖子表 (topic)、回复表 (reply)
 
 ### 3. 久坐提醒相关表
@@ -67,6 +70,8 @@
 | `/pun/battle/create` | POST | 1V1：创建对战房间 |
 | `/pun/battle/history` | GET | 1V1：获取个人历史对战记录 |
 | `/pun/battle/rank` | GET | 1V1：全局对战排行榜（分页；统计已结束且有胜负的局：`win_count`/`lose_count`，不含平局），无需 Token；**小程序端**头像默认图与昵称脱敏同 `/pun/rank/list` |
+| `/pun/streamer/qrcode` | GET | 邀请人专属小程序码（需 Token）；`scene=channel=streamer_{userId}` |
+| `/pun/streamer/stats` | GET | 邀请数据与结算（需 Token）：`totalPaid`/`unsettledGross`/`balance` 等为 BCMath 累加后**截断 3 位小数**展示（不四舍五入）；仅 `reward_video` 计收益 |
 
 #### 分步提示 `/pun/level/reveal-hint`（需登录）
 
@@ -153,6 +158,7 @@
 - **飞书机器人（对战开房/开局通知）**：在根目录 `.env` 配置 `FEISHU_WEBHOOK_URL`、`FEISHU_WEBHOOK_SECRET`（勿提交仓库）。逻辑见 `app/common/FeishuBotHelper.php`，由 `BattleService::createRoom` 与 `WebSocket` 对局开始时触发。
 - **关卡 AI 解读（可选）**：`.env` 配置 `PUN_EXPLAIN_AI_ENABLED=1`、`PUN_EXPLAIN_AI_URL`（如 `https://{envId}.api.intl.tcloudbasegateway.com`，须与 API Key 所属环境 ID 一致；代码会自动拼 `/v1/ai/{provider}/chat/completions`，并在域名子段与 Key 不一致时用 JWT 内 `project_id` 修正）、`PUN_EXPLAIN_AI_KEY`、`PUN_EXPLAIN_AI_PROVIDER=hunyuan-v3`、`PUN_EXPLAIN_AI_MODEL=hy3-preview`；失败时在 `runtime/log/` 搜索 `[pun-explain]`（日志含 JSON 上下文：`http_code`、`error`、`snippet` 等）。
 - **站内信入信**：不向客户端开放发送接口；在 MySQL 中 `INSERT` `pun_game_mail`（见上节「站内信」与迁移脚本注释示例）。
+- **邀请人结算**：迁移 `docs/migrations/add_streamer_settlement.sql`（旧表 `alter_streamer_unit_price.sql`；打款表去快照字段见 `alter_streamer_payout_drop_snapshot.sql`）。单价：`php think pun:sync-channel-unit-price --date=YYYY-MM-DD --total=金额`；重算全部 `--all`。打款手填 `pun_game_streamer_payout`（仅需 `streamer_user_id`、`channel`、`period_end`、`paid_amount`）。
 
 ---
 
