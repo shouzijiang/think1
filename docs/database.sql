@@ -96,12 +96,26 @@ CREATE TABLE `pun_user_hint_quota` (
   UNIQUE KEY `uk_user_id` (`user_id`),
   CONSTRAINT `fk_pun_hint_quota_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜揭字次数配额';
+
 -- 若线上已存在表，按以下顺序执行迁移 SQL：
 UPDATE `pun_user_hint_quota`
 SET
   `quota` = `quota` + 5,
   `updated_at` = NOW()
 WHERE `user_id` = 1;
+
+-- 7c. 关卡 AI 趣味解读（答对 submit 时实时生成并缓存，失败读历史）
+CREATE TABLE `pun_level_ai_explain` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `game_tier` varchar(20) NOT NULL COMMENT '关卡类型：beginner|mid|xhs',
+  `level_no` int(11) NOT NULL COMMENT '关卡编号（与题库 level 一致）',
+  `explain_text` text NOT NULL COMMENT 'AI 趣味解读文案',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tier_level` (`game_tier`, `level_no`),
+  KEY `idx_game_tier` (`game_tier`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗关卡 AI 趣味解读';
 
 -- 7c. 老库一次性给全员 +10 次揭字：见 `docs/migrations/add_hint_quota_10_all_users.sql`（勿重复执行）
 -- 7d. 揭字累计消耗：见 `docs/migrations/add_pun_user_hint_quota_total_used.sql`（勿重复执行）
@@ -251,7 +265,7 @@ INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title
 VALUES ('all', NULL, NULL, '全服公告', '玩家（id917 用好玩谐音）反馈【小红书专辑 · 第778关tomato无法识别】，等一系列问题已采纳，奖励查看答案次数15，奖励已发放。', 1);
 -- 指定用户邮件示例（将 123 替换为 users 表中的用户 id）
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
-VALUES ('user', 917, NULL, 'bug反馈回复', '感谢您的反馈。【小红书专辑 · 第778关tomato无法识别】，等一系列问题已采纳。，奖励查看答案次数15，奖励已发放。', 1);
+VALUES ('user', 1114, NULL, 'bug反馈回复', '感谢您的反馈。【小红书专辑 · 第99关，问题：图片错误】，问题已采纳，奖励查看答案次数5，奖励已发放。', 1);
 
 -- 14. 谐音梗猜一猜统一领奖记录（所有领取类型都落此表：分享/激励视频/daily_* / permanent_* 等）
 CREATE TABLE `pun_reward_claim_record` (

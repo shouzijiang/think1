@@ -1154,11 +1154,18 @@ class PunService
                 $nextTotalLevels = $nextMeta['totalLevels'];
             }
         }
+
+        $passExplain = '';
+        if ($allCorrect && $mode !== 'battle') {
+            $passExplain = (new PunLevelAiExplainService())->resolvePassExplain($mode, $level);
+        }
+
         return [
             'isCorrect' => $allCorrect,
             'feedback' => $feedback,
             'nextLevel' => $allCorrect ? $nextLevel : null,
             'totalLevels' => $allCorrect ? $nextTotalLevels : 0,
+            'passExplain' => $passExplain,
         ];
     }
 
