@@ -1,3 +1,5 @@
 # 每天 12:00（北京时间）执行一次每日领奖提醒任务
 0 12 * * * curl -s https://sofun.online/cron/send-remind > /dev/null 2>&1
 
+# 每天 00:10（北京时间）同步昨日视频单价（默认 0.01；录入 video_total_amount 后可重跑换算）
+10 0 * * * cd /www/wwwroot/sofun && /usr/bin/php think pun:sync-channel-unit-price --yesterday >> /www/wwwlogs/pun-sync-unit-price.log 2>&1

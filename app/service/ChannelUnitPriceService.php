@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace app\service;
 
+use think\facade\Config;
 use think\facade\Db;
 
 /**
@@ -27,42 +28,62 @@ class ChannelUnitPriceService
     }
 
     /**
-     * 根据已录入的 video_total_amount 重算某日单价并写回表。
+     * 同步某日单价与次数快照。
+     * - video_total_amount > 0：按 总价÷次数 重算单价
+     * - 否则且 $useDefaultWhenNoTotal：使用 config 默认单价（默认 0.01），total 保持 0 待手改表
      *
-     * @return array{stat_date:string,video_total_amount:string,video_claim_count:int,video_unit_price:string}
+     * @return array{stat_date:string,video_total_amount:string,video_claim_count:int,video_unit_price:string,used_default:bool}
      */
-    public function syncUnitPriceForDate(string $statDate): array
+    public function syncUnitPriceForDate(string $statDate, bool $useDefaultWhenNoTotal = false): array
     {
         $date = $this->normalizeDate($statDate);
         $row = Db::name('pun_game_channel_unit_price')
             ->where('stat_date', $date)
             ->find();
 
-        if (!$row) {
-            throw new \InvalidArgumentException("未找到 {$date} 的单价记录，请先 INSERT video_total_amount");
-        }
-
         $total = (float) ($row['video_total_amount'] ?? 0);
-        if ($total <= 0) {
-            throw new \InvalidArgumentException("{$date} 的 video_total_amount 须大于 0");
+        $claimCount = $this->countRewardVideoClaims($date);
+        $usedDefault = false;
+
+        if ($total > 0) {
+            $unitPrice = $this->calcUnitPrice($total, $claimCount);
+        } elseif ($useDefaultWhenNoTotal) {
+            $unitPrice = $this->getDefaultVideoUnitPrice();
+            $usedDefault = true;
+        } elseif (!$row) {
+            throw new \InvalidArgumentException("未找到 {$date} 的单价记录，请先录入 video_total_amount 或使用默认定时同步");
+        } else {
+            throw new \InvalidArgumentException("{$date} 的 video_total_amount 须大于 0，或带 --total 录入");
         }
 
-        $claimCount = $this->countRewardVideoClaims($date);
-        $unitPrice = $this->calcUnitPrice($total, $claimCount);
+        $payload = [
+            'video_unit_price'  => $unitPrice,
+            'video_claim_count' => $claimCount,
+        ];
 
-        Db::name('pun_game_channel_unit_price')
-            ->where('stat_date', $date)
-            ->update([
-                'video_unit_price'  => $unitPrice,
-                'video_claim_count' => $claimCount,
-            ]);
+        if ($row) {
+            Db::name('pun_game_channel_unit_price')
+                ->where('stat_date', $date)
+                ->update($payload);
+        } else {
+            Db::name('pun_game_channel_unit_price')->insert(array_merge($payload, [
+                'stat_date'          => $date,
+                'video_total_amount' => 0,
+            ]));
+        }
 
         return [
             'stat_date'           => $date,
-            'video_total_amount'  => number_format($total, 2, '.', ''),
+            'video_total_amount'  => number_format($total > 0 ? $total : 0, 2, '.', ''),
             'video_claim_count'   => $claimCount,
             'video_unit_price'    => $this->formatUnitPrice($unitPrice),
+            'used_default'        => $usedDefault,
         ];
+    }
+
+    public function getDefaultVideoUnitPrice(): float
+    {
+        return (float) Config::get('pun_streamer.default_video_unit_price', 0.01);
     }
 
     /**
@@ -99,7 +120,7 @@ class ChannelUnitPriceService
             Db::name('pun_game_channel_unit_price')->insert($payload);
         }
 
-        return $this->syncUnitPriceForDate($date);
+        return $this->syncUnitPriceForDate($date, false);
     }
 
     /**
