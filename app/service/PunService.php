@@ -1137,15 +1137,20 @@ class PunService
             $allCorrect = false;
         }
         if ($allCorrect) {
-            // 每日任务计数仅统计「答对」提交
-            $this->incrementDailyAnswerCount($userId);
             $this->removeSkipLevel($userId, $mode, $level, $mode === 'intermediate' ? $answersRaw : ($mode === 'xhs' || $mode === 'battle' ? $answersRaw : $answers));
+            // 单机模式：先写 progress/rank，成功后再计每日答对，避免 pun_daily_answer_stat 有记录但 progress 为空
             if ($mode === 'intermediate') {
                 $this->updateMidProgress($userId, $level, $answersRaw);
-            } else if ($mode === 'xhs') {
+                $this->incrementDailyAnswerCount($userId);
+            } elseif ($mode === 'xhs') {
                 $this->updateXhsProgress($userId, $level, $answersRaw);
-            } else if ($mode === 'beginner') {
+                $this->incrementDailyAnswerCount($userId);
+            } elseif ($mode === 'beginner') {
                 $this->updateRankAndProgress($userId, $level, $mode);
+                $this->incrementDailyAnswerCount($userId);
+            } elseif ($mode === 'battle') {
+                // 对战答对只计每日任务，不写个人 progress/rank
+                $this->incrementDailyAnswerCount($userId);
             }
             // mode === 'battle' 时，不更新个人进度和排行榜，对战逻辑在 WebSocket 中处理
             if ($mode !== 'battle') {
@@ -1212,25 +1217,14 @@ class PunService
     }
 
     /**
-     * 中级更新排行榜并写入/更新关卡进度，按有序前缀递增
+     * 中级更新排行榜并写入/更新关卡进度。
+     * 与 xhs 一致：任意存在关卡答对即记入 passed_levels_mid（允许跳关/回跳练习）。
      */
     protected function updateMidProgress(int $userId, int $level, array $answersRaw): void
     {
         $before = $this->buildMidTierProgressState($userId, $answersRaw);
-        // 计算跳关后的真实 currentLevel（与 getLevelProgress 逻辑一致）
-        $skippedLevels = $this->getSkipLevels($userId, 'intermediate', $answersRaw);
-        $passedSet  = array_fill_keys(array_map('intval', $before['passedLevels']), true);
-        $skipSet    = array_fill_keys(array_map('intval', $skippedLevels), true);
-        $effectiveCurrentLevel = null;
-        foreach ($before['allKeys'] as $k) {
-            $kid = (int) $k;
-            if (!isset($passedSet[$kid]) && !isset($skipSet[$kid])) {
-                $effectiveCurrentLevel = $kid;
-                break;
-            }
-        }
-        if ($effectiveCurrentLevel === null || $effectiveCurrentLevel !== $level) {
-            return;
+        if (!isset($answersRaw[$level])) {
+            throw new \InvalidArgumentException('关卡不存在于中级题库配置');
         }
 
         Db::startTrans();
@@ -1238,7 +1232,7 @@ class PunService
             $now = date('Y-m-d H:i:s');
             $rank = PunGameRank::where('user_id', $userId)->find();
             if ($rank) {
-                $rank->max_level_mid = $level;
+                $rank->max_level_mid = max((int) ($rank->max_level_mid ?? -1), $level);
                 $rank->last_pass_at_mid = $now;
                 $rank->save();
             } else {
@@ -1288,7 +1282,7 @@ class PunService
         // 小红书专辑允许回跳/跨关练习：只要题目存在且答对，就记录为已通过
         // （此前仅允许 currentLevel 记通过，导致非当前关如 1234 不写入 passed_levels_xhs）
         if (!isset($answersRaw[$level])) {
-            return;
+            throw new \InvalidArgumentException('关卡不存在于小红书题库配置');
         }
 
         Db::startTrans();
@@ -1296,7 +1290,7 @@ class PunService
             $now = date('Y-m-d H:i:s');
             $rank = PunGameRank::where('user_id', $userId)->find();
             if ($rank) {
-                $rank->max_level_xhs = $level;
+                $rank->max_level_xhs = max((int) ($rank->max_level_xhs ?? -1), $level);
                 $rank->last_pass_at_xhs = $now;
                 $rank->save();
             } else {

@@ -26,7 +26,7 @@ SELECT
 FROM (
   SELECT DATE(created_at) AS stat_date, COUNT(*) AS video_count
   FROM pun_game_channel_events
-  WHERE channel = 'streamer_1'
+  WHERE channel = 'streamer_1132'
     AND event_type = 'reward_video'
   GROUP BY DATE(created_at)
 ) e
