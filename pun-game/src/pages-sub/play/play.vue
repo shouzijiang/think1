@@ -40,10 +40,13 @@
             <view
               v-for="i in answerLen"
               :key="i"
-              :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
+              :class="[
+                'slot',
+                { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake },
+              ]"
               @click="removeAt(i - 1)"
             >
-              {{ answerChars[i - 1] || '' }}
+              {{ answerChars[i - 1] || "" }}
             </view>
           </view>
         </view>
@@ -97,21 +100,27 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { onLoad, onShow, onHide, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import { getLevelPuzzle } from '../../data/levels'
-import { api } from '../../utils/api'
-import { useNavBar } from '../../composables/useNavBar'
-import PunPageNavBar from '../../components/PunPageNavBar.vue'
-import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
-import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
-import PunHintOverlay from '../../components/PunHintOverlay.vue'
-import { usePunPassSuccess } from '../composables/usePunPassSuccess'
-import { usePunShareReward } from '../../composables/usePunShareReward'
-import { usePunRewardedVideoHint } from '../composables/usePunRewardedVideoHint'
-import { usePunSkipLevel } from '../composables/usePunSkipLevel'
-import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
-import { resolvePassExplain } from '../utils/punPassExplain'
+import { ref, computed } from "vue";
+import {
+  onLoad,
+  onShow,
+  onHide,
+  onShareAppMessage,
+  onShareTimeline,
+} from "@dcloudio/uni-app";
+import { getLevelPuzzle } from "../../data/levels";
+import { api } from "../../utils/api";
+import { useNavBar } from "../../composables/useNavBar";
+import PunPageNavBar from "../../components/PunPageNavBar.vue";
+import PunPlayHintShareBar from "../../components/PunPlayHintShareBar.vue";
+import PunPassSuccessOverlay from "../../components/PunPassSuccessOverlay.vue";
+import PunHintOverlay from "../../components/PunHintOverlay.vue";
+import { usePunPassSuccess } from "../composables/usePunPassSuccess";
+import { usePunShareReward } from "../../composables/usePunShareReward";
+import { usePunRewardedVideoHint } from "../composables/usePunRewardedVideoHint";
+import { usePunSkipLevel } from "../composables/usePunSkipLevel";
+import { playBgmPlay, stopBgm } from "../../utils/gameAudio";
+import { resolvePassExplain } from "../utils/punPassExplain";
 import {
   punGetCachedHint,
   punIsSlotError,
@@ -119,260 +128,273 @@ import {
   punRevealHintWithModal,
   punToastRevealHintAfterError,
   SHARE_SUCCESS_THRESHOLD_MS,
-} from '../utils/punPlayShared'
+} from "../utils/punPlayShared";
 
-const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar();
 
-const level = ref(1)
-const answerLen = ref(3)
-const answerChars = ref([])
-const chars = ref([])
+const level = ref(1);
+const answerLen = ref(3);
+const answerChars = ref([]);
+const chars = ref([]);
 const puzzle = ref({
-  imageUrl: '',
-  hintText: '',
-})
-const loading = ref(true)
-const submitting = ref(false)
+  imageUrl: "",
+  hintText: "",
+});
+const loading = ref(true);
+const submitting = ref(false);
 
-const feedback = ref([])
-const slotShake = ref(false)
-const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
-const passSuccessExplain = ref('')
-const hintLoading = ref(false)
-const skipLoading = ref(false)
+const feedback = ref([]);
+const slotShake = ref(false);
+const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess();
+const passSuccessExplain = ref("");
+const hintLoading = ref(false);
+const skipLoading = ref(false);
 /** 揭字剩余次数（/pun/level/progress 与 reveal-hint 返回） */
-const hintAnswerQuota = ref(0)
-const hintOverlayVisible = ref(false)
-const hintOverlayText = ref('')
-const hintOverlayStep = ref(0)
-const hintOverlayMaxSteps = ref(0)
-const hintOverlayComplete = ref(false)
+const hintAnswerQuota = ref(0);
+const hintOverlayVisible = ref(false);
+const hintOverlayText = ref("");
+const hintOverlayStep = ref(0);
+const hintOverlayMaxSteps = ref(0);
+const hintOverlayComplete = ref(false);
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
-  mode: 'heuristic',
+  mode: "heuristic",
   shareSuccessThresholdMs: SHARE_SUCCESS_THRESHOLD_MS,
   showCancelToast: true,
-})
-const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
+});
+const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota);
 /** 当前已选入答案槽的字在 chars 中的下标，与 answerChars 一一对应 */
-const pickedIndices = ref([])
-const pickedIndexSet = computed(() => new Set(pickedIndices.value))
+const pickedIndices = ref([]);
+const pickedIndexSet = computed(() => new Set(pickedIndices.value));
 
 function isCharUsed(idx) {
-  return pickedIndexSet.value.has(idx)
+  return pickedIndexSet.value.has(idx);
 }
 
 function isSlotError(index) {
-  return punIsSlotError(feedback.value, index)
+  return punIsSlotError(feedback.value, index);
 }
 
 onShow(() => {
-  playBgmPlay()
-})
+  playBgmPlay();
+});
 
 onHide(() => {
-  stopBgm()
-})
+  stopBgm();
+});
 
 onLoad((opts) => {
-  let lv = 1
-  if (opts && opts.level != null && String(opts.level).trim() !== '') {
-    const n = parseInt(String(opts.level), 10)
+  let lv = 1;
+  if (opts && opts.level != null && String(opts.level).trim() !== "") {
+    const n = parseInt(String(opts.level), 10);
     if (Number.isFinite(n) && n >= 1) {
-      lv = n
+      lv = n;
     } else {
-      uni.showToast({ title: '关卡号无效，已打开第1关', icon: 'none' })
+      uni.showToast({ title: "关卡号无效，已打开第1关", icon: "none" });
     }
   }
-  level.value = lv
-  loading.value = true
-  getLevelPuzzle(level.value).then((data) => {
-    answerLen.value = data.answerLength
-    chars.value = data.wordArray.length ? data.wordArray : []
-    puzzle.value = {
-      imageUrl: data.imageUrl || '',
-      hintText: data.hintText || '',
-    }
-    answerChars.value = []
-    pickedIndices.value = []
-    passSuccessExplain.value = ''
-    loading.value = false
-  }).catch(() => {
-    loading.value = false
-  })
-  api.getLevelProgress({ gameTier: 'beginner' }).then((prog) => {
-    if (typeof prog.hintAnswerQuota === 'number') {
-      hintAnswerQuota.value = prog.hintAnswerQuota
-    }
-  }).catch(() => {})
-})
+  level.value = lv;
+  loading.value = true;
+  getLevelPuzzle(level.value)
+    .then((data) => {
+      answerLen.value = data.answerLength;
+      chars.value = data.wordArray.length ? data.wordArray : [];
+      puzzle.value = {
+        imageUrl: data.imageUrl || "",
+        hintText: data.hintText || "",
+      };
+      answerChars.value = [];
+      pickedIndices.value = [];
+      passSuccessExplain.value = "";
+      loading.value = false;
+    })
+    .catch(() => {
+      loading.value = false;
+    });
+  api
+    .getLevelProgress({ gameTier: "beginner" })
+    .then((prog) => {
+      if (typeof prog.hintAnswerQuota === "number") {
+        hintAnswerQuota.value = prog.hintAnswerQuota;
+      }
+    })
+    .catch(() => {});
+});
 
 function pickChar(c, idx) {
-  if (answerChars.value.length >= answerLen.value) return
-  if (isCharUsed(idx)) return
-  answerChars.value.push(c)
-  pickedIndices.value.push(idx)
+  if (answerChars.value.length >= answerLen.value) return;
+  if (isCharUsed(idx)) return;
+  answerChars.value.push(c);
+  pickedIndices.value.push(idx);
   if (answerChars.value.length === answerLen.value) {
-    checkAnswer()
+    checkAnswer();
   }
 }
 
 function removeAt(i) {
-  if (i < 0 || i >= answerChars.value.length) return
-  answerChars.value.splice(i, 1)
-  pickedIndices.value.splice(i, 1)
+  if (i < 0 || i >= answerChars.value.length) return;
+  answerChars.value.splice(i, 1);
+  pickedIndices.value.splice(i, 1);
 }
 
 async function checkAnswer() {
-  if (submitting.value) return
-  const userAnswer = answerChars.value.slice()
-  if (userAnswer.length !== answerLen.value) return
-  submitting.value = true
-  feedback.value = []
+  if (submitting.value) return;
+  const userAnswer = answerChars.value.slice();
+  if (userAnswer.length !== answerLen.value) return;
+  submitting.value = true;
+  feedback.value = [];
   try {
-    const data = await api.submitAnswer(level.value, userAnswer)
+    const data = await api.submitAnswer(level.value, userAnswer);
     if (data.isCorrect) {
-      const rawNextLevel = data && data.nextLevel != null ? Number(data.nextLevel) : null
-      const rawTotalLevels = data && data.totalLevels != null ? Number(data.totalLevels) : NaN
+      const rawNextLevel = data && data.nextLevel != null ? Number(data.nextLevel) : null;
+      const rawTotalLevels =
+        data && data.totalLevels != null ? Number(data.totalLevels) : NaN;
       const submitResult = {
         nextLevel: Number.isFinite(rawNextLevel) ? rawNextLevel : null,
-        totalLevels: Number.isFinite(rawTotalLevels) && rawTotalLevels > 0 ? rawTotalLevels : NaN,
-      }
+        totalLevels:
+          Number.isFinite(rawTotalLevels) && rawTotalLevels > 0 ? rawTotalLevels : NaN,
+      };
       runPassSuccess({
         durationMs: 1500,
         manualClose: true,
         afterPrepare: async () => {
-          applyPassExplain(data.passExplain)
-          return submitResult
+          applyPassExplain(data.passExplain);
+          return submitResult;
         },
         onAfter: (prep) => {
           const goHomeAllClear = () => {
-            uni.showToast({ title: '恭喜通关全部梗图填词！', icon: 'none', duration: 2000 })
+            uni.showToast({
+              title: "恭喜通关全部梗图填词！",
+              icon: "none",
+              duration: 2000,
+            });
             setTimeout(() => {
-              uni.reLaunch({ url: '/pages/index/index' })
-            }, 1600)
-          }
+              uni.reLaunch({ url: "/pages/index/index" });
+            }, 1600);
+          };
           const totalCap =
             prep &&
-            typeof prep === 'object' &&
+            typeof prep === "object" &&
             prep !== null &&
             Number.isFinite(prep.totalLevels) &&
             prep.totalLevels > 0
               ? prep.totalLevels
-              : NaN
+              : NaN;
           const nextLevel =
-            prep && typeof prep === 'object' && prep !== null && 'nextLevel' in prep
+            prep && typeof prep === "object" && prep !== null && "nextLevel" in prep
               ? prep.nextLevel
-              : prep
+              : prep;
           // 已全部通关时 afterPrepare 返回 nextLevel: null；切勿 Number(null)===0 误跳 ?level=0
           if (nextLevel == null) {
-            goHomeAllClear()
-            return
+            goHomeAllClear();
+            return;
           }
-          const targetLevel = Number(nextLevel)
+          const targetLevel = Number(nextLevel);
           if (!Number.isFinite(targetLevel) || targetLevel < 1) {
-            goHomeAllClear()
-            return
+            goHomeAllClear();
+            return;
           }
           if (Number.isFinite(totalCap) && targetLevel > totalCap) {
-            goHomeAllClear()
-            return
+            goHomeAllClear();
+            return;
           }
           // 使用 redirectTo 替换当前页，避免连续 navigateTo 堆满页面栈（微信约 10 层上限）
-          uni.redirectTo({ url: `/pages-sub/play/play?level=${targetLevel}` })
+          uni.redirectTo({ url: `/pages-sub/play/play?level=${targetLevel}` });
         },
-      })
-      return
+      });
+      return;
     }
-    feedback.value = data.feedback || []
+    feedback.value = data.feedback || [];
     punScheduleWrongAnswerReset(slotShake, () => {
-      answerChars.value = []
-      pickedIndices.value = []
-      feedback.value = []
-    })
+      answerChars.value = [];
+      pickedIndices.value = [];
+      feedback.value = [];
+    });
   } catch (e) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+    uni.showToast({ title: e.message || "提交失败", icon: "none" });
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 
 function applyPassExplain(apiExplain) {
-  passSuccessExplain.value = resolvePassExplain(apiExplain)
+  passSuccessExplain.value = resolvePassExplain(apiExplain);
 }
 
 async function onRevealHint() {
-  if (hintLoading.value || loading.value) return
-  const hintPayload = { level: level.value, gameTier: 'beginner' }
-  const cachedHint = punGetCachedHint(hintPayload)
+  if (hintLoading.value || loading.value) return;
+  const hintPayload = { level: level.value, gameTier: "beginner" };
+  const cachedHint = punGetCachedHint(hintPayload);
   if (cachedHint && cachedHint.isComplete) {
-    hintOverlayText.value = String(cachedHint.hintText || '')
-    hintOverlayStep.value = Number(cachedHint.step || 0)
-    hintOverlayMaxSteps.value = Number(cachedHint.maxSteps || 0)
-    hintOverlayComplete.value = true
-    hintOverlayVisible.value = true
-    return
+    hintOverlayText.value = String(cachedHint.hintText || "");
+    hintOverlayStep.value = Number(cachedHint.step || 0);
+    hintOverlayMaxSteps.value = Number(cachedHint.maxSteps || 0);
+    hintOverlayComplete.value = true;
+    hintOverlayVisible.value = true;
+    return;
   }
-  let afterRewardVideo = false
+  let afterRewardVideo = false;
   if (hintAnswerQuota.value <= 0) {
-    afterRewardVideo = true
-    hintLoading.value = true
+    afterRewardVideo = true;
+    hintLoading.value = true;
     try {
-      const ok = await tryWatchAdForHintQuota()
+      const ok = await tryWatchAdForHintQuota();
       if (!ok) {
-        uni.showToast({ title: '次数不足，请前往首页获取更多', icon: 'none' })
-        return
+        uni.showToast({ title: "次数不足，请前往首页获取更多", icon: "none" });
+        return;
       }
     } finally {
-      hintLoading.value = false
+      hintLoading.value = false;
     }
     if (hintAnswerQuota.value <= 0) {
-      uni.showToast({ title: '次数不足', icon: 'none' })
-      return
+      uni.showToast({ title: "次数不足", icon: "none" });
+      return;
     }
   }
-  hintLoading.value = true
+  hintLoading.value = true;
   try {
-    const res = await punRevealHintWithModal(hintPayload)
-    if (typeof res.hintAnswerQuota === 'number') {
-      hintAnswerQuota.value = res.hintAnswerQuota
+    const res = await punRevealHintWithModal(hintPayload);
+    if (typeof res.hintAnswerQuota === "number") {
+      hintAnswerQuota.value = res.hintAnswerQuota;
     }
-    hintOverlayText.value = String(res.hintText || '')
-    hintOverlayStep.value = Number(res.step || 0)
-    hintOverlayMaxSteps.value = Number(res.maxSteps || 0)
-    hintOverlayComplete.value = !!res.isComplete
-    hintOverlayVisible.value = true
+    hintOverlayText.value = String(res.hintText || "");
+    hintOverlayStep.value = Number(res.step || 0);
+    hintOverlayMaxSteps.value = Number(res.maxSteps || 0);
+    hintOverlayComplete.value = !!res.isComplete;
+    hintOverlayVisible.value = true;
   } catch (e) {
-    punToastRevealHintAfterError(e, afterRewardVideo)
+    punToastRevealHintAfterError(e, afterRewardVideo);
   } finally {
-    hintLoading.value = false
+    hintLoading.value = false;
   }
 }
 
 function back() {
-  uni.reLaunch({ url: '/pages/index/index' })
+  uni.reLaunch({ url: "/pages/index/index" });
 }
 
 function goFeedback() {
-  const title = `梗图填词 · 第${level.value}关`
-  const query = `type=bug&passedLevels=${encodeURIComponent(String(level.value))}&content=${encodeURIComponent(title)}&contentFocus=1`
-  uni.navigateTo({ url: `/pages-sub/feedback/feedback?${query}` })
+  const title = `梗图填词 · 第${level.value}关`;
+  const query = `type=bug&passedLevels=${encodeURIComponent(
+    String(level.value)
+  )}&content=${encodeURIComponent(title)}&contentFocus=1`;
+  uni.navigateTo({ url: `/pages-sub/feedback/feedback?${query}` });
 }
 
 const { onSkipLevel } = usePunSkipLevel({
-  mode: 'beginner',
+  mode: "beginner",
   levelRef: level,
   hintAnswerQuotaRef: hintAnswerQuota,
   skipLoadingRef: skipLoading,
   loadingRefs: [loading, submitting, hintLoading],
   isValidNextLevel: (n) => Number.isFinite(n) && n > 0,
   toNextUrl: (n) => `/pages-sub/play/play?level=${n}`,
-})
+});
 
 // 非小程序端点击「求助」时提示（小程序端由 open-type="share" 唤起分享）
 function help() {
-  const p = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
-  if (!(p === 'mp-weixin' || p === 'mp-toutiao')) {
-    uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
+  const p = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || "";
+  if (!(p === "mp-weixin" || p === "mp-toutiao")) {
+    uni.showToast({ title: "分享给好友一起猜～", icon: "none" });
   }
 }
 
@@ -381,19 +403,20 @@ onShareAppMessage(() => {
   return withShareReward({
     title: `第${level.value}关求助，快来帮我猜谐音梗！`,
     path: `/pages-sub/play/play?level=${level.value}`,
-  })
-})
+  });
+});
 
 onShareTimeline(() => {
-  const img = puzzle.value.imageUrl && String(puzzle.value.imageUrl).startsWith('http')
-    ? puzzle.value.imageUrl
-    : ''
+  const img =
+    puzzle.value.imageUrl && String(puzzle.value.imageUrl).startsWith("http")
+      ? puzzle.value.imageUrl
+      : "";
   return {
     title: `第${level.value}关求助，快来帮我猜谐音梗！`,
     query: `level=${level.value}`,
     ...(img ? { imageUrl: img } : {}),
-  }
-})
+  };
+});
 </script>
 
 <style lang="scss" scoped>
@@ -433,10 +456,10 @@ onShareTimeline(() => {
 .card {
   position: relative;
   z-index: 2;
-  margin-bottom: 32rpx;
+  margin-bottom: 20rpx;
   border-radius: 24rpx;
   overflow: hidden;
-  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18), 0 2rpx 8rpx rgba(0,0,0,0.04);
+  box-shadow: 0 8rpx 28rpx rgba(169, 201, 238, 0.18), 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
   background: rgba(255, 255, 255, 0.95);
   border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
@@ -498,7 +521,7 @@ onShareTimeline(() => {
 .answer-block {
   position: relative;
   z-index: 2;
-  margin-bottom: 32rpx;
+  margin-bottom: 20rpx;
   background: rgba(255, 255, 255, 0.94);
   border-radius: 28rpx;
   border: 2rpx solid rgba(180, 200, 230, 0.4);
@@ -565,11 +588,22 @@ onShareTimeline(() => {
   animation: slot-shake 0.4s ease-in-out;
 }
 @keyframes slot-shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8rpx); }
-  40% { transform: translateX(8rpx); }
-  60% { transform: translateX(-6rpx); }
-  80% { transform: translateX(6rpx); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8rpx);
+  }
+  40% {
+    transform: translateX(8rpx);
+  }
+  60% {
+    transform: translateX(-6rpx);
+  }
+  80% {
+    transform: translateX(6rpx);
+  }
 }
 
 .chars-wrap {
@@ -591,7 +625,8 @@ onShareTimeline(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6rpx 20rpx rgba(111, 184, 104, 0.35), inset 0 2rpx 0 rgba(255,255,255,0.35);
+  box-shadow: 0 6rpx 20rpx rgba(111, 184, 104, 0.35),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.35);
   border: 2rpx solid rgba(255, 255, 255, 0.35);
 }
 .char-btn--hover {
@@ -604,5 +639,3 @@ onShareTimeline(() => {
   border: 2rpx solid rgba(169, 201, 238, 0.45);
 }
 </style>
-
-

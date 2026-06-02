@@ -32,10 +32,16 @@ function buildQueryString(params) {
   return queryParts.length > 0 ? '?' + queryParts.join('&') : ''
 }
 
-// 获取 token
+// 获取 token（优先读取 auth.js 已加载的全局缓存，避免启动阶段重复 getStorageSync）
 function getToken() {
   if (tokenCacheLoaded) return tokenCache
   const globalData = getGlobalDataRef()
+  // 优先复用 auth.js 已加载的 token 缓存（authCacheLoaded 标记）
+  if (globalData && globalData.__punAuthCacheLoaded) {
+    tokenCache = globalData.__punAuthToken || ''
+    tokenCacheLoaded = true
+    return tokenCache
+  }
   if (globalData && globalData.__punTokenCacheLoaded) {
     tokenCache = globalData.__punTokenCache || ''
     tokenCacheLoaded = true
@@ -46,6 +52,10 @@ function getToken() {
   if (globalData) {
     globalData.__punTokenCache = tokenCache
     globalData.__punTokenCacheLoaded = true
+    // 同时回填 auth 缓存，双向共享
+    if (!globalData.__punAuthCacheLoaded) {
+      globalData.__punAuthToken = tokenCache
+    }
   }
   return tokenCache
 }

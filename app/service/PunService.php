@@ -1224,7 +1224,7 @@ class PunService
     {
         $before = $this->buildMidTierProgressState($userId, $answersRaw);
         if (!isset($answersRaw[$level])) {
-            throw new \InvalidArgumentException('关卡不存在于中级题库配置');
+            return;
         }
 
         Db::startTrans();
@@ -1282,7 +1282,7 @@ class PunService
         // 小红书专辑允许回跳/跨关练习：只要题目存在且答对，就记录为已通过
         // （此前仅允许 currentLevel 记通过，导致非当前关如 1234 不写入 passed_levels_xhs）
         if (!isset($answersRaw[$level])) {
-            throw new \InvalidArgumentException('关卡不存在于小红书题库配置');
+            return;
         }
 
         Db::startTrans();
@@ -1290,7 +1290,7 @@ class PunService
             $now = date('Y-m-d H:i:s');
             $rank = PunGameRank::where('user_id', $userId)->find();
             if ($rank) {
-                $rank->max_level_xhs = max((int) ($rank->max_level_xhs ?? -1), $level);
+                $rank->max_level_xhs = $level;
                 $rank->last_pass_at_xhs = $now;
                 $rank->save();
             } else {

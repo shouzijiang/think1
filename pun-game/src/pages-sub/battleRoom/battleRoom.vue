@@ -205,6 +205,7 @@ const MAX_JOIN_RETRY = 1
 let battleRedirecting = false
 let joinWaitTimeout = null
 let joinWaitRetryCount = 0
+let wsRedirectTimer = null  // WS 事件中的 setTimeout 句柄，onUnload 时清除
 const JOIN_WAIT_TIMEOUT_MS = 8000
 const MAX_JOIN_WAIT_RETRY = 2
 
@@ -258,6 +259,10 @@ onUnload(() => {
   if (joinWaitTimeout) {
     clearTimeout(joinWaitTimeout)
     joinWaitTimeout = null
+  }
+  if (wsRedirectTimer) {
+    clearTimeout(wsRedirectTimer)
+    wsRedirectTimer = null
   }
   joinWaitRetryCount = 0
   battleRedirecting = false
@@ -333,7 +338,9 @@ function setupWsListeners() {
     uni.showToast({ title: '游戏开始！', icon: 'none' })
     const levelsStr = JSON.stringify(data.levels)
     keepWsAliveForBattle = true
-    setTimeout(() => {
+    if (wsRedirectTimer) clearTimeout(wsRedirectTimer)
+    wsRedirectTimer = setTimeout(() => {
+      wsRedirectTimer = null
       // 保留房间连接，跳转到游戏页
       uni.redirectTo({
         url: `/pages-sub/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&myUserId=${myUserId.value}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}&questionBank=${data.questionBank || questionBank.value}`
@@ -348,7 +355,9 @@ function setupWsListeners() {
     uni.showToast({ title: '正在恢复对战...', icon: 'none' })
     const levelsStr = JSON.stringify(data.levels)
     keepWsAliveForBattle = true
-    setTimeout(() => {
+    if (wsRedirectTimer) clearTimeout(wsRedirectTimer)
+    wsRedirectTimer = setTimeout(() => {
+      wsRedirectTimer = null
       uni.redirectTo({
         url: `/pages-sub/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&resume=1&myUserId=${myUserId.value}&myProgress=${data.myProgress}&opponentProgress=${data.opponentProgress}&timePassed=${data.timePassed}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}&questionBank=${data.questionBank || questionBank.value}`
       })
@@ -360,7 +369,9 @@ function setupWsListeners() {
     endShareJoinLoading()
     // 游戏已结束，直接跳去历史记录
     uni.showToast({ title: '对战已结束', icon: 'none' })
-    setTimeout(() => {
+    if (wsRedirectTimer) clearTimeout(wsRedirectTimer)
+    wsRedirectTimer = setTimeout(() => {
+      wsRedirectTimer = null
       uni.redirectTo({ url: '/pages-sub/battleHistory/battleHistory' })
     }, 1000)
   })
@@ -369,7 +380,9 @@ function setupWsListeners() {
     endShareJoinLoading()
     uni.showToast({ title: data.msg, icon: 'none' })
     if (data.msg === '房间不存在或已解散~') {
-      setTimeout(() => {
+      if (wsRedirectTimer) clearTimeout(wsRedirectTimer)
+      wsRedirectTimer = setTimeout(() => {
+        wsRedirectTimer = null
         roomId.value = ''
         // 如果是通过链接进来的，清除链接上的参数防止刷新又进去
         uni.redirectTo({ url: '/pages-sub/battleRoom/battleRoom' })

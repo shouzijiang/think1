@@ -99,8 +99,12 @@ export const wsApi = {
             connectCallbacks.forEach((cb) => cb())
             connectCallbacks = []
             flushPendingSend()
-          } else if (data.action === 'error' && data.msg === 'Need auth first') {
-            reject(new Error('Auth failed'))
+          } else if (data.action === 'error') {
+            const err = new Error(data.msg || 'Auth failed')
+            reject(err)
+            // 通知所有等待中的 connect() 调用方
+            connectCallbacks.forEach((cb) => cb())
+            connectCallbacks = []
           }
 
           if (data.action && messageCallbacks[data.action]) {
@@ -166,6 +170,9 @@ export const wsApi = {
   },
 
   close() {
+    // 拒绝所有等待中的 connect() Promise，避免调用方永久悬挂
+    connectCallbacks.forEach((cb) => cb())
+    connectCallbacks = []
     if (socketTask) {
       socketTask.close()
       socketTask = null

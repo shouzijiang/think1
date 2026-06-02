@@ -119,7 +119,7 @@ class AuthService
             'nickname' => $user->nickname,
             'avatar' => $user->avatar,
             'provider' => $provider,
-            'expires_in' => 7200
+            'expires_in' => 86400 * 7
         ];
     }
 

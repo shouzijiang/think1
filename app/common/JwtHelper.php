@@ -12,7 +12,11 @@ class JwtHelper
      */
     private static function getSecret(): string
     {
-        return env('JWT_SECRET', '');
+        $secret = env('JWT_SECRET', '');
+        if ($secret === '') {
+            throw new \RuntimeException('JWT_SECRET 未配置，请在 .env 中设置强随机密钥');
+        }
+        return $secret;
     }
     
     /**
@@ -21,7 +25,7 @@ class JwtHelper
      * @param int $expire 过期时间（秒），默认30天
      * @return string
      */
-    public static function generate(array $payload, int $expire = 60*60*24*30*30): string
+    public static function generate(array $payload, int $expire = 86400 * 7): string
     {
         $header = [
             'typ' => 'JWT',

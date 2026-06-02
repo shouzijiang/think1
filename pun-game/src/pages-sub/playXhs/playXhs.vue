@@ -18,16 +18,10 @@
     </PunPageNavBar>
 
     <view class="card card--xhs">
-      <view
-        v-if="puzzle.keywordHint"
-        class="keyword-tab"
-      >
+      <view v-if="puzzle.keywordHint" class="keyword-tab">
         <text class="keyword-tab-text">提示：{{ puzzle.keywordHint }}</text>
       </view>
-      <view
-        class="author-tag"
-        v-if="puzzle.author"
-      >
+      <view class="author-tag" v-if="puzzle.author">
         <text class="author-text">作者：{{ puzzle.author }}</text>
       </view>
       <view class="card-inner">
@@ -39,22 +33,10 @@
           :src="puzzle.imageUrlTop"
           mode="aspectFill"
         />
-        <view
-          v-else-if="loading"
-          class="img-placeholder"
-        >加载中...</view>
-        <view
-          v-else
-          class="img-placeholder"
-        >暂无配图</view>
-        <view
-          class="skip-entry"
-          @click="onSkipLevel"
-        >跳关</view>
-        <view
-          class="report-entry"
-          @click="goFeedback"
-        >报错</view>
+        <view v-else-if="loading" class="img-placeholder">加载中...</view>
+        <view v-else class="img-placeholder">暂无配图</view>
+        <view class="skip-entry" @click="onSkipLevel">跳关</view>
+        <view class="report-entry" @click="goFeedback">报错</view>
       </view>
     </view>
 
@@ -76,16 +58,15 @@
             <view
               v-for="i in answerLen"
               :key="i"
-              :class="['slot', { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake }]"
+              :class="[
+                'slot',
+                { 'slot-error': isSlotError(i - 1), 'slot-shake': slotShake },
+              ]"
             >
-              <text
-                v-if="answerChars[i - 1]"
-                class="slot-char"
-              >{{ answerChars[i - 1] }}</text>
-              <view
-                v-else-if="caretIndex === i - 1"
-                class="slot-caret"
-              />
+              <text v-if="answerChars[i - 1]" class="slot-char">{{
+                answerChars[i - 1]
+              }}</text>
+              <view v-else-if="caretIndex === i - 1" class="slot-caret" />
             </view>
           </view>
         </view>
@@ -120,35 +101,35 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref } from "vue";
 import {
   onLoad,
   onShow,
   onHide,
   onShareAppMessage,
-  onShareTimeline
-} from '@dcloudio/uni-app'
+  onShareTimeline,
+} from "@dcloudio/uni-app";
 import {
   getXhsLevelPuzzle,
   loadXhsLevelList,
   pickXhsLevelFromProgress,
-  prefetchNextXhsLevelImage
-} from '../../data/levels'
-import { api } from '../../utils/api'
-import { useNavBar } from '../../composables/useNavBar'
-import PunPageNavBar from '../../components/PunPageNavBar.vue'
-import PunPlayHintShareBar from '../../components/PunPlayHintShareBar.vue'
-import PunPassSuccessOverlay from '../../components/PunPassSuccessOverlay.vue'
-import PunHintOverlay from '../../components/PunHintOverlay.vue'
-import PunWrongAnswerFloat from '../../components/PunWrongAnswerFloat.vue'
-import { usePunPassSuccess } from '../composables/usePunPassSuccess'
-import { usePunShareReward } from '../../composables/usePunShareReward'
-import { usePunRewardedVideoHint } from '../composables/usePunRewardedVideoHint'
-import { usePunHanAnswerInput } from '../composables/usePunHanAnswerInput'
-import { usePunSkipLevel } from '../composables/usePunSkipLevel'
-import { useWrongAnswerFloat } from '../composables/useWrongAnswerFloat'
-import { playBgmPlay, stopBgm } from '../../utils/gameAudio'
-import { resolvePassExplain } from '../utils/punPassExplain'
+  prefetchNextXhsLevelImage,
+} from "../../data/levels";
+import { api } from "../../utils/api";
+import { useNavBar } from "../../composables/useNavBar";
+import PunPageNavBar from "../../components/PunPageNavBar.vue";
+import PunPlayHintShareBar from "../../components/PunPlayHintShareBar.vue";
+import PunPassSuccessOverlay from "../../components/PunPassSuccessOverlay.vue";
+import PunHintOverlay from "../../components/PunHintOverlay.vue";
+import PunWrongAnswerFloat from "../../components/PunWrongAnswerFloat.vue";
+import { usePunPassSuccess } from "../composables/usePunPassSuccess";
+import { usePunShareReward } from "../../composables/usePunShareReward";
+import { usePunRewardedVideoHint } from "../composables/usePunRewardedVideoHint";
+import { usePunHanAnswerInput } from "../composables/usePunHanAnswerInput";
+import { usePunSkipLevel } from "../composables/usePunSkipLevel";
+import { useWrongAnswerFloat } from "../composables/useWrongAnswerFloat";
+import { playBgmPlay, stopBgm } from "../../utils/gameAudio";
+import { resolvePassExplain } from "../utils/punPassExplain";
 import {
   punGetCachedHint,
   punIsSlotError,
@@ -156,267 +137,269 @@ import {
   punRevealHintWithModal,
   punToastRevealHintAfterError,
   SHARE_SUCCESS_THRESHOLD_MS,
-} from '../utils/punPlayShared'
+} from "../utils/punPlayShared";
 
-const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar();
 
-const level = ref(1)
-const answerLen = ref(3)
-const answerChars = ref([])
+const level = ref(1);
+const answerLen = ref(3);
+const answerChars = ref([]);
 const puzzle = ref({
-  imageUrlTop: '',
-  keywordHint: '',
-  author: ''
-})
-const loading = ref(true)
-const submitting = ref(false)
+  imageUrlTop: "",
+  keywordHint: "",
+  author: "",
+});
+const loading = ref(true);
+const submitting = ref(false);
 
-const feedback = ref([])
-const slotShake = ref(false)
-const { wrongFloatItems, pushWrongFloatText, clearWrongFloatText } = useWrongAnswerFloat()
-const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess()
-const passSuccessExplain = ref('')
-const hintLoading = ref(false)
-const skipLoading = ref(false)
-const hintAnswerQuota = ref(0)
-const hintOverlayVisible = ref(false)
-const hintOverlayText = ref('')
-const hintOverlayStep = ref(0)
-const hintOverlayMaxSteps = ref(0)
-const hintOverlayComplete = ref(false)
+const feedback = ref([]);
+const slotShake = ref(false);
+const {
+  wrongFloatItems,
+  pushWrongFloatText,
+  clearWrongFloatText,
+} = useWrongAnswerFloat();
+const { showSuccess, runPassSuccess, confirmPassSuccess } = usePunPassSuccess();
+const passSuccessExplain = ref("");
+const hintLoading = ref(false);
+const skipLoading = ref(false);
+const hintAnswerQuota = ref(0);
+const hintOverlayVisible = ref(false);
+const hintOverlayText = ref("");
+const hintOverlayStep = ref(0);
+const hintOverlayMaxSteps = ref(0);
+const hintOverlayComplete = ref(false);
 const { markShareIntent, withShareReward } = usePunShareReward(hintAnswerQuota, {
-  mode: 'heuristic',
+  mode: "heuristic",
   shareSuccessThresholdMs: SHARE_SUCCESS_THRESHOLD_MS,
   showCancelToast: true,
-})
-const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota)
-const answerInputValue = ref('')
+});
+const { tryWatchAdForHintQuota } = usePunRewardedVideoHint(hintAnswerQuota);
+const answerInputValue = ref("");
 const {
   inputRef: xhsInputRef,
   caretIndex,
   onInputFocus,
   onInputBlur,
   focusInput,
-  onAnswerInput
+  onAnswerInput,
 } = usePunHanAnswerInput({
   answerLen,
   answerChars,
   answerInputValue,
-  onFilled: () => checkAnswer()
-})
+  onFilled: () => checkAnswer(),
+});
 
 function isSlotError(index) {
-  return punIsSlotError(feedback.value, index)
+  return punIsSlotError(feedback.value, index);
 }
 
 async function checkAnswer() {
-  if (submitting.value) return
-  const userAnswer = answerChars.value.slice()
-  if (userAnswer.length !== answerLen.value) return
-  submitting.value = true
-  feedback.value = []
+  if (submitting.value) return;
+  const userAnswer = answerChars.value.slice();
+  if (userAnswer.length !== answerLen.value) return;
+  submitting.value = true;
+  feedback.value = [];
 
   try {
     const data = await api.submitAnswer(level.value, userAnswer, {
-      gameTier: 'xhs'
-    })
+      gameTier: "xhs",
+    });
     if (data.isCorrect) {
-      clearWrongFloatText()
-      const rawNextLevel = data && data.nextLevel != null ? Number(data.nextLevel) : null
-      const submitNextLevel = Number.isFinite(rawNextLevel) ? rawNextLevel : null
+      clearWrongFloatText();
+      const rawNextLevel = data && data.nextLevel != null ? Number(data.nextLevel) : null;
+      const submitNextLevel = Number.isFinite(rawNextLevel) ? rawNextLevel : null;
       runPassSuccess({
         durationMs: 1200,
         manualClose: true,
         afterPrepare: async () => {
-          applyPassExplain(data.passExplain)
-          return submitNextLevel
+          applyPassExplain(data.passExplain);
+          return submitNextLevel;
         },
         onAfter: (nextLevel) => {
           if (nextLevel == null) {
-            uni.showToast({ title: '专辑持续更新中，敬请期待~', icon: 'none' })
+            uni.showToast({ title: "专辑持续更新中，敬请期待~", icon: "none" });
             setTimeout(() => {
-              uni.reLaunch({ url: '/pages/index/index' })
-            }, 1200)
-            return
+              uni.reLaunch({ url: "/pages/index/index" });
+            }, 1200);
+            return;
           }
-          uni.redirectTo({ url: `/pages-sub/playXhs/playXhs?level=${nextLevel}` })
-        }
-      })
-      return
+          uni.redirectTo({ url: `/pages-sub/playXhs/playXhs?level=${nextLevel}` });
+        },
+      });
+      return;
     }
-    feedback.value = data.feedback || []
-    pushWrongFloatText(userAnswer)
+    feedback.value = data.feedback || [];
+    pushWrongFloatText(userAnswer);
     punScheduleWrongAnswerReset(slotShake, () => {
-      answerChars.value = []
-      answerInputValue.value = ''
-      feedback.value = []
-    })
+      answerChars.value = [];
+      answerInputValue.value = "";
+      feedback.value = [];
+    });
   } catch (e) {
-    uni.showToast({ title: e.message || '提交失败', icon: 'none' })
+    uni.showToast({ title: e.message || "提交失败", icon: "none" });
   } finally {
-    submitting.value = false
+    submitting.value = false;
   }
 }
 
 function applyPassExplain(apiExplain) {
-  passSuccessExplain.value = resolvePassExplain(apiExplain)
+  passSuccessExplain.value = resolvePassExplain(apiExplain);
 }
 
 async function onRevealHint() {
-  if (hintLoading.value || loading.value) return
+  if (hintLoading.value || loading.value) return;
   const hintPayload = {
     level: level.value,
-    gameTier: 'xhs'
-  }
-  const cachedHint = punGetCachedHint(hintPayload)
+    gameTier: "xhs",
+  };
+  const cachedHint = punGetCachedHint(hintPayload);
   if (cachedHint && cachedHint.isComplete) {
-    hintOverlayText.value = String(cachedHint.hintText || '')
-    hintOverlayStep.value = Number(cachedHint.step || 0)
-    hintOverlayMaxSteps.value = Number(cachedHint.maxSteps || 0)
-    hintOverlayComplete.value = true
-    hintOverlayVisible.value = true
-    return
+    hintOverlayText.value = String(cachedHint.hintText || "");
+    hintOverlayStep.value = Number(cachedHint.step || 0);
+    hintOverlayMaxSteps.value = Number(cachedHint.maxSteps || 0);
+    hintOverlayComplete.value = true;
+    hintOverlayVisible.value = true;
+    return;
   }
-  let afterRewardVideo = false
+  let afterRewardVideo = false;
   if (hintAnswerQuota.value <= 0) {
-    afterRewardVideo = true
-    hintLoading.value = true
+    afterRewardVideo = true;
+    hintLoading.value = true;
     try {
-      const ok = await tryWatchAdForHintQuota()
+      const ok = await tryWatchAdForHintQuota();
       if (!ok) {
-        uni.showToast({ title: '次数不足，请前往首页获取更多', icon: 'none' })
-        return
+        uni.showToast({ title: "次数不足，请前往首页获取更多", icon: "none" });
+        return;
       }
     } finally {
-      hintLoading.value = false
+      hintLoading.value = false;
     }
     if (hintAnswerQuota.value <= 0) {
-      uni.showToast({ title: '次数不足', icon: 'none' })
-      return
+      uni.showToast({ title: "次数不足", icon: "none" });
+      return;
     }
   }
-  hintLoading.value = true
+  hintLoading.value = true;
   try {
-    const res = await punRevealHintWithModal(hintPayload)
-    if (typeof res.hintAnswerQuota === 'number') {
-      hintAnswerQuota.value = res.hintAnswerQuota
+    const res = await punRevealHintWithModal(hintPayload);
+    if (typeof res.hintAnswerQuota === "number") {
+      hintAnswerQuota.value = res.hintAnswerQuota;
     }
-    hintOverlayText.value = String(res.hintText || '')
-    hintOverlayStep.value = Number(res.step || 0)
-    hintOverlayMaxSteps.value = Number(res.maxSteps || 0)
-    hintOverlayComplete.value = !!res.isComplete
-    hintOverlayVisible.value = true
+    hintOverlayText.value = String(res.hintText || "");
+    hintOverlayStep.value = Number(res.step || 0);
+    hintOverlayMaxSteps.value = Number(res.maxSteps || 0);
+    hintOverlayComplete.value = !!res.isComplete;
+    hintOverlayVisible.value = true;
   } catch (e) {
-    punToastRevealHintAfterError(e, afterRewardVideo)
+    punToastRevealHintAfterError(e, afterRewardVideo);
   } finally {
-    hintLoading.value = false
+    hintLoading.value = false;
   }
 }
 
 function help() {
-  const p = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
-  if (!(p === 'mp-weixin' || p === 'mp-toutiao')) {
-    uni.showToast({ title: '分享给好友一起猜～', icon: 'none' })
+  const p = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || "";
+  if (!(p === "mp-weixin" || p === "mp-toutiao")) {
+    uni.showToast({ title: "分享给好友一起猜～", icon: "none" });
   }
 }
 
 function back() {
-  uni.reLaunch({ url: '/pages/index/index' })
+  uni.reLaunch({ url: "/pages/index/index" });
 }
 
 function goFeedback() {
-  const title = `小红书专辑 · 第${level.value}关`
+  const title = `小红书专辑 · 第${level.value}关`;
   const query = `type=bug&passedLevels=${encodeURIComponent(
     String(level.value)
-  )}&content=${encodeURIComponent(title)}&contentFocus=1`
-  uni.navigateTo({ url: `/pages-sub/feedback/feedback?${query}` })
+  )}&content=${encodeURIComponent(title)}&contentFocus=1`;
+  uni.navigateTo({ url: `/pages-sub/feedback/feedback?${query}` });
 }
 
 const { onSkipLevel } = usePunSkipLevel({
-  mode: 'xhs',
+  mode: "xhs",
   levelRef: level,
   hintAnswerQuotaRef: hintAnswerQuota,
   skipLoadingRef: skipLoading,
   loadingRefs: [loading, submitting, hintLoading],
   isValidNextLevel: (n) => Number.isFinite(n) && n > 0,
   toNextUrl: (n) => `/pages-sub/playXhs/playXhs?level=${n}`,
-})
+});
 
 onShow(() => {
-  playBgmPlay()
-})
+  playBgmPlay();
+});
 
 onHide(() => {
-  stopBgm()
-})
+  stopBgm();
+});
 
 onLoad(async (opts) => {
   let lv =
-    opts && opts.level != null && opts.level !== ''
-      ? parseInt(opts.level, 10)
-      : NaN
-  const fromQuery = Number.isFinite(lv) && lv > 0
+    opts && opts.level != null && opts.level !== "" ? parseInt(opts.level, 10) : NaN;
+  const fromQuery = Number.isFinite(lv) && lv > 0;
   if (!fromQuery) {
-    loading.value = true
+    loading.value = true;
     try {
-      const data = await api.getLevelProgress({ gameTier: 'xhs' })
-      if (typeof data.hintAnswerQuota === 'number') {
-        hintAnswerQuota.value = data.hintAnswerQuota
+      const data = await api.getLevelProgress({ gameTier: "xhs" });
+      if (typeof data.hintAnswerQuota === "number") {
+        hintAnswerQuota.value = data.hintAnswerQuota;
       }
-      await loadXhsLevelList()
-      const resolved = pickXhsLevelFromProgress(data)
-      lv = resolved != null ? resolved : 1
+      await loadXhsLevelList();
+      const resolved = pickXhsLevelFromProgress(data);
+      lv = resolved != null ? resolved : 1;
     } catch {
-      lv = 1
+      lv = 1;
     }
   } else {
     api
-      .getLevelProgress({ gameTier: 'xhs' })
+      .getLevelProgress({ gameTier: "xhs" })
       .then((data) => {
-        if (typeof data.hintAnswerQuota === 'number') {
-          hintAnswerQuota.value = data.hintAnswerQuota
+        if (typeof data.hintAnswerQuota === "number") {
+          hintAnswerQuota.value = data.hintAnswerQuota;
         }
       })
-      .catch(() => {})
+      .catch(() => {});
   }
 
-  level.value = lv
-  loading.value = true
+  level.value = lv;
+  loading.value = true;
   getXhsLevelPuzzle(lv)
     .then((data) => {
-      answerLen.value = data.answerLength || 3
+      answerLen.value = data.answerLength || 3;
       puzzle.value = {
-        imageUrlTop: data.imageUrlTop || data.imageUrl || '',
-        keywordHint: data.keywordHint || '',
-        author: data.author || ''
-      }
-      answerChars.value = []
-      feedback.value = []
-      answerInputValue.value = ''
-      passSuccessExplain.value = ''
-      loading.value = false
-      prefetchNextXhsLevelImage(lv)
+        imageUrlTop: data.imageUrlTop || data.imageUrl || "",
+        keywordHint: data.keywordHint || "",
+        author: data.author || "",
+      };
+      answerChars.value = [];
+      feedback.value = [];
+      answerInputValue.value = "";
+      passSuccessExplain.value = "";
+      loading.value = false;
+      prefetchNextXhsLevelImage(lv);
     })
     .catch(() => {
-      loading.value = false
-    })
-})
+      loading.value = false;
+    });
+});
 
 onShareAppMessage(() => {
   return withShareReward({
     title: `小红书专辑·第${level.value}关，快来帮我猜！`,
-    path: `/pages-sub/playXhs/playXhs?level=${level.value}`
-  })
-})
+    path: `/pages-sub/playXhs/playXhs?level=${level.value}`,
+  });
+});
 
 onShareTimeline(() => {
-  const img = puzzle.value.imageUrlTop || ''
+  const img = puzzle.value.imageUrlTop || "";
   return {
     title: `小红书专辑·第${level.value}关，快来帮我猜！`,
     query: `level=${level.value}`,
-    ...(img ? { imageUrl: img } : {})
-  }
-})
+    ...(img ? { imageUrl: img } : {}),
+  };
+});
 </script>
 
 <style lang="scss" scoped>
@@ -436,11 +419,10 @@ onShareTimeline(() => {
 .card {
   position: relative;
   z-index: 2;
-  margin-bottom: 32rpx;
+  margin-bottom: 20rpx;
   border-radius: 24rpx;
   overflow: visible;
-  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22),
-    0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 12rpx 36rpx rgba(169, 201, 238, 0.22), 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
   background: rgba(255, 255, 255, 0.95);
   border: 2rpx solid rgba(169, 201, 238, 0.55);
 }
@@ -481,7 +463,7 @@ onShareTimeline(() => {
 .card-inner {
   position: relative;
   min-height: 420rpx;
-  padding: 36rpx 28rpx 32rpx;
+  padding: 20rpx;
 }
 .report-entry {
   position: absolute;
@@ -529,12 +511,11 @@ onShareTimeline(() => {
 .answer-block {
   position: relative;
   z-index: 2;
-  margin-bottom: 32rpx;
+  margin-bottom: 20rpx;
   background: rgba(255, 255, 255, 0.94);
   border-radius: 28rpx;
   border: 2rpx solid rgba(180, 200, 230, 0.4);
-  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09),
-    0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
   overflow: hidden;
 }
 .answer-row {
@@ -638,6 +619,4 @@ onShareTimeline(() => {
     transform: translateX(6rpx);
   }
 }
-
 </style>
-

@@ -177,7 +177,7 @@ function writeAudioSwitch(storageKey, on) {
   if (globalCache) {
     globalCache[storageKey] = val
   }
-  uni.setStorageSync(storageKey, val)
+  uni.setStorage({ key: storageKey, data: val, fail() {} })
 }
 
 export function isBgmEnabled() {

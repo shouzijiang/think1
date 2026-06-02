@@ -109,7 +109,7 @@ function touchLastLoginAtIfNeeded() {
     api
       .touchLogin()
       .then(() => {
-        uni.setStorageSync(LAST_LOGIN_TOUCH_DATE_KEY, today)
+        uni.setStorage({ key: LAST_LOGIN_TOUCH_DATE_KEY, data: today, fail() {} })
         setLastTouchDate(today)
       })
       .catch(() => {})
@@ -194,7 +194,7 @@ export async function miniProgramLogin(forceRefresh = false) {
             api.setTokenCache(result.token)
             try {
               const today = getTodayKey()
-              uni.setStorageSync(LAST_LOGIN_TOUCH_DATE_KEY, today)
+              uni.setStorage({ key: LAST_LOGIN_TOUCH_DATE_KEY, data: today, fail() {} })
               setLastTouchDate(today)
             } catch {}
 

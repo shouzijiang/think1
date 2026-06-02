@@ -11,7 +11,7 @@ export function setPendingChannel(channel) {
   if (!channel || typeof channel !== 'string' || channel.length > 64) return
   pendingChannelMem = channel
   try {
-    uni.setStorageSync(CHANNEL_KEY, channel)
+    uni.setStorage({ key: CHANNEL_KEY, data: channel, fail() {} })
   } catch {
     /* noop */
   }
@@ -37,7 +37,7 @@ export function peekPendingChannel() {
 export function clearPendingChannel() {
   pendingChannelMem = null
   try {
-    uni.removeStorageSync(CHANNEL_KEY)
+    uni.removeStorage({ key: CHANNEL_KEY, fail() {} })
   } catch {
     /* noop */
   }
@@ -73,7 +73,7 @@ export function getJsonStorageCached(storageKey) {
 export function setJsonStorageCached(storageKey, value) {
   changelogCache.set(storageKey, value)
   try {
-    uni.setStorageSync(storageKey, JSON.stringify(value))
+    uni.setStorage({ key: storageKey, data: JSON.stringify(value), fail() {} })
   } catch {
     /* noop */
   }

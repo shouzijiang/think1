@@ -406,37 +406,47 @@ function toggleSfx() {
   setSfxEnabled(next);
 }
 
-onShow(async () => {
-  try {
-    // 确保登录完成后再读取本地 userInfo，避免 onShow 过早读取
-    await wechatLogin();
-  } catch (e) {
-    // 登录失败也不阻断页面展示
-    console.warn("wechatLogin 失败", e);
-  }
+onShow(() => {
+  // 登录异步执行，不阻塞首屏渲染；登录成功后上报渠道
+  wechatLogin()
+    .then(() => {
+      const pendingChannel = peekPendingChannel();
+      if (pendingChannel) {
+        api.reportChannel(pendingChannel).catch(() => {});
+        clearPendingChannel();
+      }
+    })
+    .catch((e) => {
+      console.warn("wechatLogin 失败", e);
+    });
 
-  // 兜底上报渠道：已登录用户扫码进入时 auth.js 不走登录流程
-  const pendingChannel = peekPendingChannel();
-  if (pendingChannel) {
-    api.reportChannel(pendingChannel).catch(() => {});
-    clearPendingChannel();
-  }
-
-  bgmOn.value = isBgmEnabled();
-  sfxOn.value = isSfxEnabled();
-  if (bgmOn.value) {
-    if (!indexBgmBootstrapped) {
-      indexBgmBootstrapped = true;
-      // 首屏渲染后再播 BGM（仅预加载首页 BGM，由 playBgmHome 触发）
-      setTimeout(() => {
-        if (isBgmEnabled()) playBgmHome();
-      }, 1200);
-    } else {
+  // BGM / 音效：冷启动时缓存未预热，先用默认值渲染，延迟读取 storage
+  // 回访时缓存已热，isBgmEnabled/isSfxEnabled 仅读内存，可直接同步
+  if (!indexBgmBootstrapped) {
+    indexBgmBootstrapped = true;
+    bgmOn.value = true;
+    sfxOn.value = true;
+    setTimeout(() => {
+      bgmOn.value = isBgmEnabled();
+      sfxOn.value = isSfxEnabled();
+    }, 0);
+    // 首屏渲染后再播 BGM（内部 isBgmEnabled 届时使用缓存值）
+    setTimeout(() => {
+      if (isBgmEnabled()) playBgmHome();
+    }, 1200);
+  } else {
+    bgmOn.value = isBgmEnabled();
+    sfxOn.value = isSfxEnabled();
+    if (bgmOn.value) {
       playBgmHome();
     }
   }
-  loadHomeStats();
-  tryShowChangelog();
+
+  // 非关键数据延迟加载，优先保证首屏渲染
+  setTimeout(() => {
+    loadHomeStats();
+    tryShowChangelog();
+  }, 300);
 });
 
 onShareAppMessage(() =>

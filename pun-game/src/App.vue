@@ -2,16 +2,24 @@
 import { syncBgmByCurrentPage } from './utils/gameAudio'
 
 /** 小程序端：右上角菜单展示「转发」相关入口（需页面实现对应生命周期） */
+let cachedPlatform = null
+function getPlatform() {
+  if (cachedPlatform !== null) return cachedPlatform
+  try {
+    cachedPlatform = uni.getAppBaseInfo?.()?.uniPlatform || ''
+  } catch {
+    cachedPlatform = ''
+  }
+  return cachedPlatform
+}
+
 function enableMiniProgramShareMenu() {
   if (typeof uni.showShareMenu !== 'function') return
   let menus = ['shareAppMessage', 'shareTimeline']
-  try {
-    const platform = (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
-    // 抖音小程序仅支持 share / record / screenShot
-    if (platform === 'mp-toutiao') {
-      menus = ['share']
-    }
-  } catch {}
+  // 抖音小程序仅支持 share / record / screenShot
+  if (getPlatform() === 'mp-toutiao') {
+    menus = ['share']
+  }
   uni.showShareMenu({
     withShareTicket: true,
     menus,
