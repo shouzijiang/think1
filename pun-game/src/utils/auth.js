@@ -32,14 +32,9 @@ function loadAuthCacheFromStorage() {
     authCacheLoaded = true
     return
   }
-  cachedToken = uni.getStorageSync('token') || ''
-  cachedUserInfo = uni.getStorageSync('userInfo') || null
+  cachedToken = ''
+  cachedUserInfo = null
   authCacheLoaded = true
-  if (globalData) {
-    globalData.__punAuthToken = cachedToken
-    globalData.__punAuthUserInfo = cachedUserInfo
-    globalData.__punAuthCacheLoaded = true
-  }
 }
 
 function writeAuthCache(token, userInfo) {
@@ -74,12 +69,8 @@ function getLastTouchDate() {
     touchDateCacheLoaded = true
     return cachedTouchDate
   }
-  cachedTouchDate = uni.getStorageSync(LAST_LOGIN_TOUCH_DATE_KEY) || ''
+  cachedTouchDate = ''
   touchDateCacheLoaded = true
-  if (globalData) {
-    globalData.__punLastTouchDate = cachedTouchDate
-    globalData.__punLastTouchDateLoaded = true
-  }
   return cachedTouchDate
 }
 
@@ -182,14 +173,14 @@ export async function miniProgramLogin(forceRefresh = false) {
             const result = await api.miniProgramLogin(backendProvider, loginRes.code)
 
             // 保存 token 和用户信息
-            uni.setStorageSync('token', result.token)
             const stored = {
               user_id: result.user_id,
               openid: result.openid,
               nickname: result.nickname,
               avatar: result.avatar,
             }
-            uni.setStorageSync('userInfo', stored)
+            uni.setStorage({ key: 'token', data: result.token, fail() {} })
+            uni.setStorage({ key: 'userInfo', data: stored, fail() {} })
             writeAuthCache(result.token, stored)
             api.setTokenCache(result.token)
             try {

@@ -39,7 +39,7 @@ export function useUserProfileNav() {
       const result = await api.uploadAvatar(avatarUrl)
       const cosUrl = result.url
       const updated = { ...userInfo.value, avatar: cosUrl }
-      uni.setStorageSync('userInfo', updated)
+      uni.setStorage({ key: 'userInfo', data: updated, fail() {} })
       userInfo.value = updated
       avatarTs.value = Date.now()
       uni.hideLoading()
@@ -198,7 +198,7 @@ export function useUserProfileNav() {
     try {
       await api.updateUserInfo({ nickname: trimmed, avatar: currentAvatar })
       const updated = { ...userInfo.value, nickname: trimmed }
-      uni.setStorageSync('userInfo', updated)
+      uni.setStorage({ key: 'userInfo', data: updated, fail() {} })
       userInfo.value = updated
       nicknameDraft.value = trimmed
       uni.showToast({ title: '昵称已保存', icon: 'success' })

@@ -1,5 +1,7 @@
 <script>
 import { syncBgmByCurrentPage } from './utils/gameAudio'
+import { installMpAppWxListeners } from './utils/mpAppWxListeners'
+import { warmStartupStorage } from './utils/storageCache'
 
 /** 小程序端：右上角菜单展示「转发」相关入口（需页面实现对应生命周期） */
 let cachedPlatform = null
@@ -14,7 +16,7 @@ function getPlatform() {
 }
 
 function enableMiniProgramShareMenu() {
-  if (typeof uni.showShareMenu !== 'function') return
+  if (shareMenuEnabled || typeof uni.showShareMenu !== 'function') return
   let menus = ['shareAppMessage', 'shareTimeline']
   // 抖音小程序仅支持 share / record / screenShot
   if (getPlatform() === 'mp-toutiao') {
@@ -23,50 +25,23 @@ function enableMiniProgramShareMenu() {
   uni.showShareMenu({
     withShareTicket: true,
     menus,
+    success() {
+      shareMenuEnabled = true
+    },
     fail(err) {
       console.warn('[showShareMenu]', err)
     },
   })
 }
 
-let routeAudioHookInstalled = false
 let appLaunchAt = 0
 const APP_SHOW_BGM_SYNC_DELAY_MS = 2000
+let shareMenuEnabled = false
 
 function scheduleSyncBgmByCurrentPage() {
   setTimeout(() => {
     syncBgmByCurrentPage()
   }, 0)
-}
-
-function installRouteAudioHook() {
-  if (routeAudioHookInstalled || typeof uni === 'undefined') return
-  routeAudioHookInstalled = true
-  const methodNames = ['navigateTo', 'redirectTo', 'reLaunch', 'switchTab', 'navigateBack']
-  methodNames.forEach((methodName) => {
-    const raw = uni[methodName]
-    if (typeof raw !== 'function') return
-    uni[methodName] = function patchedUniRoute(options = {}) {
-      const nextOptions = options && typeof options === 'object' ? { ...options } : {}
-      const rawSuccess = typeof nextOptions.success === 'function' ? nextOptions.success : null
-      const rawFail = typeof nextOptions.fail === 'function' ? nextOptions.fail : null
-      const rawComplete = typeof nextOptions.complete === 'function' ? nextOptions.complete : null
-      nextOptions.success = (...args) => {
-        try {
-          rawSuccess && rawSuccess(...args)
-        } finally {
-          scheduleSyncBgmByCurrentPage()
-        }
-      }
-      nextOptions.fail = (...args) => {
-        rawFail && rawFail(...args)
-      }
-      nextOptions.complete = (...args) => {
-        rawComplete && rawComplete(...args)
-      }
-      return raw.call(uni, nextOptions)
-    }
-  })
 }
 
 let cloudInited = false
@@ -119,13 +94,15 @@ export default {
       })
     }
     enableMiniProgramShareMenu()
-    installRouteAudioHook()
-    // 登录与 BGM 由首页 onShow 处理，避免阻塞 App.onLaunch 首屏
-    setTimeout(initWxCloudLazy, 0)
+    installMpAppWxListeners()
+    // 异步预热 storage，避免启动阶段 getStorageSync 阻塞
+    setTimeout(() => {
+      warmStartupStorage()
+      initWxCloudLazy()
+    }, 0)
   },
   onShow: function () {
     console.log('App Show')
-    enableMiniProgramShareMenu()
     // 冷启动前 2s 由首页延迟播 BGM，避免与首屏抢资源
     if (Date.now() - appLaunchAt >= APP_SHOW_BGM_SYNC_DELAY_MS) {
       scheduleSyncBgmByCurrentPage()

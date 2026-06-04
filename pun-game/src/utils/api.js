@@ -47,16 +47,8 @@ function getToken() {
     tokenCacheLoaded = true
     return tokenCache
   }
-  tokenCache = uni.getStorageSync('token') || ''
+  tokenCache = ''
   tokenCacheLoaded = true
-  if (globalData) {
-    globalData.__punTokenCache = tokenCache
-    globalData.__punTokenCacheLoaded = true
-    // 同时回填 auth 缓存，双向共享
-    if (!globalData.__punAuthCacheLoaded) {
-      globalData.__punAuthToken = tokenCache
-    }
-  }
   return tokenCache
 }
 

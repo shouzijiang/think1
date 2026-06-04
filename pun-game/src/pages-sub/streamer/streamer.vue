@@ -162,15 +162,27 @@ function loadUserId() {
   userId.value = info?.user_id ? String(info.user_id) : "";
 }
 
-// 从 storage 恢复二维码
+// 从 storage 恢复二维码（优先内存缓存，避免同步读盘）
 function restoreQrFromStorage() {
+  // 优先从内存恢复（loadQrCode 回写时会同时更新缓存与 storage）
+  if (qrBase64Cache) {
+    hasQr.value = true;
+    writeQrTempFile(qrBase64Cache);
+    return;
+  }
   try {
-    const saved = uni.getStorageSync(QR_STORAGE_KEY);
-    if (saved) {
-      qrBase64Cache = String(saved);
-      hasQr.value = true;
-      writeQrTempFile(saved);
-    }
+    uni.getStorage({
+      key: QR_STORAGE_KEY,
+      success: (res) => {
+        const saved = res.data;
+        if (saved) {
+          qrBase64Cache = String(saved);
+          hasQr.value = true;
+          writeQrTempFile(saved);
+        }
+      },
+      fail() {},
+    });
   } catch (e) {}
 }
 
@@ -227,7 +239,7 @@ async function loadQrCode() {
     channel.value = data.channel || "";
     if (nextBase64) {
       try {
-        uni.setStorageSync(QR_STORAGE_KEY, nextBase64);
+        uni.setStorage({ key: QR_STORAGE_KEY, data: nextBase64, fail() {} });
       } catch (e) {}
       writeQrTempFile(nextBase64);
     } else {

@@ -151,23 +151,11 @@ function readAudioSwitch(storageKey) {
     return val
   }
 
-  try {
-    const v = uni.getStorageSync(storageKey)
-    const val = (v === '' || v === undefined || v === null)
-      ? true
-      : (v === true || v === 'true' || v === 1 || v === '1')
-    localAudioSwitchCache[storageKey] = val
-    if (globalCache) {
-      globalCache[storageKey] = val
-    }
-    return val
-  } catch {
-    localAudioSwitchCache[storageKey] = true
-    if (globalCache) {
-      globalCache[storageKey] = true
-    }
-    return true
+  localAudioSwitchCache[storageKey] = true
+  if (globalCache) {
+    globalCache[storageKey] = true
   }
+  return true
 }
 
 function writeAudioSwitch(storageKey, on) {

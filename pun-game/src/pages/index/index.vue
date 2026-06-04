@@ -272,7 +272,8 @@
 
 <script setup>
 import { ref } from "vue";
-import { onLoad, onShow, onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
+import { onLoad, onShow, onHide, onUnload, onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
+import { cleanupPageWxListenersAndRestoreApp } from "../../utils/mpAppWxListeners";
 import {
   getCurrentLevel,
   loadMidLevelList,
@@ -288,6 +289,7 @@ import {
   clearPendingChannel,
   getJsonStorageCached,
   setJsonStorageCached,
+  warmStartupStorage,
 } from "../../utils/storageCache";
 import { useNavBar } from "../../composables/useNavBar";
 import {
@@ -307,6 +309,10 @@ const { withShareReward } = usePunShareReward(hintShareQuotaRef);
 
 const CHANGELOG_SEEN_KEY = "pun_changelog_suppress"; // { version, until }
 let indexBgmBootstrapped = false;
+/** @type {ReturnType<typeof setTimeout>[]} */
+const indexPendingTimers = [];
+/** 页面销毁标记：防止异步回调在 onUnload 后继续修改页面状态 */
+let indexPageDestroyed = false;
 
 // 捕获买量渠道参数（?channel=xxx 或扫码 scene=xxx）
 onLoad((opts) => {
@@ -324,8 +330,9 @@ onLoad((opts) => {
 });
 
 const stats = ref({ players: 0, answers: 0 });
-const bgmOn = ref(isBgmEnabled());
-const sfxOn = ref(isSfxEnabled());
+/** 首屏先用默认值渲染，storage 预热后再同步真实开关 */
+const bgmOn = ref(true);
+const sfxOn = ref(true);
 
 const changelogVisible = ref(false);
 const changelogTitle = ref("本期更新");
@@ -406,8 +413,23 @@ function toggleSfx() {
   setSfxEnabled(next);
 }
 
-onShow(() => {
-  // 登录异步执行，不阻塞首屏渲染；登录成功后上报渠道
+function runIndexAfterStorageWarm() {
+  if (indexPageDestroyed) return;
+
+  bgmOn.value = isBgmEnabled();
+  sfxOn.value = isSfxEnabled();
+
+  if (!indexBgmBootstrapped) {
+    indexBgmBootstrapped = true;
+    indexPendingTimers.push(
+      setTimeout(() => {
+        if (isBgmEnabled()) playBgmHome();
+      }, 1200)
+    );
+  } else if (bgmOn.value) {
+    playBgmHome();
+  }
+
   wechatLogin()
     .then(() => {
       const pendingChannel = peekPendingChannel();
@@ -419,34 +441,49 @@ onShow(() => {
     .catch((e) => {
       console.warn("wechatLogin 失败", e);
     });
+}
 
-  // BGM / 音效：冷启动时缓存未预热，先用默认值渲染，延迟读取 storage
-  // 回访时缓存已热，isBgmEnabled/isSfxEnabled 仅读内存，可直接同步
-  if (!indexBgmBootstrapped) {
-    indexBgmBootstrapped = true;
-    bgmOn.value = true;
-    sfxOn.value = true;
+onShow(() => {
+  indexPendingTimers.push(
     setTimeout(() => {
-      bgmOn.value = isBgmEnabled();
-      sfxOn.value = isSfxEnabled();
-    }, 0);
-    // 首屏渲染后再播 BGM（内部 isBgmEnabled 届时使用缓存值）
-    setTimeout(() => {
-      if (isBgmEnabled()) playBgmHome();
-    }, 1200);
-  } else {
-    bgmOn.value = isBgmEnabled();
-    sfxOn.value = isSfxEnabled();
-    if (bgmOn.value) {
-      playBgmHome();
-    }
-  }
+      warmStartupStorage().then(() => {
+        if (indexPageDestroyed) return;
+        runIndexAfterStorageWarm();
+      });
+    }, 0)
+  );
 
-  // 非关键数据延迟加载，优先保证首屏渲染
-  setTimeout(() => {
-    loadHomeStats();
-    tryShowChangelog();
-  }, 300);
+  indexPendingTimers.push(
+    setTimeout(() => {
+      warmStartupStorage().then(() => {
+        if (indexPageDestroyed) return;
+        loadHomeStats();
+        tryShowChangelog();
+      });
+    }, 300)
+  );
+});
+
+/** 仅清除页面定时器，不触碰 App 级 wx 监听器（页面 onHide 不代表销毁） */
+function clearIndexPageTimersOnly() {
+  indexPendingTimers.forEach((id) => clearTimeout(id));
+  indexPendingTimers.length = 0;
+}
+
+/** 页面真正销毁时：清除定时器 + 清理 App 级 wx 监听器 */
+function clearIndexPageSideEffects() {
+  indexPageDestroyed = true;
+  indexPendingTimers.forEach((id) => clearTimeout(id));
+  indexPendingTimers.length = 0;
+  cleanupPageWxListenersAndRestoreApp();
+}
+
+onHide(() => {
+  clearIndexPageTimersOnly();
+});
+
+onUnload(() => {
+  clearIndexPageSideEffects();
 });
 
 onShareAppMessage(() =>

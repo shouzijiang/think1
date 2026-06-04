@@ -8,34 +8,54 @@ export const LEVELS_PER_PAGE = 40
 const STORAGE_CURRENT = 'pun_game_current_level'
 const STORAGE_PASSED = 'pun_game_passed_levels'
 
+/** 内存缓存，避免重复 getStorageSync */
+let currentLevelCache = null
+let currentLevelCacheLoaded = false
+let passedLevelsCache = null
+let passedLevelsCacheLoaded = false
+
 export function getCurrentLevel() {
+  if (currentLevelCacheLoaded) return currentLevelCache
   try {
     const raw = uni.getStorageSync(STORAGE_CURRENT)
-    if (raw === '' || raw === null || raw === undefined) return 1
-    const v = parseInt(String(raw), 10)
-    return Number.isFinite(v) && v >= 1 ? v : 1
+    if (raw === '' || raw === null || raw === undefined) {
+      currentLevelCache = 1
+    } else {
+      const v = parseInt(String(raw), 10)
+      currentLevelCache = Number.isFinite(v) && v >= 1 ? v : 1
+    }
   } catch {
-    return 1
+    currentLevelCache = 1
   }
+  currentLevelCacheLoaded = true
+  return currentLevelCache
 }
 
 export function setCurrentLevel(level) {
   const v = parseInt(String(level), 10)
   const safe = Number.isFinite(v) && v >= 1 ? v : 1
+  currentLevelCache = safe
+  currentLevelCacheLoaded = true
   try {
-    uni.setStorageSync(STORAGE_CURRENT, String(safe))
+    uni.setStorage({ key: STORAGE_CURRENT, data: String(safe), fail() {} })
   } catch (e) {}
 }
 
 export function getPassedLevels() {
+  if (passedLevelsCacheLoaded) return passedLevelsCache
   try {
     const raw = uni.getStorageSync(STORAGE_PASSED)
-    if (!raw) return []
-    const arr = JSON.parse(raw)
-    return Array.isArray(arr) ? arr : []
+    if (!raw) {
+      passedLevelsCache = []
+    } else {
+      const arr = JSON.parse(raw)
+      passedLevelsCache = Array.isArray(arr) ? arr : []
+    }
   } catch {
-    return []
+    passedLevelsCache = []
   }
+  passedLevelsCacheLoaded = true
+  return passedLevelsCache
 }
 
 export function addPassedLevel(level) {
@@ -44,7 +64,7 @@ export function addPassedLevel(level) {
   passed.push(level)
   passed.sort((a, b) => a - b)
   try {
-    uni.setStorageSync(STORAGE_PASSED, JSON.stringify(passed))
+    uni.setStorage({ key: STORAGE_PASSED, data: JSON.stringify(passed), fail() {} })
   } catch (e) {}
 }
 
