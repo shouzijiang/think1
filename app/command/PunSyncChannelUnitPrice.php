@@ -84,15 +84,16 @@ class PunSyncChannelUnitPrice extends Command
     }
 
     /**
-     * @param array{stat_date:string,video_total_amount:string,video_claim_count:int,video_unit_price:string,used_default?:bool} $row
+     * @param array{stat_date:string,video_total_amount:string,video_claim_count:int,video_event_count:int,video_unit_price:string,used_default?:bool} $row
      */
     private function formatRow(array $row): string
     {
         return sprintf(
-            '%s total=%s claims=%d unit=%s',
+            '%s total=%s claims=%d events=%d unit=%s',
             $row['stat_date'],
             $row['video_total_amount'],
             $row['video_claim_count'],
+            $row['video_event_count'] ?? 0,
             $row['video_unit_price']
         );
     }

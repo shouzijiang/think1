@@ -123,7 +123,8 @@ CREATE TABLE IF NOT EXISTS `pun_game_channel_unit_price` (
   `stat_date`           date          NOT NULL COMMENT '统计日',
   `video_total_amount`  decimal(10,2) NOT NULL DEFAULT 0.00 COMMENT '当日视频广告总收入(手填)',
   `video_unit_price`    decimal(10,4) NOT NULL DEFAULT 0.0000 COMMENT '单条视频单价(截断4位)',
-  `video_claim_count`   int unsigned  NOT NULL DEFAULT 0 COMMENT '除数：当日全站 reward_video 成功次数',
+  `video_claim_count`   int unsigned  NOT NULL DEFAULT 0 COMMENT '除数：当日全站 reward_video 领取成功次数(来自pun_reward_claim_record)',
+  `video_event_count`   int unsigned  NOT NULL DEFAULT 0 COMMENT '除数：当日全站 reward_video 事件条数(来自pun_game_channel_events)',
   `remark`              varchar(255)  DEFAULT NULL,
   `updated_at`          datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`stat_date`)

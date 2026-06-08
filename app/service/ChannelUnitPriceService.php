@@ -28,11 +28,22 @@ class ChannelUnitPriceService
     }
 
     /**
+     * 统计某日全站 reward_video 事件条数（来自 pun_game_channel_events）。
+     */
+    public function countRewardVideoEvents(string $statDate): int
+    {
+        return (int) Db::name('pun_game_channel_events')
+            ->where('event_type', 'reward_video')
+            ->whereRaw('DATE(created_at) = ?', [$statDate])
+            ->count();
+    }
+
+    /**
      * 同步某日单价与次数快照。
      * - video_total_amount > 0：按 总价÷次数 重算单价
      * - 否则且 $useDefaultWhenNoTotal：使用 config 默认单价（默认 0.01），total 保持 0 待手改表
      *
-     * @return array{stat_date:string,video_total_amount:string,video_claim_count:int,video_unit_price:string,used_default:bool}
+     * @return array{stat_date:string,video_total_amount:string,video_claim_count:int,video_event_count:int,video_unit_price:string,used_default:bool}
      */
     public function syncUnitPriceForDate(string $statDate, bool $useDefaultWhenNoTotal = false): array
     {
@@ -43,6 +54,7 @@ class ChannelUnitPriceService
 
         $total = (float) ($row['video_total_amount'] ?? 0);
         $claimCount = $this->countRewardVideoClaims($date);
+        $eventCount = $this->countRewardVideoEvents($date);
         $usedDefault = false;
 
         if ($total > 0) {
@@ -57,8 +69,9 @@ class ChannelUnitPriceService
         }
 
         $payload = [
-            'video_unit_price'  => $unitPrice,
-            'video_claim_count' => $claimCount,
+            'video_unit_price'   => $unitPrice,
+            'video_claim_count'  => $claimCount,
+            'video_event_count'  => $eventCount,
         ];
 
         if ($row) {
@@ -76,6 +89,7 @@ class ChannelUnitPriceService
             'stat_date'           => $date,
             'video_total_amount'  => number_format($total > 0 ? $total : 0, 2, '.', ''),
             'video_claim_count'   => $claimCount,
+            'video_event_count'   => $eventCount,
             'video_unit_price'    => $this->formatUnitPrice($unitPrice),
             'used_default'        => $usedDefault,
         ];
@@ -89,7 +103,7 @@ class ChannelUnitPriceService
     /**
      * 录入当日总收入并同步单价。
      *
-     * @return array{stat_date:string,video_total_amount:string,video_claim_count:int,video_unit_price:string}
+     * @return array{stat_date:string,video_total_amount:string,video_claim_count:int,video_event_count:int,video_unit_price:string}
      */
     public function upsertTotalAndSync(string $statDate, float $videoTotalAmount, ?string $remark = null): array
     {
@@ -117,6 +131,7 @@ class ChannelUnitPriceService
             $payload['stat_date'] = $date;
             $payload['video_unit_price'] = 0;
             $payload['video_claim_count'] = 0;
+            $payload['video_event_count'] = 0;
             Db::name('pun_game_channel_unit_price')->insert($payload);
         }
 
@@ -126,7 +141,7 @@ class ChannelUnitPriceService
     /**
      * 重算所有已录入 video_total_amount 的日期。
      *
-     * @return list<array{stat_date:string,video_total_amount:string,video_claim_count:int,video_unit_price:string}>
+     * @return list<array{stat_date:string,video_total_amount:string,video_claim_count:int,video_event_count:int,video_unit_price:string}>
      */
     public function syncAllConfiguredDates(): array
     {
