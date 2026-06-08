@@ -83,9 +83,9 @@ class Auth extends BaseController
         $rawNickname = $request->post('nickname', '');
         $rawAvatar   = $request->post('avatar', '');
 
-        // 昵称长度校验
-        if ($rawNickname !== '' && mb_strlen($rawNickname, 'UTF-8') > 50) {
-            return ResponseHelper::badRequest('昵称不能超过50字');
+        // 昵称长度限制，超过10字自动截断
+        if ($rawNickname !== '' && mb_strlen($rawNickname, 'UTF-8') > 10) {
+            $rawNickname = mb_substr($rawNickname, 0, 10, 'UTF-8');
         }
 
         // 头像格式校验：只允许 https URL 或 base64 data URL
