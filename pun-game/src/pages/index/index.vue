@@ -273,7 +273,7 @@
 <script setup>
 import { ref } from "vue";
 import { onLoad, onShow, onHide, onUnload, onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
-import { cleanupPageWxListenersAndRestoreApp } from "../../utils/mpAppWxListeners";
+import { installMpAppWxListeners, uninstallMpAppWxListeners } from "../../utils/mpAppWxListeners";
 import {
   getCurrentLevel,
   loadMidLevelList,
@@ -316,6 +316,9 @@ let indexPageDestroyed = false;
 
 // 捕获买量渠道参数（?channel=xxx 或扫码 scene=xxx）
 onLoad((opts) => {
+  // wx.onAppRouteDone 由本页面持有：onLoad 注册，onUnload 移除，避免 reLaunch 后残留
+  installMpAppWxListeners();
+
   let channel = opts?.channel || "";
   if (!channel && opts?.scene) {
     try {
@@ -470,12 +473,12 @@ function clearIndexPageTimersOnly() {
   indexPendingTimers.length = 0;
 }
 
-/** 页面真正销毁时：清除定时器 + 清理 App 级 wx 监听器 */
+/** 页面真正销毁时：清除定时器 + 移除本页注册的 wx 监听器（不重新注册，由下一次 onLoad 接管） */
 function clearIndexPageSideEffects() {
   indexPageDestroyed = true;
   indexPendingTimers.forEach((id) => clearTimeout(id));
   indexPendingTimers.length = 0;
-  cleanupPageWxListenersAndRestoreApp();
+  uninstallMpAppWxListeners();
 }
 
 onHide(() => {

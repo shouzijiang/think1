@@ -1,6 +1,5 @@
 <script>
 import { syncBgmByCurrentPage } from './utils/gameAudio'
-import { installMpAppWxListeners } from './utils/mpAppWxListeners'
 import { warmStartupStorage } from './utils/storageCache'
 
 /** 小程序端：右上角菜单展示「转发」相关入口（需页面实现对应生命周期） */
@@ -94,7 +93,7 @@ export default {
       })
     }
     enableMiniProgramShareMenu()
-    installMpAppWxListeners()
+    // wx.onAppRouteDone 监听器已转由 pages/index/index 的 onLoad/onUnload 配对管理
     // 异步预热 storage，避免启动阶段 getStorageSync 阻塞
     setTimeout(() => {
       warmStartupStorage()

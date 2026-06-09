@@ -37,9 +37,10 @@ export function installMpAppWxListeners() {
 
 /**
  * 仅移除我们安装的 handler（保留其他库/框架的监听器）。
- * 页面 onUnload 时调用，确保页面销毁后不会有泄漏。
+ * 由页面 onUnload 调用，确保页面销毁后 handler 完全清除，不留泄漏。
+ * 注意：onHide 不应调用此函数——页面隐藏不代表销毁，监听器应持续生效。
  */
-function uninstallMpAppWxListeners() {
+export function uninstallMpAppWxListeners() {
   // #ifdef MP-WEIXIN
   if (!canUseWx()) return
 
@@ -49,14 +50,4 @@ function uninstallMpAppWxListeners() {
   installed = false
   routeDoneHandler = null
   // #endif
-}
-
-/**
- * 页面 onUnload 时：先移除特定 handler，再重新安装 App 单例。
- * 注意：只在页面真正销毁时才做 listener 级的清理；
- * onHide 不应调用此函数——页面隐藏不代表销毁，App 级监听应持续生效。
- */
-export function cleanupPageWxListenersAndRestoreApp() {
-  uninstallMpAppWxListeners()
-  installMpAppWxListeners()
 }

@@ -306,10 +306,13 @@ function playBgmInner(remoteUrl, playSrc) {
 
 function playBgm(url) {
   if (!isBgmEnabled()) return
-  ensureAudioSrc(url).then((src) => {
-    if (!isBgmEnabled()) return
-    playBgmInner(url, src)
-  })
+  // 优先使用已缓存的本地路径，否则直接用远程 URL 流式播放，无需等待完整下载
+  const src = urlToLocalPath.get(url) || url
+  playBgmInner(url, src)
+  // 后台静默缓存，供下次复用（不阻塞当前播放）
+  if (!urlToLocalPath.has(url)) {
+    ensureAudioSrc(url)
+  }
 }
 
 export function playBgmHome() {
@@ -364,17 +367,21 @@ export function stopBgm() {
 }
 
 function playSfxOnce(remoteUrl, getCtx) {
-  ensureAudioSrc(remoteUrl).then((src) => {
-    const ctx = getCtx()
-    applyCtxDefaults(ctx, false)
-    try {
-      ctx.stop()
-    } catch (e) {
-      /* noop */
-    }
-    ctx.src = src
-    playWhenReady(ctx, () => safePlay(ctx))
-  })
+  // 优先使用已缓存的本地路径，否则直接用远程 URL 流式播放，无需等待完整下载
+  const src = urlToLocalPath.get(remoteUrl) || remoteUrl
+  const ctx = getCtx()
+  applyCtxDefaults(ctx, false)
+  try {
+    ctx.stop()
+  } catch (e) {
+    /* noop */
+  }
+  ctx.src = src
+  playWhenReady(ctx, () => safePlay(ctx))
+  // 后台静默缓存，供下次复用（不阻塞当前播放）
+  if (!urlToLocalPath.has(remoteUrl)) {
+    ensureAudioSrc(remoteUrl)
+  }
 }
 
 export function playCongratsOnce() {

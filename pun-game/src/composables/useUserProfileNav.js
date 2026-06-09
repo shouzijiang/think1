@@ -3,6 +3,13 @@ import { getUserInfo } from '../utils/auth'
 import { api } from '../utils/api'
 import { useNavBar } from './useNavBar'
 
+const NICKNAME_MAX_LEN = 10
+
+/** 按 Unicode 码点截断，正确处理中文、emoji 等多字节字符 */
+function truncateNickname(str) {
+  return [...String(str)].slice(0, NICKNAME_MAX_LEN).join('')
+}
+
 export function useUserProfileNav() {
   const { menuButtonHeight } = useNavBar()
   const userInfo = ref(null)
@@ -172,7 +179,7 @@ export function useUserProfileNav() {
   /** 抖音端 input 的 v-model 常不同步，必须用 @input 写回草稿 */
   function onNicknameDraftInput(e) {
     const v = e && e.detail ? e.detail.value : ''
-    nicknameDraft.value = v == null ? '' : String(v)
+    nicknameDraft.value = truncateNickname(v == null ? '' : v)
   }
 
   function handleNicknameBlur() {
@@ -189,7 +196,7 @@ export function useUserProfileNav() {
       uni.showToast({ title: '请先登录后再保存昵称', icon: 'none' })
       return
     }
-    const trimmed = (nickname || '').trim() || '用户'
+    const trimmed = truncateNickname((nickname || '').trim() || '用户')
     const prevRaw = userInfo.value.nickname
     const prev =
       prevRaw === undefined || prevRaw === null ? '' : String(prevRaw).trim()

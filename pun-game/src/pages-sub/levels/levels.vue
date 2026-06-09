@@ -92,8 +92,9 @@ const tier = ref('mid')
 const totalLevels = ref(0)
 const perPage = LEVELS_PER_PAGE
 const currentPage = ref(1)
-const passedSet = ref(new Set(getPassedLevels()))
-const currentLevel = ref(getCurrentLevel())
+// 初始值留空，由 onShow → loadProgress() 异步填充（避免 setup 阶段 getStorageSync 阻塞主线程）
+const passedSet = ref(new Set())
+const currentLevel = ref(null)
 
 // 中级完整列表（issue2.json 顺序）
 const midLevelList = ref([])
