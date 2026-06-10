@@ -13,6 +13,21 @@
 
     <!-- 删除了原有的文字标题，改用统一的副标题 -->
     <view class="hero">
+      <!-- 发光脉冲环 -->
+      <view class="hero-aura">
+        <view class="hero-aura-ring hero-aura-ring--1" />
+        <view class="hero-aura-ring hero-aura-ring--2" />
+        <view class="hero-aura-ring hero-aura-ring--3" />
+      </view>
+      <!-- 装饰粒子 -->
+      <view class="hero-particles">
+        <view class="hero-particle hero-particle--1">✦</view>
+        <view class="hero-particle hero-particle--2">✧</view>
+        <view class="hero-particle hero-particle--3">✦</view>
+        <view class="hero-particle hero-particle--4">✧</view>
+        <view class="hero-particle hero-particle--5">·</view>
+        <view class="hero-particle hero-particle--6">·</view>
+      </view>
       <view class="hero-badge">
         <image
           class="hero-badge-img"
@@ -272,8 +287,18 @@
 
 <script setup>
 import { ref } from "vue";
-import { onLoad, onShow, onHide, onUnload, onShareAppMessage, onShareTimeline } from "@dcloudio/uni-app";
-import { installMpAppWxListeners, uninstallMpAppWxListeners } from "../../utils/mpAppWxListeners";
+import {
+  onLoad,
+  onShow,
+  onHide,
+  onUnload,
+  onShareAppMessage,
+  onShareTimeline,
+} from "@dcloudio/uni-app";
+import {
+  installMpAppWxListeners,
+  uninstallMpAppWxListeners,
+} from "../../utils/mpAppWxListeners";
 import {
   getCurrentLevel,
   loadMidLevelList,
@@ -641,18 +666,149 @@ function startGame() {
   flex-direction: column;
   align-items: center;
   margin: 4vh 0 9vh;
-  // animation: float 2s ease-in-out infinite;
+  perspective: 800rpx;
 }
-@keyframes float {
-  0%,
+
+/* ===== Z轴冲击：多层光环从屏幕冲出 ===== */
+.hero-aura {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  z-index: 0;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.hero-aura-ring {
+  position: absolute;
+  width: 320rpx;
+  height: 320rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(145, 213, 139, 0.35);
+  transform: translate(-50%, -50%) translateZ(0);
+  animation: aura-burst 2.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+}
+
+.hero-aura-ring--1 {
+  animation-delay: 0s;
+  border-color: rgba(145, 213, 139, 0.5);
+  border-width: 4rpx;
+}
+
+.hero-aura-ring--2 {
+  animation-delay: 0.65s;
+  border-color: rgba(169, 201, 238, 0.4);
+}
+
+.hero-aura-ring--3 {
+  animation-delay: 1.3s;
+  border-color: rgba(255, 235, 200, 0.4);
+}
+
+@keyframes aura-burst {
+  0% {
+    width: 140rpx;
+    height: 140rpx;
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  60% {
+    opacity: 0.3;
+  }
   100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.03);
+    width: 500rpx;
+    height: 500rpx;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.5);
   }
 }
+
+/* ===== 装饰粒子：Z轴飞入 ===== */
+.hero-particles {
+  position: absolute;
+  inset: -80rpx;
+  z-index: 0;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.hero-particle {
+  position: absolute;
+  font-size: 28rpx;
+  animation: particle-z-fly 3s ease-out infinite;
+}
+
+.hero-particle--1 {
+  top: 5%;
+  left: 18%;
+  animation-delay: 0s;
+  color: rgba(255, 200, 145, 0.6);
+  font-size: 36rpx;
+}
+
+.hero-particle--2 {
+  top: 15%;
+  right: 8%;
+  animation-delay: 0.5s;
+  color: rgba(145, 213, 139, 0.55);
+  font-size: 28rpx;
+}
+
+.hero-particle--3 {
+  bottom: 20%;
+  left: 6%;
+  animation-delay: 1s;
+  color: rgba(169, 201, 238, 0.55);
+  font-size: 32rpx;
+}
+
+.hero-particle--4 {
+  bottom: 12%;
+  right: 16%;
+  animation-delay: 1.5s;
+  color: rgba(255, 200, 145, 0.55);
+  font-size: 26rpx;
+}
+
+.hero-particle--5 {
+  top: 38%;
+  left: 2%;
+  animation-delay: 2s;
+  color: rgba(145, 213, 139, 0.4);
+}
+
+.hero-particle--6 {
+  top: 28%;
+  right: 3%;
+  animation-delay: 2.5s;
+  color: rgba(169, 201, 238, 0.45);
+}
+
+@keyframes particle-z-fly {
+  0% {
+    transform: scale(0) translateZ(-100rpx);
+    opacity: 0;
+  }
+  30% {
+    transform: scale(1.4) translateZ(0);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1) translateZ(0);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(0.5) translateZ(-80rpx);
+    opacity: 0;
+  }
+}
+
+/* ===== 徽章：Z轴呼吸脉冲（冲向屏幕） ===== */
 .hero-badge {
+  position: relative;
+  z-index: 1;
   width: 200rpx;
   height: 200rpx;
   border-radius: 36rpx;
@@ -662,25 +818,91 @@ function startGame() {
   align-items: center;
   justify-content: center;
   margin: 24rpx auto 30rpx;
-  box-shadow: 0 12rpx 32rpx rgba(169, 201, 238, 0.35),
-    0 4rpx 0 rgba(255, 255, 255, 0.8) inset;
-  transform: rotate(-4deg);
+  transform: rotate(-4deg) translateZ(0);
   overflow: hidden;
   box-sizing: border-box;
+  animation: badge-z-pulse 2.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
 }
+
+@keyframes badge-z-pulse {
+  0%,
+  100% {
+    transform: rotate(-4deg) scale(1) translateZ(0);
+    box-shadow:
+      0 8rpx 24rpx rgba(169, 201, 238, 0.3),
+      0 0 0 8rpx rgba(145, 213, 139, 0.06),
+      0 0 0 20rpx rgba(145, 213, 139, 0.03),
+      0 4rpx 0 rgba(255, 255, 255, 0.8) inset;
+    filter: brightness(1);
+  }
+  45% {
+    transform: rotate(-3deg) scale(1.1) translateZ(40rpx);
+    box-shadow:
+      0 24rpx 56rpx rgba(169, 201, 238, 0.5),
+      0 0 0 20rpx rgba(145, 213, 139, 0.14),
+      0 0 0 44rpx rgba(145, 213, 139, 0.07),
+      0 4rpx 0 rgba(255, 255, 255, 0.85) inset;
+    filter: brightness(1.08);
+  }
+}
+
 .hero-badge-img {
   width: 100%;
   height: 100%;
 }
+
+/* ===== 标题：Z轴弹出 + 流光 ===== */
 .title {
+  position: relative;
+  z-index: 1;
   font-size: 56rpx;
   font-weight: 900;
-  color: #91d58b;
   letter-spacing: 0.08em;
   margin-bottom: 12rpx;
-  text-shadow: 0 3rpx 0 rgba(111, 184, 104, 0.35), 0 6rpx 18rpx rgba(145, 213, 139, 0.2);
+  background: linear-gradient(
+    110deg,
+    #5a9e52 0%,
+    #6fb868 20%,
+    #91d58b 34%,
+    #b8e8a8 44%,
+    #e8f8e4 48%,
+    #b8e8a8 52%,
+    #91d58b 62%,
+    #6fb868 80%,
+    #5a9e52 100%
+  );
+  background-size: 280% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: title-z-pop 2.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite,
+    title-shimmer 2.2s ease-in-out infinite alternate;
+  filter: drop-shadow(0 3rpx 0 rgba(111, 184, 104, 0.35))
+    drop-shadow(0 6rpx 18rpx rgba(145, 213, 139, 0.2));
 }
+
+@keyframes title-z-pop {
+  0%,
+  100% {
+    transform: scale(1) translateZ(0);
+  }
+  40% {
+    transform: scale(1.06) translateZ(20rpx);
+  }
+}
+
+@keyframes title-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
 .subtitle {
+  position: relative;
+  z-index: 1;
   font-size: 24rpx;
   color: #3a86da;
   letter-spacing: 0.06em;
@@ -688,6 +910,18 @@ function startGame() {
   padding: 10rpx 26rpx;
   border-radius: 100rpx;
   border: 2rpx solid rgba(169, 201, 238, 0.45);
+  animation: subtitle-z-pop-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes subtitle-z-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateZ(-60rpx);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateZ(0);
+  }
 }
 
 .start-wrap {

@@ -92,6 +92,9 @@ const contact = ref('')
 const submitting = ref(false)
 const contentFocus = ref(false)
 
+/** 从上层带过来的预设内容（如"小红书专辑 · 第2356关"），用于提交时判断玩家是否新增了有效内容 */
+const presetPrefix = ref('')
+
 function safeDecode(value) {
   if (typeof value !== 'string') return ''
   try {
@@ -114,6 +117,7 @@ onLoad((opts = {}) => {
 
   const presetContent = safeDecode(opts.content)
   if (presetContent) {
+    presetPrefix.value = presetContent
     content.value = `${presetContent}，问题：`
   }
 
@@ -139,6 +143,14 @@ function submit() {
     uni.showToast({ title: '请填写反馈内容', icon: 'none' })
     return
   }
+
+  // 检测是否为未填写的预设模板：以「问题：」结尾说明玩家没有在冒号后面写任何内容
+  // 兼容 "小红书专辑 · 第2356关，问题：" / "梗图填词 · 第42关，问题：" 等模式
+  if (/[，,、\s]*问题[：:]\s*$/.test(text)) {
+    uni.showToast({ title: '请在「问题：」后填写具体反馈内容', icon: 'none' })
+    return
+  }
+
   if (submitting.value) return
   submitting.value = true
   const type = typeOptions[typeIndex.value].value || undefined

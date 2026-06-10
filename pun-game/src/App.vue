@@ -116,6 +116,43 @@ export default {
 <style lang="scss">
 @use '@/styles/page-theme.scss' as *;
 
+/* ========== 全局滚动条美化 ========== */
+
+/* Firefox */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(169, 201, 238, 0.45) transparent;
+}
+
+/* WebKit (Chrome / Safari / Edge) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(169, 201, 238, 0.45);
+  border-radius: 3px;
+  transition: background 0.25s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(169, 201, 238, 0.7);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(145, 213, 139, 0.55); /* $pt-mint */
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 page {
   @include pt-font-body;
   color: $pt-text;

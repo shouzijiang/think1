@@ -171,6 +171,7 @@ import { useNavBar } from '../../composables/useNavBar'
 import PunPageNavBar from '../../components/PunPageNavBar.vue'
 import { getUserInfo, getAuthToken, wechatLogin } from '../../utils/auth'
 import { DEFAULT_AVATAR_URL } from '../../utils/defaultAvatar'
+import { showInterstitialAd } from '../utils/interstitialAdRunner'
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
 
@@ -600,6 +601,13 @@ async function initRoomPage(options) {
     endShareJoinLoading()
     uni.showToast({ title: err.message || '连接服务器失败', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 1200)
+  }
+
+  // 从对战结束返回：拉起插屏广告
+  if (options.fromBattle === '1') {
+    setTimeout(() => {
+      showInterstitialAd()
+    }, 800)
   }
 }
 

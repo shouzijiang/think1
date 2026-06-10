@@ -603,7 +603,7 @@ onLoad((opts) => {
 
 function confirmBackToRoom() {
   wsApi.close();
-  uni.redirectTo({ url: "/pages-sub/battleRoom/battleRoom" });
+  uni.redirectTo({ url: "/pages-sub/battleRoom/battleRoom?fromBattle=1" });
 }
 
 async function ensureBattleWsConnected() {
