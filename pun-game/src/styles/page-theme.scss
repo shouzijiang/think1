@@ -123,3 +123,134 @@ $pt-font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Micro
   color: #6fb868;
   letter-spacing: 0.04em;
 }
+
+/* ========== 卡片内悬浮操作按钮（报错 / 跳关） ========== */
+@mixin pt-card-float-btn {
+  position: absolute;
+  bottom: 5rpx;
+  z-index: 3;
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  color: #7d8fa0;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  opacity: .7;
+}
+
+@mixin pt-report-entry {
+  @include pt-card-float-btn;
+  right: 5rpx;
+}
+
+@mixin pt-skip-entry {
+  @include pt-card-float-btn;
+  right: 100rpx;
+}
+
+/* ========== 答题区公共样式 ========== */
+@mixin pt-answer-block {
+  position: relative;
+  z-index: 2;
+  margin-bottom: 20rpx;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 28rpx;
+  border: 2rpx solid rgba(180, 200, 230, 0.4);
+  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+@mixin pt-answer-row {
+  position: relative;
+  padding: 28rpx 24rpx 24rpx;
+}
+
+@mixin pt-answer-left {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+// 隐藏的透明 input 层（汉字输入接管用）
+// 注意：不要设超宽 width（如 300%）或 left 负偏移，否则 focus 时 iOS Safari 会横向滚动视口，
+// 导致下方的 mid-action-bar 整体向左跳。
+@mixin pt-answer-input-cover {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.001;
+  z-index: 3;
+  font-size: 32rpx;
+  color: transparent;
+  caret-color: transparent;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+@mixin pt-answer-slots {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 18rpx;
+  flex-wrap: wrap;
+}
+
+@mixin pt-slot {
+  min-width: 76rpx;
+  height: 76rpx;
+  padding: 0 8rpx;
+  border: 2rpx dashed rgba(169, 201, 238, 0.75);
+  border-radius: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #5a6d7a;
+  background: rgba(255, 255, 255, 0.9);
+  box-sizing: border-box;
+}
+
+@mixin pt-slot-error {
+  border-color: #c04a38;
+  border-style: solid;
+  color: #c04a38;
+  background: rgba(255, 220, 210, 0.5);
+}
+
+@mixin pt-slot-shake {
+  animation: slot-shake 0.4s ease-in-out;
+}
+
+@mixin pt-slot-caret {
+  width: 10rpx;
+  height: 46rpx;
+  border-radius: 8rpx;
+  background: rgba(80, 120, 200, 0.55);
+  animation: caret-blink 1s steps(2, start) infinite;
+}
+
+@mixin pt-keyframes-slot-shake {
+  @keyframes slot-shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8rpx); }
+    40% { transform: translateX(8rpx); }
+    60% { transform: translateX(-6rpx); }
+    80% { transform: translateX(6rpx); }
+  }
+}
+
+@mixin pt-keyframes-caret-blink {
+  @keyframes caret-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+}

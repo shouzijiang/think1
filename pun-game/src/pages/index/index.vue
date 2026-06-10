@@ -112,7 +112,7 @@
             :key="idx"
             class="changelog-line-wrap"
           >
-            <text class="changelog-dot">•</text>
+            <text class="changelog-dot">{{ idx + 1 }}.</text>
             <text class="changelog-line">{{ line }}</text>
           </view>
         </scroll-view>

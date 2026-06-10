@@ -54,7 +54,28 @@
           :disabled="dailyReminderLoading"
           color="#10b981"
           @change.stop="toggleDailyReminder"
-          style="transform: scale(0.8);"
+          style="transform: scale(0.8)"
+        />
+      </view>
+      <!-- 关闭关键词提示开关 -->
+      <view
+        class="cell cell--hide-hint"
+        hover-class="cell--hover"
+        :hover-start-time="20"
+        :hover-stay-time="100"
+        @click="toggleHideKeywordHint"
+      >
+        <text class="cell-icon">💡</text>
+        <view class="cell-main">
+          <text class="cell-text">关闭关键词提示</text>
+          <text class="cell-sub">开启后游戏中不再显示关键词提示标签</text>
+        </view>
+        <switch
+          :checked="hideKeywordHint"
+          color="#10b981"
+          @change.stop="toggleHideKeywordHint"
+          @click.stop
+          style="transform: scale(0.8)"
         />
       </view>
       <view
@@ -68,7 +89,10 @@
           <text class="cell-icon">🎯</text>
           <view class="cell-main">
             <text class="cell-text">答案次数</text>
-            <text class="cell-sub">点「答案」每次扣 1，分享可增加，单日上限 {{ hintAnswerShareDailyMax }} 次</text>
+            <text class="cell-sub"
+              >点「答案」每次扣 1，分享可增加，单日上限
+              {{ hintAnswerShareDailyMax }} 次</text
+            >
           </view>
         </view>
         <view class="quota-strip">
@@ -116,16 +140,14 @@
 
     <!-- <text class="hint">头像与昵称与首页顶部一致，修改后会同步保存。</text> -->
 
-    <view
-      v-if="hintQuotaTipVisible"
-      class="quota-tip-mask"
-      @click="dismissHintQuotaTip"
-    >
+    <view v-if="hintQuotaTipVisible" class="quota-tip-mask" @click="dismissHintQuotaTip">
       <view class="quota-tip-card" @click.stop>
         <text class="quota-tip-title">答案次数说明</text>
         <view class="quota-tip-body">
           <text class="quota-tip-line quota-tip-line--lead">剩余：当前可用次数。</text>
-          <text class="quota-tip-line">历史累计：自统计上线后，你累计使用「答案」的总次数。</text>
+          <text class="quota-tip-line"
+            >历史累计：自统计上线后，你累计使用「答案」的总次数。</text
+          >
           <text class="quota-tip-line">分享给好友可增加剩余次数。</text>
         </view>
         <view
@@ -143,153 +165,184 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
-import { wechatLogin } from '../../utils/auth'
-import UserProfileNav from '../../components/UserProfileNav.vue'
-import PunPageNavBar from '../../components/PunPageNavBar.vue'
-import { useNavBar } from '../../composables/useNavBar'
-import { api } from '../../utils/api'
+import { ref } from "vue";
+import { onShow } from "@dcloudio/uni-app";
+import { wechatLogin } from "../../utils/auth";
+import UserProfileNav from "../../components/UserProfileNav.vue";
+import PunPageNavBar from "../../components/PunPageNavBar.vue";
+import { useNavBar } from "../../composables/useNavBar";
+import { api } from "../../utils/api";
 
-const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
-const userProfileRef = ref(null)
-const hintAnswerQuota = ref(0)
-const hintAnswerTotalUsed = ref(0)
-const hintAnswerShareDailyMax = ref(5)
-const hintQuotaTipVisible = ref(false)
-const dailyReminderOn = ref(false)
-const dailyReminderLoading = ref(false)
-const DAILY_REMIND_TEMPLATE_ID = 'rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE'
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar();
+const userProfileRef = ref(null);
+const hintAnswerQuota = ref(0);
+const hintAnswerTotalUsed = ref(0);
+const hintAnswerShareDailyMax = ref(5);
+const hintQuotaTipVisible = ref(false);
+const dailyReminderOn = ref(false);
+const dailyReminderLoading = ref(false);
+const hideKeywordHint = ref(false);
+const DAILY_REMIND_TEMPLATE_ID = "rzQtKuen_qo-NivwIWEaQStbjgWZUokIKChNsZiVwfE";
 
 const platform = (() => {
   try {
-    return (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || ''
+    return (uni.getAppBaseInfo?.() ?? uni.getSystemInfoSync()).uniPlatform || "";
   } catch {
-    return ''
+    return "";
   }
-})()
-const isMiniProgram = platform.startsWith('mp-')
+})();
+const isMiniProgram = platform.startsWith("mp-");
 
 onShow(async () => {
   // 先读 storage，立即展示最新头像/昵称，不等待登录网络请求
-  userProfileRef.value?.loadUserInfo?.()
-  refreshHintAnswerQuota()
+  userProfileRef.value?.loadUserInfo?.();
+  refreshHintAnswerQuota();
   try {
-    await wechatLogin()
+    const raw = uni.getStorageSync("pun_hide_keyword_hint");
+    hideKeywordHint.value = raw === true || raw === "true" || raw === 1 || raw === "1";
+  } catch {}
+  try {
+    await wechatLogin();
   } catch (e) {
-    console.warn('wechatLogin 失败', e)
+    console.warn("wechatLogin 失败", e);
   }
   // 登录完成后再刷一次，确保与服务端同步（如多端修改过昵称等）
-  userProfileRef.value?.loadUserInfo?.()
-})
+  userProfileRef.value?.loadUserInfo?.();
+});
 
 function goFeedback() {
-  uni.navigateTo({ url: '/pages-sub/feedback/feedback' })
+  uni.navigateTo({ url: "/pages-sub/feedback/feedback" });
 }
 
 function goLevels() {
-  uni.navigateTo({ url: '/pages-sub/levels/levels' })
+  uni.navigateTo({ url: "/pages-sub/levels/levels" });
 }
 
 function goHome() {
-  uni.reLaunch({ url: '/pages/index/index' })
+  uni.reLaunch({ url: "/pages/index/index" });
 }
 
 function showHintQuotaTip() {
-  hintQuotaTipVisible.value = true
+  hintQuotaTipVisible.value = true;
 }
 
 function dismissHintQuotaTip() {
-  hintQuotaTipVisible.value = false
+  hintQuotaTipVisible.value = false;
 }
 
 function goTasks() {
-  uni.navigateTo({ url: '/pages-sub/tasks/tasks' })
+  uni.navigateTo({ url: "/pages-sub/tasks/tasks" });
 }
 
 async function refreshHintAnswerQuota() {
   try {
-    const data = await api.getLevelProgress({ gameTier: 'mid' })
-    if (data && typeof data.hintAnswerQuota === 'number') {
-      hintAnswerQuota.value = data.hintAnswerQuota
+    const data = await api.getLevelProgress({ gameTier: "mid" });
+    if (data && typeof data.hintAnswerQuota === "number") {
+      hintAnswerQuota.value = data.hintAnswerQuota;
     }
-    if (data && typeof data.hintAnswerTotalUsed === 'number') {
-      hintAnswerTotalUsed.value = data.hintAnswerTotalUsed
+    if (data && typeof data.hintAnswerTotalUsed === "number") {
+      hintAnswerTotalUsed.value = data.hintAnswerTotalUsed;
     }
-    if (data && typeof data.hintAnswerShareDailyMax === 'number' && data.hintAnswerShareDailyMax > 0) {
-      hintAnswerShareDailyMax.value = Math.floor(data.hintAnswerShareDailyMax)
+    if (
+      data &&
+      typeof data.hintAnswerShareDailyMax === "number" &&
+      data.hintAnswerShareDailyMax > 0
+    ) {
+      hintAnswerShareDailyMax.value = Math.floor(data.hintAnswerShareDailyMax);
     }
-    if (data && typeof data.dailyReminderSubscribed !== 'undefined') {
-      dailyReminderOn.value = Number(data.dailyReminderSubscribed) > 0
+    if (data && typeof data.dailyReminderSubscribed !== "undefined") {
+      dailyReminderOn.value = Number(data.dailyReminderSubscribed) > 0;
     }
   } catch {
     // 忽略未登录场景
   }
 }
 
-
+function toggleHideKeywordHint() {
+  if (!hideKeywordHint.value) {
+    // 即将开启（隐藏提示），需要二次确认
+    uni.showModal({
+      title: "关闭关键词提示",
+      content: "开启后游戏中将不再显示关键词提示标签，确定开启吗？",
+      confirmText: "确定开启",
+      cancelText: "取消",
+      success: (res) => {
+        if (!res.confirm) return;
+        hideKeywordHint.value = true;
+        try {
+          uni.setStorageSync("pun_hide_keyword_hint", "true");
+        } catch {}
+      },
+    });
+  } else {
+    // 关闭（恢复显示提示），直接执行
+    hideKeywordHint.value = false;
+    try {
+      uni.setStorageSync("pun_hide_keyword_hint", "false");
+    } catch {}
+  }
+}
 
 async function toggleDailyReminder() {
-  if (dailyReminderLoading.value) return
+  if (dailyReminderLoading.value) return;
   if (dailyReminderOn.value) {
     // 关闭提醒
-    dailyReminderLoading.value = true
+    dailyReminderLoading.value = true;
     try {
-      await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, 'reject')
-      dailyReminderOn.value = false
-      uni.showToast({ title: '已关闭每日提醒', icon: 'none' })
+      await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, "reject");
+      dailyReminderOn.value = false;
+      uni.showToast({ title: "已关闭每日提醒", icon: "none" });
     } catch (e) {
-      uni.showToast({ title: e.message || '操作失败', icon: 'none' })
+      uni.showToast({ title: e.message || "操作失败", icon: "none" });
     } finally {
-      dailyReminderLoading.value = false
+      dailyReminderLoading.value = false;
     }
-    return
+    return;
   }
   // 开启提醒：先调用微信订阅消息授权
   // #ifdef MP-WEIXIN
-  dailyReminderLoading.value = true
+  dailyReminderLoading.value = true;
   try {
     const res = await new Promise((resolve, reject) => {
       wx.requestSubscribeMessage({
         tmplIds: [DAILY_REMIND_TEMPLATE_ID],
         success: (r) => resolve(r),
         fail: (err) => reject(err),
-      })
-    })
-    const status = res[DAILY_REMIND_TEMPLATE_ID]
-    if (status === 'accept') {
-      await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, 'accept')
-      dailyReminderOn.value = true
-      uni.showToast({ title: '已开启每日提醒', icon: 'none' })
+      });
+    });
+    const status = res[DAILY_REMIND_TEMPLATE_ID];
+    if (status === "accept") {
+      await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, "accept");
+      dailyReminderOn.value = true;
+      uni.showToast({ title: "已开启每日提醒", icon: "none" });
     } else {
-      uni.showToast({ title: '需要允许通知才能开启提醒', icon: 'none' })
+      uni.showToast({ title: "需要允许通知才能开启提醒", icon: "none" });
     }
   } catch (e) {
     // 用户点了取消或授权弹窗关闭
-    uni.showToast({ title: '请允许订阅消息以开启提醒', icon: 'none' })
+    uni.showToast({ title: "请允许订阅消息以开启提醒", icon: "none" });
   } finally {
-    dailyReminderLoading.value = false
+    dailyReminderLoading.value = false;
   }
   // #endif
   // #ifdef MP-TOUTIAO
-  dailyReminderLoading.value = true
+  dailyReminderLoading.value = true;
   try {
-    await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, 'accept')
-    dailyReminderOn.value = true
-    uni.showToast({ title: '已开启每日提醒', icon: 'none' })
+    await api.saveSubscribe(DAILY_REMIND_TEMPLATE_ID, "accept");
+    dailyReminderOn.value = true;
+    uni.showToast({ title: "已开启每日提醒", icon: "none" });
   } catch (e) {
-    uni.showToast({ title: e.message || '操作失败', icon: 'none' })
+    uni.showToast({ title: e.message || "操作失败", icon: "none" });
   } finally {
-    dailyReminderLoading.value = false
+    dailyReminderLoading.value = false;
   }
   // #endif
   // #ifndef MP-WEIXIN
   // #ifndef MP-TOUTIAO
-  uni.showToast({ title: '仅小程序支持订阅提醒', icon: 'none' })
+  uni.showToast({ title: "仅小程序支持订阅提醒", icon: "none" });
   // #endif
   // #endif
 }
-
 </script>
 
 <style lang="scss" scoped>
@@ -784,4 +837,3 @@ async function toggleDailyReminder() {
   text-align: center;
 }
 </style>
-

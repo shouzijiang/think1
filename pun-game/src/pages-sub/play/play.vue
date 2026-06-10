@@ -472,28 +472,10 @@ onShareTimeline(() => {
   border-radius: 24rpx;
 }
 .report-entry {
-  position: absolute;
-  right: 20rpx;
-  bottom: 16rpx;
-  z-index: 3;
-  padding: 8rpx 20rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  color: #7d8fa0;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  @include pt-report-entry;
 }
 .skip-entry {
-  position: absolute;
-  right: 148rpx;
-  bottom: 16rpx;
-  z-index: 3;
-  padding: 8rpx 20rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  color: #7d8fa0;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  @include pt-skip-entry;
 }
 .puzzle-img {
   width: 110%;
@@ -519,27 +501,16 @@ onShareTimeline(() => {
 
 /* 答题区 + 底部操作条：与 playMid / playXhs 同一结构 */
 .answer-block {
-  position: relative;
-  z-index: 2;
-  margin-bottom: 20rpx;
-  background: rgba(255, 255, 255, 0.94);
-  border-radius: 28rpx;
-  border: 2rpx solid rgba(180, 200, 230, 0.4);
-  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
-  overflow: hidden;
+  @include pt-answer-block;
 }
 .answer-row {
-  position: relative;
-  padding: 28rpx 24rpx 24rpx;
+  @include pt-answer-row;
 }
 .answer-row--divider {
   border-bottom: 1rpx solid rgba(160, 190, 220, 0.35);
 }
 .answer-left {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  @include pt-answer-left;
 }
 .stuck-tip {
   position: relative;
@@ -579,32 +550,12 @@ onShareTimeline(() => {
   background: rgba(255, 255, 255, 0.9);
 }
 .slot-error {
-  border-color: #c04a38;
-  border-style: solid;
-  color: #c04a38;
-  background: rgba(255, 220, 210, 0.5);
+  @include pt-slot-error;
 }
 .slot-shake {
-  animation: slot-shake 0.4s ease-in-out;
+  @include pt-slot-shake;
 }
-@keyframes slot-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-8rpx);
-  }
-  40% {
-    transform: translateX(8rpx);
-  }
-  60% {
-    transform: translateX(-6rpx);
-  }
-  80% {
-    transform: translateX(6rpx);
-  }
-}
+@include pt-keyframes-slot-shake;
 
 .chars-wrap {
   position: relative;

@@ -35,7 +35,7 @@ function getWrongFloatStyle(item) {
   left: 0;
   right: 0;
   bottom: 20rpx;
-  height: 300rpx;
+  height: 400rpx;
   pointer-events: none;
   overflow: hidden;
   z-index: 4;

@@ -18,7 +18,7 @@
     </PunPageNavBar>
 
     <view class="card card--xhs">
-      <view v-if="puzzle.keywordHint" class="keyword-tab">
+      <view v-if="puzzle.keywordHint && !hideKeywordHint" class="keyword-tab">
         <text class="keyword-tab-text">提示：{{ puzzle.keywordHint }}</text>
       </view>
       <view class="author-tag" v-if="puzzle.author">
@@ -151,6 +151,7 @@ const puzzle = ref({
 });
 const loading = ref(true);
 const submitting = ref(false);
+const hideKeywordHint = ref(false);
 
 const feedback = ref([]);
 const slotShake = ref(false);
@@ -365,6 +366,10 @@ onLoad(async (opts) => {
 
   level.value = lv;
   loading.value = true;
+  try {
+    const raw = uni.getStorageSync('pun_hide_keyword_hint')
+    hideKeywordHint.value = raw === true || raw === 'true' || raw === 1 || raw === '1'
+  } catch {}
   getXhsLevelPuzzle(lv)
     .then((data) => {
       answerLen.value = data.answerLength || 3;
@@ -466,28 +471,10 @@ onShareTimeline(() => {
   padding: 20rpx;
 }
 .report-entry {
-  position: absolute;
-  right: 20rpx;
-  bottom: 16rpx;
-  z-index: 3;
-  padding: 8rpx 20rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  color: #7d8fa0;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  @include pt-report-entry;
 }
 .skip-entry {
-  position: absolute;
-  right: 148rpx;
-  bottom: 16rpx;
-  z-index: 3;
-  padding: 8rpx 20rpx;
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  color: #7d8fa0;
-  background: rgba(255, 255, 255, 0.92);
-  border: 2rpx solid rgba(169, 201, 238, 0.55);
+  @include pt-skip-entry;
 }
 
 .main-img {
@@ -509,114 +496,33 @@ onShareTimeline(() => {
 }
 
 .answer-block {
-  position: relative;
-  z-index: 2;
-  margin-bottom: 20rpx;
-  background: rgba(255, 255, 255, 0.94);
-  border-radius: 28rpx;
-  border: 2rpx solid rgba(180, 200, 230, 0.4);
-  box-shadow: 0 8rpx 24rpx rgba(100, 140, 180, 0.09), 0 2rpx 8rpx rgba(0, 0, 0, 0.03);
-  overflow: hidden;
+  @include pt-answer-block;
 }
 .answer-row {
-  position: relative;
-  padding: 28rpx 24rpx 24rpx;
+  @include pt-answer-row;
   border-bottom: 1rpx solid rgba(160, 190, 220, 0.35);
 }
 .answer-left {
-  position: relative;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  @include pt-answer-left;
 }
 .answer-input-cover {
-  position: absolute;
-  left: -200%;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 300%;
-  height: 100%;
-  opacity: 0.001;
-  z-index: 3;
-  font-size: 32rpx;
-  color: transparent;
-  caret-color: transparent;
-  background: transparent;
-  border: none;
-  padding: 0;
+  @include pt-answer-input-cover;
 }
-
 .answer-slots {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: row;
-  justify-content: center;
-  align-items: center;
-  gap: 18rpx;
-  flex-wrap: wrap;
+  @include pt-answer-slots;
 }
 .slot {
-  min-width: 76rpx;
-  height: 76rpx;
-  padding: 0 8rpx;
-  border: 2rpx dashed rgba(169, 201, 238, 0.75);
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #5a6d7a;
-  background: rgba(255, 255, 255, 0.9);
-  box-sizing: border-box;
+  @include pt-slot;
 }
 .slot-error {
-  border-color: #c04a38;
-  border-style: solid;
-  color: #c04a38;
-  background: rgba(255, 220, 210, 0.5);
+  @include pt-slot-error;
 }
 .slot-shake {
-  animation: slot-shake 0.4s ease-in-out;
+  @include pt-slot-shake;
 }
-
 .slot-caret {
-  width: 10rpx;
-  height: 46rpx;
-  border-radius: 8rpx;
-  background: rgba(80, 120, 200, 0.55);
-  animation: caret-blink 1s steps(2, start) infinite;
+  @include pt-slot-caret;
 }
-
-@keyframes caret-blink {
-  0%,
-  49% {
-    opacity: 1;
-  }
-  50%,
-  100% {
-    opacity: 0;
-  }
-}
-@keyframes slot-shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-8rpx);
-  }
-  40% {
-    transform: translateX(8rpx);
-  }
-  60% {
-    transform: translateX(-6rpx);
-  }
-  80% {
-    transform: translateX(6rpx);
-  }
-}
+@include pt-keyframes-caret-blink;
+@include pt-keyframes-slot-shake;
 </style>
