@@ -178,9 +178,9 @@ $pt-font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Micro
 // 导致下方的 mid-action-bar 整体向左跳。
 @mixin pt-answer-input-cover {
   position: absolute;
-  left: 0;
+  left: -50%;
   top: 0;
-  width: 100%;
+  width: 300%;
   height: 100%;
   opacity: 0.001;
   z-index: 3;
