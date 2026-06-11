@@ -1259,7 +1259,12 @@ class PunService
 
         $passExplain = '';
         if ($allCorrect) {
-            $passExplain = $this->resolvePassExplainForUser($mode, $level);
+            try {
+                $passExplain = $this->resolvePassExplainForUser($mode, $level);
+            } catch (\Throwable $e) {
+                \think\facade\Log::warning('resolvePassExplainForUser 异常: ' . $e->getMessage());
+                $passExplain = (new PunLevelAiExplainService())->resolvePassExplain($mode, $level);
+            }
         }
 
         return [
