@@ -69,6 +69,13 @@
           }
         },
         {
+          "path": "playAlbum/playAlbum",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "专辑"
+          }
+        },
+        {
           "path": "feedback/feedback",
           "style": {
             "navigationStyle": "custom",

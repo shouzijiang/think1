@@ -1,7 +1,7 @@
 import { request } from '../utils/request'
 
 /**
- * 关卡与题目数据（示例），后续可改为从 https://apaas.aiforce.cloud 接口拉取
+ * 关卡与题目数据（历史功能，不动）
  */
 export const LEVELS_PER_PAGE = 40
 
@@ -73,7 +73,7 @@ export function isLevelPassed(level) {
 }
 
 const LEVEL_DATA_BASE = 'https://sofun.online/static/punGame/issue'
-/** 中级题库总表（每一条里带 question/answer/answerType 等） */
+/** 中级题库总表 */
 const MID_ISSUE_URL = 'https://sofun.online/static/punGame/issue2.json'
 /** 中级题目图片：w{level}-1 为上图，w{level}-2 为下图 */
 const MID_IMAGE_BASE = 'https://sofun.online/static/punGame/img2'
@@ -83,7 +83,6 @@ const XHS_ISSUE_URL = 'https://sofun.online/static/punGame/issue3.json'
 /** 小红书专辑题目图片：{level}.webp */
 const XHS_IMAGE_BASE = 'https://static2.sofun.online'
 const XHS_IMAGE_BASE2 = 'https://static-cos.sofun.online'
-// 直接请求cos，不走stati2 cdn . 因为cos流量买多了
 
 const FALLBACK_PUZZLE = {
   hintText: '题库加载失败，请稍后重试',
@@ -107,7 +106,7 @@ let xhsIssueCache = null
 let xhsIssuePromise = null
 let xhsLevels = null
 
-function normalizePuzzle(data) {
+export function normalizePuzzle(data) {
   const answerLength = Math.max(1, parseInt(data.answerLength, 10) || 3)
   return {
     hintText: data.hintText || '',
@@ -125,13 +124,11 @@ function normalizePuzzle(data) {
   }
 }
 
-/**
- * 初级关卡题目：{ hintText, wordArray, answerLength, imageUrl, imageUrlTop?, imageUrlBottom?, keywordHint?, topCaption?, bottomCaption?, ... }
- */
+/** 初级关卡题目 */
 export function getLevelPuzzle(levelNum) {
   const n = parseInt(String(levelNum), 10)
   const safe = Number.isFinite(n) && n >= 1 ? n : 1
-  const url = `${LEVEL_DATA_BASE}/${safe}.json`
+  const url = LEVEL_DATA_BASE + '/' + safe + '.json'
   return request({ url, method: 'GET' })
     .then((res) => (res.data && normalizePuzzle(res.data)))
     .catch(() => ({ ...FALLBACK_PUZZLE }))
@@ -165,7 +162,7 @@ function fetchMidIssues() {
   return midIssuePromise
 }
 
-function fetchXhsIssues() {
+export function fetchXhsIssues() {
   if (xhsIssueCache) return Promise.resolve(xhsIssueCache)
   if (xhsIssuePromise) return xhsIssuePromise
 
@@ -201,10 +198,6 @@ export function getXhsLevelList() {
   return Array.isArray(xhsLevels) ? xhsLevels : []
 }
 
-/**
- * 中级：确保 issue2.json 的中级关卡列表已加载完成
- * 用于“我的关卡”这种需要完整列表渲染的场景。
- */
 export async function loadMidLevelList() {
   await fetchMidIssues()
   return getMidLevelList()
@@ -215,10 +208,6 @@ export async function loadXhsLevelList() {
   return getXhsLevelList()
 }
 
-/**
- * 根据 /pun/level/progress?gameTier=mid 的返回，解析当前应玩的真实关卡 level（issue2 中的 level 数字）。
- * 仅使用统一字段 currentLevel；缺失时回退到中级列表第一关。
- */
 export function pickMidLevelFromProgress(data, orderedLevels) {
   const list = Array.isArray(orderedLevels) ? orderedLevels : getMidLevelList()
   if (!data) return list.length ? list[0] : null
@@ -238,9 +227,6 @@ export function pickXhsLevelFromProgress(data, orderedLevels) {
   return list.length ? list[0] : null
 }
 
-/**
- * 中级：获取当前 level 的“下一个真实存在的 level”（与 issue2.json 完全一致）
- */
 export function getMidNextLevel(levelNum) {
   const current = parseInt(levelNum, 10)
   return fetchMidIssues().then(() => {
@@ -261,31 +247,21 @@ export function getXhsNextLevel(levelNum) {
   })
 }
 
-/**
- * 中级 CDN 图地址（与 getMidLevelPuzzle 一致）：w{level}-1 上图、w{level}-2 下图
- * @returns {{ imageUrlTop: string, imageUrlBottom: string } | null}
- */
 export function getMidLevelImageUrls(levelNum) {
   const lv = parseInt(levelNum, 10)
-  // issue2 首关可能为 level=0，对应 w0-1 / w0-2
   if (!Number.isFinite(lv) || lv < 0) return null
   return {
-    imageUrlTop: `${MID_IMAGE_BASE}/w${lv}-1.png`,
-    imageUrlBottom: `${MID_IMAGE_BASE}/w${lv}-2.png`,
+    imageUrlTop: MID_IMAGE_BASE + '/w' + lv + '-1.png',
+    imageUrlBottom: MID_IMAGE_BASE + '/w' + lv + '-2.png',
   }
 }
 
 export function getXhsLevelImageUrl(levelNum) {
   const lv = parseInt(levelNum, 10)
   if (!Number.isFinite(lv) || lv <= 0) return ''
-  return `${XHS_IMAGE_BASE}/${lv}.webp`
+  return XHS_IMAGE_BASE + '/' + lv + '.webp'
 }
 
-/**
- * 使用 downloadFile 预热 CDN 图片缓存（小程序等端有效；失败静默）
- * @param {string[]} urls
- * @param {number} [concurrency=4]
- */
 export function prefetchImageUrls(urls, concurrency = 4) {
   const list = [...new Set((urls || []).filter(Boolean))]
   if (!list.length) return Promise.resolve()
@@ -312,9 +288,6 @@ export function prefetchImageUrls(urls, concurrency = 4) {
   return run().catch(() => {})
 }
 
-/**
- * 单机中级：当前关加载完成后，预取「下一关」两张图（依赖 issue2 顺序）
- */
 export function prefetchNextMidLevelImages(currentLevelNum) {
   return getMidNextLevel(currentLevelNum)
     .then((next) => {
@@ -341,10 +314,6 @@ export function prefetchNextXhsLevelImage(currentLevelNum) {
     })
 }
 
-/**
- * 1V1 对战（issue3）：根据本局 levels 预取 5 关单图
- * @param {number[]} levelIds
- */
 export function prefetchBattleXhsImages(levelIds) {
   const ids = Array.isArray(levelIds) ? levelIds : []
   const urls = []
@@ -368,25 +337,20 @@ export function prefetchBattleMidImages(levelIds) {
   return prefetchImageUrls(urls, 4)
 }
 
-/**
- * 中级：从 issue2.json 中找到 level 对应条目，并拼出上下两张图
- */
 export function getMidLevelPuzzle(levelNum) {
   const lv = parseInt(levelNum, 10)
   return fetchMidIssues().then((list) => {
-    // issue2.json 里的 level 有时是字符串，有时是数字，所以强制 parseInt 对比
     const item = list.find((x) => x && parseInt(x.level, 10) === lv)
     if (!item) {
-      // 找不到题目直接抛出异常，让前端捕获
-      throw new Error(`题目(level=${lv})未找到`)
+      throw new Error('题目(level=' + lv + ')未找到')
     }
 
     const answerLength = Math.max(1, parseInt(item.answerLength, 10) || 3)
     const imgs = getMidLevelImageUrls(lv)
     return normalizePuzzle({
       hintText: item.tips || '',
-      topCaption: item.question ? `这是${item.question}` : '',
-      bottomCaption: `这是${'_'.repeat(answerLength)}`,
+      topCaption: item.question ? '这是' + item.question : '',
+      bottomCaption: '这是' + '_'.repeat(answerLength),
       keywordHint: item.answerType || '',
       wordArray: [],
       answerLength,
@@ -398,15 +362,12 @@ export function getMidLevelPuzzle(levelNum) {
   })
 }
 
-/**
- * 小红书专辑：从 issue3.json 找到 level 对应条目，并拼出单图与作者
- */
 export function getXhsLevelPuzzle(levelNum) {
   const lv = parseInt(levelNum, 10)
   return fetchXhsIssues().then((list) => {
     const item = list.find((x) => x && parseInt(x.level, 10) === lv)
     if (!item) {
-      throw new Error(`题目(level=${lv})未找到`)
+      throw new Error('题目(level=' + lv + ')未找到')
     }
 
     const answerLength = Math.max(1, parseInt(item.answerLength, 10) || 3)

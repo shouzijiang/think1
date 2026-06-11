@@ -372,7 +372,7 @@ import {
   safeGetLaunchScene,
   safeOffRewardedVideoClose,
   showRewardedVideoAd,
-} from "../utils/rewardedVideoRunner";
+} from "../../utils/rewardedVideoRunner";
 import PunPageNavBar from "../../components/PunPageNavBar.vue";
 
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar();

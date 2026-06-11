@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const fs=require\\('fs'\\);const c=fs.readFileSync\\('e:/php/think1/pun-game/src/components/PunPassSuccessOverlay.vue','utf8'\\);const lines=c.split\\('\\\\n'\\);lines.forEach\\(\\(l,i\\)=>{if\\(l.includes\\('answerText'\\)\\)console.log\\(i+': '+JSON.stringify\\(l\\)\\);}\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const files={'PunService.php':'e:/php/think1/app/service/PunService.php','Overlay':'e:/php/think1/pun-game/src/components/PunPassSuccessOverlay.vue','playXhs':'e:/php/think1/pun-game/src/pages-sub/playXhs/playXhs.vue','playMid':'e:/php/think1/pun-game/src/pages-sub/playMid/playMid.vue','play':'e:/php/think1/pun-game/src/pages-sub/play/play.vue','battlePlay':'e:/php/think1/pun-game/src/pages-sub/battlePlay/battlePlay.vue'};let allClean=true;Object.entries\\(files\\).forEach\\(\\([n,p]\\)=>{const c=fs.readFileSync\\(p,'utf8'\\);const bad=[];if\\(c.includes\\('answerText'\\)\\)bad.push\\('answerText'\\);if\\(c.includes\\('correctAnswer'\\)\\)bad.push\\('correctAnswer'\\);if\\(c.includes\\('pun-pass__answer'\\)\\)bad.push\\('pun-pass__answer'\\);console.log\\(n+': '+\\(bad.length?'STILL HAS '+bad.join\\(','\\):'CLEAN'\\)\\);if\\(bad.length\\)allClean=false;}\\);console.log\\(allClean?'\\\\nAll clean!':'\\\\\\\\nSome files still need cleanup.'\\);\")",
+      "Bash(node -e \"const d=require\\('e:/php/think1/public/static/punGame/issue3_food.json'\\);const t={};d.forEach\\(e=>{t[e.answerType]=\\(t[e.answerType]||0\\)+1}\\);console.log\\('Food:',t\\);const d2=require\\('e:/php/think1/public/static/punGame/issue3_dessert.json'\\);const t2={};d2.forEach\\(e=>{t2[e.answerType]=\\(t2[e.answerType]||0\\)+1}\\);console.log\\('Dessert:',t2\\);const d3=require\\('e:/php/think1/public/static/punGame/issue3_fruit.json'\\);const t3={};d3.forEach\\(e=>{t3[e.answerType]=\\(t3[e.answerType]||0\\)+1}\\);console.log\\('Fruit:',t3\\);\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const c=fs.readFileSync\\('e:/php/think1/docs/database.sql','utf8'\\);const idx=c.indexOf\\('pun_reward_claim_record'\\);if\\(idx>=0\\)console.log\\(c.substring\\(idx,idx+500\\)\\);\")",
+      "Bash(node -e \"const {execSync}=require\\('child_process'\\);const files=['e:/php/think1/pun-game/src/data/levels.js','e:/php/think1/pun-game/src/data/albumLevels.js','e:/php/think1/pun-game/src/constants/albumCategories.js'];files.forEach\\(f=>{try{execSync\\('node --check \\\\\"'+f+'\\\\\"',{stdio:'pipe'}\\);console.log\\('OK: '+f.split\\('/'\\).pop\\(\\)\\);}catch\\(e\\){console.log\\('FAIL: '+f.split\\('/'\\).pop\\(\\)\\);}}\\);\")",
+      "Bash(php -l e:/php/think1/app/service/PunService.php)",
+      "Bash(php -l e:/php/think1/app/controller/Pun.php)",
+      "Bash(php -l e:/php/think1/route/pun.php)",
+      "Bash(php -l e:/php/think1/app/model/PunAlbumUnlock.php)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const fs=require\\('fs'\\);const c=fs.readFileSync\\('e:/php/think1/pun-game/src/pages/index/index.vue','utf8'\\);const imports=c.match\\(/from\\\\s+['\\\\\"][^'\\\\\"]+['\\\\\"]/g\\);imports.forEach\\(i=>console.log\\(i\\)\\);\")",
+      "Bash(node e:/php/think1/scripts/tmp_audit_imports.js)",
+      "Bash(copy \"e:\\\\php\\\\think1\\\\pun-game\\\\src\\\\pages-sub\\\\constants\\\\rewardedVideoAd.js\" \"e:\\\\php\\\\think1\\\\pun-game\\\\src\\\\constants\\\\rewardedVideoAd.js\")",
+      "Bash(copy \"e:\\\\php\\\\think1\\\\pun-game\\\\src\\\\pages-sub\\\\utils\\\\rewardedVideoRunner.js\" \"e:\\\\php\\\\think1\\\\pun-game\\\\src\\\\utils\\\\rewardedVideoRunner.js\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const path=require\\('path'\\);const src='e:/php/think1/pun-game/src';function check\\(f,imp\\){const d=path.dirname\\(f\\);const r=path.resolve\\(d,imp\\);const exts=['.js','.ts','.vue',''];for\\(const e of exts\\){if\\(fs.existsSync\\(r+e\\)\\)return true;if\\(fs.existsSync\\(path.join\\(r,'index'+e\\)\\)\\)return true;}return false;}const checks=[['pages/index/index.vue','../../utils/rewardedVideoRunner'],['pages/index/index.vue','../../constants/rewardedVideoAd'],['pages-sub/composables/usePunRewardedVideoHint.js','../../utils/rewardedVideoRunner'],['pages-sub/tasks/tasks.vue','../../utils/rewardedVideoRunner'],['utils/rewardedVideoRunner.js','../constants/rewardedVideoAd']];checks.forEach\\(\\([f,i]\\)=>console.log\\(\\(check\\(src+'/'+f,i\\)?'OK':'BROKEN'\\)+' '+f+' -> '+i\\)\\);\")",
+      "Read(//e/php/think1/scripts/**)",
+      "Bash(node -e \"const fs=require\\('fs'\\);const root='e:/php/think1';fs.readdirSync\\(root\\).filter\\(f=>f.startsWith\\('+'\\)||f.startsWith\\('tmp_'\\)||f.includes\\('}}}\\)'\\)\\).forEach\\(f=>console.log\\(f\\)\\);\")"
+    ],
+    "additionalDirectories": [
+      "e:\\php\\think1\\scripts"
+    ]
+  }
+}

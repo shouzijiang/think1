@@ -180,6 +180,7 @@ class Pun extends BaseController
         $subscribeStatus = (string) $request->post('subscribeStatus', '');
         $templateId = (string) $request->post('templateId', '');
         $launchScene = $request->post('launchScene', null);
+        $albumType = $request->post('albumType', '');
 
         try {
             $result = $this->punService->claimReward(
@@ -190,6 +191,7 @@ class Pun extends BaseController
                     'subscribeStatus' => $subscribeStatus,
                     'templateId' => $templateId,
                     'launchScene' => $launchScene,
+                    'albumType' => $albumType,
                 ]
             );
             return ResponseHelper::success($result);
@@ -213,6 +215,19 @@ class Pun extends BaseController
         $mode = $request->get('gameTier', 'beginner');
         $result = $this->punService->getLevelProgress($userId, (string) $mode);
         return ResponseHelper::success($result);
+    }
+
+    /**
+     * 获取已解锁的专辑列表 GET /pun/album/unlocked
+     */
+    public function albumUnlocked(Request $request)
+    {
+        $userId = $request->user_id ?? 0;
+        if (!$userId) {
+            return ResponseHelper::unauthorized();
+        }
+        $albumTypes = $this->punService->getUnlockedAlbums((int) $userId);
+        return ResponseHelper::success(['unlockedAlbums' => $albumTypes]);
     }
 
     /**

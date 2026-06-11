@@ -291,7 +291,7 @@ INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title
 VALUES ('all', NULL, NULL, '全服公告', '玩家（id917 用好玩谐音）反馈【小红书专辑 · 第778关tomato无法识别】，等一系列问题已采纳，奖励查看答案次数15，奖励已发放。', 1);
 -- 指定用户邮件示例（将 123 替换为 users 表中的用户 id）
 INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
-VALUES ('user', 1114, NULL, 'bug反馈回复', '感谢您的反馈。【小红书专辑 · 第99关，问题：图片错误】，问题已采纳，奖励查看答案次数5，奖励已发放。', 1);
+VALUES ('user', 1603, NULL, '回复', '感谢您的反馈。【小红书专辑 · 第99关，问题：图片错误】，问题已采纳，奖励查看答案次数5，奖励已发放。', 1);
 
 -- 14. 谐音梗猜一猜统一领奖记录（所有领取类型都落此表：分享/激励视频/daily_* / permanent_* 等）
 CREATE TABLE `pun_reward_claim_record` (
@@ -308,6 +308,18 @@ CREATE TABLE `pun_reward_claim_record` (
   KEY `idx_user_type_date` (`user_id`, `claim_type`, `claim_date`),
   KEY `idx_status_created` (`status`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜领奖记录';
+
+-- 15. 分类专辑解锁记录（观看激励视频后解锁）
+CREATE TABLE `pun_album_unlock` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) unsigned NOT NULL COMMENT '用户ID',
+  `album_type` varchar(32) NOT NULL COMMENT '专辑标识（如 character、food、city）',
+  `album_name` varchar(32) NOT NULL DEFAULT '' COMMENT '专辑名称（如 人物篇、食物篇）',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '解锁时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_album` (`user_id`, `album_type`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='谐音梗猜一猜专辑解锁记录';
 
 -- 15. 每日答题次数统计（用于“答满20题可领登录奖励”）
 CREATE TABLE `pun_daily_answer_stat` (

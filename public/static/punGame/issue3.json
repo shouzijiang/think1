@@ -26,7 +26,7 @@
     {
         "level": 5,
         "answerLength": 9,
-        "answerType": "大写英文",
+        "answerType": "英文",
         "author": "许老师的段子铺"
     },
     {
@@ -56,7 +56,7 @@
     {
         "level": 10,
         "answerLength": 3,
-        "answerType": "养生食疗好物",
+        "answerType": "食物",
         "author": "许老师的段子铺"
     },
     {
@@ -776,7 +776,7 @@
     {
         "level": 132,
         "answerLength": 2,
-        "answerType": "食物",
+        "answerType": "甜品",
         "author": "许老师的段子铺"
     },
     {
@@ -860,7 +860,7 @@
     {
         "level": 146,
         "answerLength": 3,
-        "answerType": "无",
+        "answerType": "甜品",
         "author": "许老师的段子铺"
     },
     {
@@ -1670,7 +1670,7 @@
     {
         "level": 556,
         "answerLength": 3,
-        "answerType": "无",
+        "answerType": "甜品",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
@@ -2510,61 +2510,61 @@
     {
         "level": 762,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 763,
         "answerLength": 3,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 764,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 765,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 766,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 768,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 769,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 770,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 771,
         "answerLength": 3,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 772,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "水果",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
@@ -3044,7 +3044,7 @@
     {
         "level": 888,
         "answerLength": 3,
-        "answerType": "菜品",
+        "answerType": "美食",
         "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
@@ -5342,7 +5342,7 @@
     {
         "level": 2057,
         "answerLength": 7,
-        "answerType": "品牌主题曲-英文",
+        "answerType": "英文",
         "author": "乌吴捂勿"
     },
     {
@@ -5378,55 +5378,55 @@
     {
         "level": 2063,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "乌吴捂勿"
     },
     {
         "level": 2064,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "乌吴捂勿"
     },
     {
         "level": 2065,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "乌吴捂勿"
     },
     {
         "level": 2066,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "乌吴捂勿"
     },
     {
         "level": 2067,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "乌吴捂勿"
     },
     {
         "level": 2068,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "乌吴捂勿"
     },
     {
         "level": 2069,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "游戏名【谐音梗猜一猜】"
     },
     {
         "level": 2070,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "乌吴捂勿"
     },
     {
         "level": 2071,
         "answerLength": 2,
-        "answerType": "地名",
+        "answerType": "城市",
         "author": "乌吴捂勿"
     },
     {
@@ -5505,7 +5505,7 @@
         "level": 2084,
         "answerLength": 3,
         "answerType": "明星",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 2085,
@@ -6207,7 +6207,7 @@
         "level": 2213,
         "answerLength": 2,
         "answerType": "中药材",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 2215,
@@ -6860,14 +6860,14 @@
     {
         "level": 2336,
         "answerLength": 3,
-        "answerType": "点心",
+        "answerType": "甜品",
         "author": "乌吴捂勿"
     },
     {
         "level": 2337,
         "answerLength": 2,
         "answerType": "点心",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 2338,
@@ -7581,7 +7581,7 @@
         "level": 2470,
         "answerLength": 2,
         "answerType": "无",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 2471,
@@ -8691,7 +8691,7 @@
         "level": 2684,
         "answerLength": 2,
         "answerType": "无",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 2685,
@@ -9453,7 +9453,7 @@
         "level": 2833,
         "answerLength": 4,
         "answerType": "成语",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 2834,
@@ -10226,247 +10226,247 @@
     {
         "level": 2984,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2985,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2986,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2987,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2988,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2990,
         "answerLength": 3,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2991,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2992,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2993,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2994,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2995,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 2997,
         "answerLength": 4,
-        "answerType": "无",
+        "answerType": "圣诞节",
         "author": "乌吴捂勿"
     },
     {
         "level": 2998,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "圣诞节",
         "author": "乌吴捂勿"
     },
     {
         "level": 2999,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "圣诞节",
         "author": "乌吴捂勿"
     },
     {
         "level": 3000,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "圣诞节",
         "author": "乌吴捂勿"
     },
     {
         "level": 3001,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "圣诞节",
         "author": "乌吴捂勿"
     },
     {
         "level": 3002,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "圣诞节",
         "author": "乌吴捂勿"
     },
     {
         "level": 3004,
         "answerLength": 3,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3005,
         "answerLength": 3,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3006,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3007,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3008,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3009,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3011,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3012,
         "answerLength": 2,
-        "answerType": "无",
-        "author": "乌吴捂勿"
+        "answerType": "植物",
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 3013,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3014,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3015,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3016,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3018,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3019,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3020,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3021,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3022,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3023,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3025,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3026,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3027,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3028,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3029,
         "answerLength": 4,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
         "level": 3030,
         "answerLength": 2,
-        "answerType": "无",
+        "answerType": "植物",
         "author": "乌吴捂勿"
     },
     {
@@ -10983,7 +10983,7 @@
         "level": 3131,
         "answerLength": 2,
         "answerType": "无",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 3132,
@@ -11715,7 +11715,7 @@
         "level": 3273,
         "answerLength": 2,
         "answerType": "无",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 3274,
@@ -12123,7 +12123,7 @@
         "level": 3352,
         "answerLength": 4,
         "answerType": "无",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 3354,
@@ -12651,7 +12651,7 @@
         "level": 3455,
         "answerLength": 3,
         "answerType": "无",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 3456,
@@ -12969,7 +12969,7 @@
         "level": 3518,
         "answerLength": 4,
         "answerType": "无",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 3519,
@@ -13269,7 +13269,7 @@
         "level": 3576,
         "answerLength": 2,
         "answerType": "无",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     },
     {
         "level": 3577,
@@ -13491,6 +13491,6 @@
         "level": 3619,
         "answerLength": 3,
         "answerType": "马",
-        "author": "乌吴捂勿"
+        "author": "绿泡泡【谐音梗猜一猜】"
     }
 ]

@@ -22,6 +22,7 @@ Route::group('pun', function () {
         Route::post('level/skip', 'Pun/skipLevel');
         Route::post('reward/claim', 'Pun/claimReward');
         Route::get('level/progress', 'Pun/levelProgress');
+        Route::get('album/unlocked', 'Pun/albumUnlocked');
         Route::get('tasks/status', 'Pun/taskStatus');
         Route::post('feedback/submit', 'Pun/feedbackSubmit');
         

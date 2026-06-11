@@ -19,14 +19,15 @@ export function isRewardedVideoSupported() {
 
 /**
  * 创建激励视频实例；onError 时回调 onInvalid（用于置空单例并释放 busy）
- * @param {{ onInvalid?: () => void }} [opts]
+ * @param {{ onInvalid?: () => void, adUnitId?: string }} [opts]
  */
 export function createManagedRewardedVideoAd(opts = {}) {
   const creator = getRewardedVideoCreator()
   if (!creator) return null
 
   try {
-    const ad = creator({ adUnitId: REWARDED_VIDEO_AD_UNIT_ID })
+    const adUnitId = opts.adUnitId || REWARDED_VIDEO_AD_UNIT_ID
+    const ad = creator({ adUnitId })
     if (!ad || typeof ad.show !== 'function') {
       return null
     }

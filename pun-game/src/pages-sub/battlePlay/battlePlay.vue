@@ -147,6 +147,8 @@
       <view class="result-card">
         <text class="res-title">{{ resultTitle }}</text>
         <view class="res-detail">
+          <text>你答对: {{ resultData.myProgress || 0 }} / 5 题</text>
+          <text>对手答对: {{ resultData.opponentProgress || 0 }} / 5 题</text>
           <text>本局总耗时: {{ formatTime(resultData.totalTimeMs || 0) }}</text>
         </view>
         <button class="btn-home" @click="confirmBackToRoom">确认返回房间</button>
@@ -212,7 +214,11 @@ const resultData = ref({});
 const resultTitle = computed(() => {
   const winnerId = Number(resultData.value.winnerId || 0);
   const myId = Number(myUserId.value || 0);
-  if (!winnerId) return "势均力敌，平局！";
+  const reason = resultData.value.reason || '';
+  if (!winnerId || winnerId === 0) return "势均力敌，平局！";
+  if (reason === 'opponent_disconnected') {
+    return winnerId === myId ? "对手断线，你获胜了" : "你已断线，本局失败";
+  }
   return winnerId === myId ? "太棒了，你赢了！" : "很遗憾，你输了";
 });
 
@@ -363,6 +369,7 @@ async function checkAnswer() {
     });
     // 修改这行：因为 submitAnswer 返回的结果结构有可能是 { isCorrect: true } 或者是原格式，根据实际情况适配
     if (data && data.isCorrect) {
+      // 记录正确答案
       clearWrongFloatText();
       runPassSuccess({
         durationMs: 1000,
@@ -536,6 +543,9 @@ onLoad((opts) => {
     resultData.value = {
       winnerId: data.winnerId,
       totalTimeMs: Number(data.totalTimeMs || 0),
+      reason: data.reason || '',
+      myProgress: Number(data.myProgress || 0),
+      opponentProgress: Number(data.opponentProgress || 0),
     };
     const winnerId = Number(data.winnerId || 0);
     const myId = Number(myUserId.value || 0);

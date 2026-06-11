@@ -52,18 +52,22 @@
       </view>
       <view class="start-sub-row">
         <view
-          class="btn-start btn-start-xhs"
+          class="btn-start btn-start-classic"
           hover-class="btn-start--hover"
           :hover-start-time="20"
           :hover-stay-time="100"
-          @click="startGameMid"
+          @click="
+            showAlbumPicker = true;
+            loadUnlockedAlbums();
+          "
         >
+          <view class="album-badge">上新</view>
           <image
             class="btn-icon btn-icon-img"
             src="https://sofun.online/static/mini/xhs.png"
             mode="aspectFit"
           />
-          <text class="btn-text">经典专辑</text>
+          <text class="btn-text">更多专辑</text>
         </view>
         <view
           class="btn-start btn-start-2"
@@ -282,6 +286,49 @@
       </view>
       <view class="streamer-float-dot" />
     </view>
+
+    <view
+      class="streamer-float group-float"
+      hover-class="streamer-float--hover"
+      :hover-start-time="20"
+      :hover-stay-time="100"
+      @click="showGroupQr = true"
+    >
+      <view class="streamer-float-inner">
+        <text class="streamer-float-icon">💬</text>
+        <text class="streamer-float-title">玩家群</text>
+      </view>
+    </view>
+
+    <!-- 玩家群二维码弹窗 -->
+    <view v-if="showGroupQr" class="group-qr-mask" @click="showGroupQr = false">
+      <view class="group-qr-card" @click.stop>
+        <text class="group-qr-title">玩家交流群</text>
+        <image
+          class="group-qr-img"
+          src="https://sofun.online/static/group_qr.jpg"
+          mode="aspectFit"
+          show-menu-by-longpress
+        />
+        <text class="group-qr-tip">长按二维码识别加入</text>
+        <view
+          class="group-qr-close"
+          hover-class="group-qr-close--hover"
+          @click="showGroupQr = false"
+        >
+          <text>✕</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 专辑选择弹窗 -->
+    <PunAlbumPicker
+      :show="showAlbumPicker"
+      :unlocked-albums="unlockedAlbums"
+      @close="showAlbumPicker = false"
+      @select="onAlbumSelect"
+      @unlock="onAlbumUnlock"
+    />
   </view>
 </template>
 
@@ -326,6 +373,21 @@ import {
   stopBgm,
 } from "../../utils/gameAudio";
 import { usePunShareReward } from "../../composables/usePunShareReward";
+import PunAlbumPicker from "../../components/PunAlbumPicker.vue";
+import {
+  loadFilteredXhsLevelList,
+  getFilteredXhsLevelListForType,
+  pickFilteredXhsLevelFromProgress,
+} from "../../data/albumLevels";
+import {
+  createManagedRewardedVideoAd,
+  destroyRewardedVideoAd,
+  isRewardedVideoSupported,
+  rewardedVideoFailToast,
+  safeOffRewardedVideoClose,
+  showRewardedVideoAd,
+} from "../../utils/rewardedVideoRunner";
+import { ALBUM_UNLOCK_AD_UNIT_ID } from "../../constants/rewardedVideoAd";
 
 const { statusBarHeight, navBarHeight } = useNavBar();
 
@@ -367,6 +429,10 @@ const changelogTitle = ref("本期更新");
 const changelogLines = ref([]);
 const changelogVersion = ref("");
 const changelogSuppressChecked = ref(false);
+
+const showAlbumPicker = ref(false);
+const unlockedAlbums = ref([]);
+const showGroupQr = ref(false);
 
 function dismissChangelog() {
   if (changelogVersion.value && changelogSuppressChecked.value) {
@@ -639,6 +705,101 @@ function startGame() {
     })
     .catch(() => goPlay(getCurrentLevel()));
 }
+
+function onAlbumSelect(payload) {
+  showAlbumPicker.value = false;
+
+  if (payload.type === "mid") {
+    // 经典专辑 → 原有中级题库
+    startGameMid();
+  } else if (payload.type === "xhs_filtered") {
+    // 分类专辑 → 小红书过滤模式
+    startFilteredXhs(payload);
+  }
+}
+
+async function startFilteredXhs({ filterType, label }) {
+  const goPlay = (lv) => {
+    uni.navigateTo({
+      url: `/pages-sub/playAlbum/playAlbum?level=${lv}&filterType=${encodeURIComponent(
+        filterType
+      )}&label=${encodeURIComponent(label || filterType)}`,
+    });
+  };
+  try {
+    // 专辑篇独立于 XHS 进度，直接从过滤列表第一关开始
+    const list = await loadFilteredXhsLevelList(filterType);
+    const total = list.length;
+    if (total === 0) {
+      uni.showToast({ title: "该专辑暂无题目~", icon: "none" });
+      return;
+    }
+    const lv = list[0];
+    goPlay(lv);
+  } catch {
+    goPlay(1);
+  }
+}
+
+async function loadUnlockedAlbums() {
+  try {
+    const data = await api.getUnlockedAlbums();
+    if (data && Array.isArray(data.unlockedAlbums)) {
+      unlockedAlbums.value = data.unlockedAlbums;
+    }
+  } catch (e) {
+    console.warn("loadUnlockedAlbums error", e);
+  }
+}
+
+async function onAlbumUnlock({ categorySlug, label }) {
+  if (!isRewardedVideoSupported()) {
+    uni.showToast({ title: "当前环境不支持激励视频", icon: "none" });
+    return;
+  }
+
+  const ad = createManagedRewardedVideoAd({ adUnitId: ALBUM_UNLOCK_AD_UNIT_ID });
+  if (!ad) {
+    uni.showToast({ title: "广告加载失败，请稍后重试", icon: "none" });
+    return;
+  }
+
+  uni.showLoading({ title: "广告加载中...", mask: true });
+
+  let settled = false;
+  const onClose = (res) => {
+    if (settled) return;
+    settled = true;
+    safeOffRewardedVideoClose(ad, onClose);
+    uni.hideLoading();
+
+    if (res && res.isEnded) {
+      api
+        .unlockAlbum(categorySlug)
+        .then(() => {
+          uni.showToast({ title: `${label}专辑已解锁！!`, icon: "success" });
+          loadUnlockedAlbums();
+        })
+        .catch((err) => {
+          uni.showToast({ title: err.message || "解锁失败", icon: "none" });
+        });
+    } else {
+      uni.showToast({ title: "请完整观看广告以解锁专辑", icon: "none" });
+    }
+  };
+
+  ad.onClose(onClose);
+
+  showRewardedVideoAd(ad).catch((err) => {
+    console.warn("[albumUnlock] ad show failed", err);
+    if (!settled) {
+      settled = true;
+      safeOffRewardedVideoClose(ad, onClose);
+      uni.hideLoading();
+      rewardedVideoFailToast(err);
+    }
+  });
+}
 </script>
 
 <style lang="scss" scoped>
@@ -828,19 +989,15 @@ function startGame() {
   0%,
   100% {
     transform: rotate(-4deg) scale(1) translateZ(0);
-    box-shadow:
-      0 8rpx 24rpx rgba(169, 201, 238, 0.3),
-      0 0 0 8rpx rgba(145, 213, 139, 0.06),
-      0 0 0 20rpx rgba(145, 213, 139, 0.03),
+    box-shadow: 0 8rpx 24rpx rgba(169, 201, 238, 0.3),
+      0 0 0 8rpx rgba(145, 213, 139, 0.06), 0 0 0 20rpx rgba(145, 213, 139, 0.03),
       0 4rpx 0 rgba(255, 255, 255, 0.8) inset;
     filter: brightness(1);
   }
   45% {
     transform: rotate(-3deg) scale(1.1) translateZ(40rpx);
-    box-shadow:
-      0 24rpx 56rpx rgba(169, 201, 238, 0.5),
-      0 0 0 20rpx rgba(145, 213, 139, 0.14),
-      0 0 0 44rpx rgba(145, 213, 139, 0.07),
+    box-shadow: 0 24rpx 56rpx rgba(169, 201, 238, 0.5),
+      0 0 0 20rpx rgba(145, 213, 139, 0.14), 0 0 0 44rpx rgba(145, 213, 139, 0.07),
       0 4rpx 0 rgba(255, 255, 255, 0.85) inset;
     filter: brightness(1.08);
   }
@@ -1006,13 +1163,20 @@ function startGame() {
       inset 0 2rpx 0 rgba(255, 255, 255, 0.2), inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.06);
   }
 
-  &.btn-start-xhs {
-    /* 主按钮：薄荷绿实底 + 白字 */
-    background: linear-gradient(180deg, #ffe49a 0%, #ffc857 55%, #f4a62a 100%);
+  &.btn-start-classic {
+    background: linear-gradient(
+      135deg,
+      #6c5ce7,
+      #48dbfb,
+      #26de81,
+      #feca57,
+      #ff6b6b,
+      #fd79a8
+    );
     color: #fff;
-    border: 2rpx solid rgba(255, 255, 255, 0.68);
-    box-shadow: 0 22rpx 32rpx rgba(255, 190, 74, 0.42), 0 12rpx 0 rgba(184, 118, 18, 0.34),
-      inset 0 2rpx 0 rgba(255, 255, 255, 0.4), inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.16);
+    border: 2rpx solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 22rpx 32rpx rgba(108, 92, 231, 0.3), 0 12rpx 0 rgba(80, 60, 180, 0.22),
+      inset 0 2rpx 0 rgba(255, 255, 255, 0.25), inset 0 -10rpx 14rpx rgba(0, 0, 0, 0.14);
 
     .btn-icon-img {
       width: 40rpx;
@@ -1020,8 +1184,7 @@ function startGame() {
     }
 
     .btn-text {
-      text-shadow: 0 2rpx 8rpx rgba(120, 78, 12, 0.32);
-      // color: #ff2442;
+      text-shadow: 0 2rpx 6rpx rgba(60, 30, 10, 0.3);
     }
   }
 }
@@ -1180,6 +1343,24 @@ function startGame() {
   }
 }
 
+.album-badge {
+  position: absolute;
+  top: -2rpx;
+  right: -2rpx;
+  background: linear-gradient(135deg, #ff6b6b, #fd79a8);
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 800;
+  padding: 4rpx 12rpx;
+  border-radius: 20rpx;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 0;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4rpx 10rpx rgba(255, 80, 80, 0.3);
+  animation: battleBadgePulse 1.8s ease-in-out infinite;
+  z-index: 1;
+}
+
 .stats {
   position: relative;
   z-index: 2;
@@ -1245,7 +1426,7 @@ function startGame() {
 .streamer-float {
   position: fixed;
   right: 0;
-  top: 30%;
+  top: 25%;
   transform: translateY(-50%);
   z-index: 52;
   width: 120rpx;
@@ -1320,6 +1501,89 @@ function startGame() {
   animation: streamer-dot-pulse 1.4s ease-in-out infinite;
 }
 
+.group-float {
+  top: 38%;
+  background: linear-gradient(160deg, #26de81 0%, #20b868 55%, #16914a 100%);
+  box-shadow: 0 8rpx 28rpx rgba(38, 222, 129, 0.45),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.3);
+}
+
+@keyframes streamer-dot-pulse {
+  0%,
+  100% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.7);
+  }
+}
+
+/* 玩家群二维码弹窗 */
+.group-qr-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48rpx;
+  box-sizing: border-box;
+}
+
+.group-qr-card {
+  position: relative;
+  width: 100%;
+  max-width: 500rpx;
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 36rpx 28rpx 28rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.group-qr-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: #333;
+  margin-bottom: 24rpx;
+}
+
+.group-qr-img {
+  width: 100%;
+  height: 400rpx;
+  border-radius: 12rpx;
+  background: #f5f5f5;
+}
+
+.group-qr-tip {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 18rpx;
+}
+
+.group-qr-close {
+  position: absolute;
+  top: -20rpx;
+  right: -20rpx;
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #fff;
+}
+.group-qr-close--hover {
+  background: rgba(0, 0, 0, 0.75);
+  transform: scale(0.92);
+}
+
 @keyframes streamer-float-wiggle {
   0%,
   100% {
@@ -1340,18 +1604,6 @@ function startGame() {
   }
   50% {
     transform: translateY(-4rpx) scale(1.12);
-  }
-}
-
-@keyframes streamer-dot-pulse {
-  0%,
-  100% {
-    opacity: 0.9;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.4;
-    transform: scale(0.7);
   }
 }
 

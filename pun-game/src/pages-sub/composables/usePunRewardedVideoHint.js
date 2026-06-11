@@ -7,7 +7,7 @@ import {
   rewardedVideoFailToast,
   safeOffRewardedVideoClose,
   showRewardedVideoAd,
-} from '../utils/rewardedVideoRunner'
+} from '../../utils/rewardedVideoRunner'
 
 /**
  * 揭字次数为 0 时：拉起激励视频（微信/抖音小程序），完整观看后调用后端发放 +1 次答案次数。

@@ -3,3 +3,6 @@
  * 若开发者工具无法预览，请切换基础库版本或真机调试。
  */
 export const REWARDED_VIDEO_AD_UNIT_ID = 'adunit-4a2efd07700bfa4b'
+
+/** 专辑解锁激励视频广告位 ID */
+export const ALBUM_UNLOCK_AD_UNIT_ID = 'adunit-0bbca98b93171ccc'

@@ -586,6 +586,20 @@ export const api = {
     return request({ url: '/pun/streamer/stats', method: 'GET' })
   },
 
+  /** 获取已解锁的分类专辑列表 */
+  getUnlockedAlbums() {
+    return request({ url: '/pun/album/unlocked', method: 'GET' })
+  },
+
+  /** 解锁分类专辑（观看激励视频后） */
+  unlockAlbum(albumType) {
+    return request({
+      url: '/pun/reward/claim',
+      method: 'POST',
+      data: { type: 'album_unlock', albumType },
+    })
+  },
+
   /** 登录态缓存：避免高频 getStorageSync */
   setTokenCache,
   clearTokenCache,

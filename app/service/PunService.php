@@ -25,6 +25,9 @@ class PunService
     /** 领取类型：激励视频奖励（基础 +1，可按入参 delta 增量） */
     public const REWARD_TYPE_VIDEO = 'reward_video';
 
+    /** 领取类型：专辑解锁（观看激励视频后解锁分类专辑） */
+    public const REWARD_TYPE_ALBUM_UNLOCK = 'album_unlock';
+
     /**
      * 每日任务配置（按任务类型分组）
      * 键名: noon（答题任务）| ad（看广告任务）| battle（1V1 对战任务）
@@ -374,6 +377,7 @@ class PunService
         if (!in_array($type, [
             self::REWARD_TYPE_SHARE,
             self::REWARD_TYPE_VIDEO,
+            self::REWARD_TYPE_ALBUM_UNLOCK,
             self::DAILY_TASKS['noon']['type'],
             self::DAILY_TASKS['ad']['type'],
             self::DAILY_TASKS['battle']['type'],
@@ -393,6 +397,8 @@ class PunService
             $result = $this->claimByShare($userId, $delta);
         } elseif ($type === self::REWARD_TYPE_VIDEO) {
             $result = $this->claimByRewardVideo($userId, $delta);
+        } elseif ($type === self::REWARD_TYPE_ALBUM_UNLOCK) {
+            $result = $this->claimByAlbumUnlock($userId, $extra);
         } elseif ($type === self::DAILY_TASKS['noon']['type']) {
             $result = $this->claimByDailyNoon($userId, $extra);
         } elseif ($type === self::DAILY_TASKS['ad']['type']) {
@@ -561,6 +567,92 @@ class PunService
             'added' => $delta,
             'type' => self::REWARD_TYPE_VIDEO,
         ];
+    }
+
+    /**
+     * 专辑解锁：观看激励视频后解锁指定分类专辑（全生命周期仅一次）
+     * @return array{albumType:string,albumName:string,unlocked:bool,type:string}
+     */
+    private function claimByAlbumUnlock(int $userId, array $extra = []): array
+    {
+        $albumType = trim((string) ($extra['albumType'] ?? ''));
+        if ($albumType === '') {
+            throw new \InvalidArgumentException('缺少专辑类型参数');
+        }
+
+        // 校验 albumType 是否为有效的 category slug
+        $validSlugs = $this->getValidAlbumSlugs();
+        if (!isset($validSlugs[$albumType])) {
+            throw new \InvalidArgumentException('无效的专辑类型');
+        }
+
+        $albumName = $validSlugs[$albumType];
+
+        // 检查是否已解锁
+        $existing = Db::name('pun_album_unlock')
+            ->where('user_id', $userId)
+            ->where('album_type', $albumType)
+            ->find();
+        if ($existing) {
+            throw new \InvalidArgumentException('该专辑已解锁');
+        }
+
+        // 写入解锁记录
+        Db::name('pun_album_unlock')->insert([
+            'user_id'    => $userId,
+            'album_type' => $albumType,
+            'album_name' => $albumName,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return [
+            'albumType' => $albumType,
+            'albumName' => $albumName,
+            'unlocked' => true,
+            'added' => 0,
+            'type' => self::REWARD_TYPE_ALBUM_UNLOCK,
+        ];
+    }
+
+    /**
+     * 获取用户已解锁的专辑 slug 列表
+     * @return string[]
+     */
+    public function getUnlockedAlbums(int $userId): array
+    {
+        return Db::name('pun_album_unlock')
+            ->where('user_id', $userId)
+            ->column('album_type');
+    }
+
+    /**
+     * 有效的专辑 slug → label 映射（与 ALBUM_CATEGORIES 保持一致）
+     * @return array<string,string>
+     */
+    public function getValidAlbumSlugs(): array
+    {
+        return [
+            'character' => '人物篇',
+            'city'      => '城市篇',
+            'landscape' => '风景名胜篇',
+            'food'      => '食物篇',
+            'fruit'     => '水果篇',
+            'dessert'   => '甜品篇',
+            'idiom'     => '成语篇',
+            'plant'     => '植物篇',
+            'christmas' => '圣诞节篇',
+            'newyear'   => '新年篇',
+            'zodiac'    => '生肖篇',
+        ];
+    }
+
+    /**
+     * 获取所有有效的专辑类型列表（与 issue3_categories.json 保持一致）
+     * @return string[]
+     */
+    public function getValidAlbumTypes(): array
+    {
+        return array_keys($this->getValidAlbumSlugs());
     }
 
     /**
@@ -1161,7 +1253,7 @@ class PunService
         }
 
         $passExplain = '';
-        if ($allCorrect && $mode !== 'battle') {
+        if ($allCorrect) {
             $passExplain = (new PunLevelAiExplainService())->resolvePassExplain($mode, $level);
         }
 
