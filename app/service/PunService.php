@@ -109,6 +109,9 @@ class PunService
         if ($m === 'battle') {
             return 'battle';
         }
+        if ($m === 'album') {
+            return 'album';
+        }
         return 'beginner';
     }
 
@@ -1198,7 +1201,7 @@ class PunService
             $configKey = in_array($questionBank, ['mid', 'intermediate'], true) ? 'pun_levels_issue2' : 'pun_levels_issue3';
             $answersRaw = Config::get($configKey, []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
-        } elseif ($mode === 'xhs') {
+        } elseif ($mode === 'xhs' || $mode === 'album') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
@@ -1237,6 +1240,8 @@ class PunService
             } elseif ($mode === 'xhs') {
                 $this->updateXhsProgress($userId, $level, $answersRaw);
                 $this->incrementDailyAnswerCount($userId);
+                } elseif ($mode === 'album') {
+                    $this->incrementDailyAnswerCount($userId);
             } elseif ($mode === 'beginner') {
                 $this->updateRankAndProgress($userId, $level, $mode);
                 $this->incrementDailyAnswerCount($userId);
@@ -1254,7 +1259,7 @@ class PunService
 
         $passExplain = '';
         if ($allCorrect) {
-            $passExplain = (new PunLevelAiExplainService())->resolvePassExplain($mode, $level);
+            $passExplain = $this->resolvePassExplainForUser($mode, $level);
         }
 
         return [

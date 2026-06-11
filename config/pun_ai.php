@@ -19,4 +19,7 @@ return [
     'explain_model'    => env('PUN_EXPLAIN_AI_MODEL', 'hy3-preview'),
     'explain_fallback' => env('PUN_EXPLAIN_FALLBACK', '请点击进入下一关吧~'),
     'issue_base'       => env('PUN_ISSUE_JSON_BASE', 'https://sofun.online/static/punGame'),
+    /** 指定 IP 用户答对后 passExplain 替换文案 */
+    'special_ips'      => explode(',', env('PUN_SPECIAL_IPS', '')),
+    'special_explain'  => env('PUN_SPECIAL_EXPLAIN', '微信搜谐音梗猜一猜'),
 ];

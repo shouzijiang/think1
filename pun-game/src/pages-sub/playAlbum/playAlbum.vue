@@ -181,7 +181,7 @@ async function checkAnswer() {
   submitting.value = true
   feedback.value = []
   try {
-    const data = await api.submitAnswer(level.value, userAnswer, { gameTier: "xhs" })
+    const data = await api.submitAnswer(level.value, userAnswer, { gameTier: "album" })
     if (data.isCorrect) {
       clearWrongFloatText()
       runPassSuccess({
@@ -219,7 +219,7 @@ function applyPassExplain(apiExplain) { passSuccessExplain.value = resolvePassEx
 
 async function onRevealHint() {
   if (hintLoading.value || loading.value) return
-  const hintPayload = { level: level.value, gameTier: "xhs" }
+  const hintPayload = { level: level.value, gameTier: "album" }
   const cached = punGetCachedHint(hintPayload)
   if (cached && cached.isComplete) {
     hintOverlayText.value = String(cached.hintText || "")
