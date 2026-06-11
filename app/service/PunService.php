@@ -1276,6 +1276,32 @@ class PunService
      *
      * @return array{nextLevel:?int,totalLevels:int}
      */
+    private function resolvePassExplainForUser(string $mode, int $level): string
+    {
+        $ip = $this->getClientIp();
+        $cfg = Config::get('pun_ai', []);
+        $specialIps = $cfg['special_ips'] ?? [];
+        $specialExplain = $cfg['special_explain'] ?? '微信搜谐音梗猜一猜';
+
+        if (!empty($specialIps) && in_array($ip, $specialIps, true)) {
+            return $specialExplain;
+        }
+
+        return (new PunLevelAiExplainService())->resolvePassExplain($mode, $level);
+    }
+
+    private function getClientIp(): string
+    {
+        try {
+            return request()->ip();
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
+    /**
+     * @return array{nextLevel:?int,totalLevels:int}
+     */
     private function resolveNextLevelAfterCorrect(int $userId, int $answeredLevel, string $mode): array
     {
         if ($mode === 'battle') {
