@@ -142,7 +142,7 @@
           <text>+{{ hintReward }} 答案次数</text>
         </view>
         <view v-else class="res-fail">
-          <text>5 分钟内 10 题全对即可通关，请再次尝试</text>
+          <text>2 分钟内 10 题全对即可通关，请再次尝试</text>
         </view>
 
         <button class="btn-home" @click="goHome">返回首页</button>
@@ -173,7 +173,7 @@ import {
   punToastRevealHintAfterError,
 } from "../utils/punPlayShared";
 
-const TOTAL_TIME_MS = 300000;
+const TOTAL_TIME_MS = 120000;
 const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar();
 
 const totalQuestions = 10;

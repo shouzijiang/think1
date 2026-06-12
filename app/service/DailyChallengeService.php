@@ -13,7 +13,7 @@ class DailyChallengeService
     private const PASS_REWARD = 5;
 
     /** 通关时间上限（毫秒） */
-    private const TIME_LIMIT_MS = 300000;
+    private const TIME_LIMIT_MS = 120000;
 
     /** 通关题数要求 */
     private const PASS_SCORE = 10;
