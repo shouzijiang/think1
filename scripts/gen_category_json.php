@@ -30,10 +30,12 @@ $app->initialize();
 $db = \think\facade\Db::class;
 
 $query = \think\facade\Db::name('pun_album_category')
-    ->where('is_active', 1)
     ->order('sort_order', 'asc');
+// 指定 slug 时不过滤 is_active（下架专辑也能生成），全量时才只取上架
 if ($targetSlug !== null) {
     $query->where('slug', $targetSlug);
+} else {
+    $query->where('is_active', 1);
 }
 $rows = $query->select()->toArray();
 
