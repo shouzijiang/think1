@@ -4,6 +4,7 @@ namespace app\controller;
 
 use app\BaseController;
 use app\common\ResponseHelper;
+use app\service\DailyChallengeService;
 use app\service\PunService;
 use think\Request;
 use think\facade\Log;
@@ -14,11 +15,13 @@ use think\facade\Log;
 class Pun extends BaseController
 {
     protected $punService;
+    protected $dailyChallengeService;
 
     protected function initialize()
     {
         parent::initialize();
-        $this->punService = new PunService();
+        $this->punService           = new PunService();
+        $this->dailyChallengeService = new DailyChallengeService();
     }
 
     /**
@@ -73,9 +76,11 @@ class Pun extends BaseController
         // 对战模式：题库由房间决定，前端传 questionBank 参数
         $questionBank = (string) $request->post('questionBank', '');
         $levelConfigMap = [
-            'intermediate' => 'pun_levels_issue2',
-            'xhs'          => 'pun_levels_issue3',
-            'beginner'     => 'pun_levels',
+            'intermediate'    => 'pun_levels_issue2',
+            'xhs'             => 'pun_levels_issue3',
+            'album'           => 'pun_levels_issue3',
+            'daily_challenge' => 'pun_levels_issue3',
+            'beginner'        => 'pun_levels',
         ];
         if ($modeNorm === 'battle') {
             $battleConfig = in_array($questionBank, ['mid', 'intermediate'], true) ? 'pun_levels_issue2' : 'pun_levels_issue3';
@@ -231,6 +236,16 @@ class Pun extends BaseController
     }
 
     /**
+     * 专辑分类列表 GET /pun/album/categories（无需登录）
+     * 返回所有上架专辑，前端替代硬编码 ALBUM_CATEGORIES。
+     */
+    public function albumCategories()
+    {
+        $categories = $this->punService->getAlbumCategories();
+        return ResponseHelper::success(['categories' => $categories]);
+    }
+
+    /**
      * 任务状态 GET /pun/tasks/status
      */
     public function taskStatus(Request $request)
@@ -361,6 +376,74 @@ class Pun extends BaseController
         } catch (\Throwable $e) {
             \think\facade\Log::error('pun/forum/reply/create 异常: ' . $e->getMessage());
             return ResponseHelper::error('回复失败，请稍后重试', 500);
+        }
+    }
+
+    /**
+     * 答案次数 GET /pun/hint/quota
+     * 轻量接口，仅返回 { hintAnswerQuota }，60s 缓存
+     */
+    public function hintQuota(Request $request)
+    {
+        $userId = (int) ($request->user_id ?? 0);
+        if ($userId <= 0) {
+            return ResponseHelper::unauthorized();
+        }
+        $result = $this->punService->getHintQuota($userId);
+        return ResponseHelper::success($result);
+    }
+
+    /**
+     * 每日挑战 — 配置 GET /pun/daily-challenge/config（无需登录）
+     * 返回 { openTime, closeTime, closed, message }
+     */
+    public function dailyChallengeConfig(Request $request)
+    {
+        $userId = (int) ($request->user_id ?? 0);
+        $result = $this->dailyChallengeService->getConfig($userId);
+        return ResponseHelper::success($result);
+    }
+
+    /**
+     * 每日挑战 — 开始 GET /pun/daily-challenge/start
+     * 返回 { levels, alreadyPassed, createdAt }
+     */
+    public function dailyChallengeStart(Request $request)
+    {
+        $userId = (int) ($request->user_id ?? 0);
+        if ($userId <= 0) {
+            return ResponseHelper::unauthorized();
+        }
+        try {
+            $result = $this->dailyChallengeService->start($userId);
+            return ResponseHelper::success($result);
+        } catch (\RuntimeException $e) {
+            return ResponseHelper::success(['closed' => true, 'message' => $e->getMessage()]);
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('daily-challenge/start 异常: ' . $e->getMessage());
+            return ResponseHelper::error('开始挑战失败', 500);
+        }
+    }
+
+    /**
+     * 每日挑战 — 结算 POST /pun/daily-challenge/finish
+     * Body: { score, totalTimeMs }
+     */
+    public function dailyChallengeFinish(Request $request)
+    {
+        $userId = (int) ($request->user_id ?? 0);
+        if ($userId <= 0) {
+            return ResponseHelper::unauthorized();
+        }
+        $score = (int) $request->post('score', 0);
+        $totalTimeMs = (int) $request->post('totalTimeMs', 0);
+
+        try {
+            $result = $this->dailyChallengeService->finish($userId, $score, $totalTimeMs);
+            return ResponseHelper::success($result);
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('daily-challenge/finish 异常: ' . $e->getMessage());
+            return ResponseHelper::error('结算失败', 500);
         }
     }
 }

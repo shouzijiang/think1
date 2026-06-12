@@ -6,6 +6,7 @@ namespace app\service;
 use app\common\FeishuBotHelper;
 use app\model\PunGameBattleRecord;
 use app\model\User;
+use think\facade\Cache;
 use think\facade\Db;
 
 class BattleService extends \think\Service
@@ -141,6 +142,13 @@ class BattleService extends \think\Service
         $page = max(1, $page);
         $pageSize = min(max(1, $pageSize), 100);
 
+        // 本地缓存：2 分钟过期（对战数据变化更快）
+        $cacheKey = 'battle_rank_list:' . $page . ':' . $pageSize;
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null && is_array($cached)) {
+            return $cached;
+        }
+
         $winRows = Db::name('pun_game_battle_record')
             ->field('winner_id AS user_id, COUNT(*) AS win_count')
             ->where('status', 2)
@@ -234,9 +242,11 @@ class BattleService extends \think\Service
             ];
         }
 
-        return [
+        $result = [
             'list'  => $list,
             'total' => $total,
         ];
+        Cache::set($cacheKey, $result, 120);
+        return $result;
     }
 }

@@ -14,6 +14,8 @@ Route::group('pun', function () {
     Route::get('stats/home', 'Pun/homeStats');
     // 1V1：全局对战排行（胜/负统计，不强制鉴权）
     Route::get('battle/rank', 'PunBattle/battleRank');
+    // 专辑分类列表（不强制鉴权，纯元数据）
+    Route::get('album/categories', 'Pun/albumCategories');
 
     // 以下需要登录
     Route::group(function () {
@@ -23,11 +25,13 @@ Route::group('pun', function () {
         Route::post('reward/claim', 'Pun/claimReward');
         Route::get('level/progress', 'Pun/levelProgress');
         Route::get('album/unlocked', 'Pun/albumUnlocked');
+        Route::get('hint/quota', 'Pun/hintQuota');
         Route::get('tasks/status', 'Pun/taskStatus');
         Route::post('feedback/submit', 'Pun/feedbackSubmit');
         
         // 信箱（站内信；新增邮件由库内 INSERT pun_game_mail，无 HTTP 发送接口）
         Route::get('mail/list', 'PunMail/mailList');
+        Route::get('mail/unread-status', 'PunMail/unreadStatus');
         Route::get('mail/detail', 'PunMail/mailDetail');
         
         // 论坛发布和回复
@@ -38,6 +42,11 @@ Route::group('pun', function () {
         Route::post('battle/create', 'PunBattle/createRoom');
         Route::post('battle/update-bank', 'PunBattle/updateBank');
         Route::get('battle/history', 'PunBattle/history');
+
+        // 每日挑战
+        Route::get('daily-challenge/config', 'Pun/dailyChallengeConfig');
+        Route::get('daily-challenge/start', 'Pun/dailyChallengeStart');
+        Route::post('daily-challenge/finish', 'Pun/dailyChallengeFinish');
 
         // 邀请好友赚收益
         Route::get('streamer/qrcode', 'Streamer/generateQrCode');

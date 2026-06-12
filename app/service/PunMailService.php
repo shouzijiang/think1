@@ -93,6 +93,33 @@ class PunMailService
     }
 
     /**
+     * 查询当前用户是否有未读邮件
+     *
+     * @return array{hasUnread: bool, count: int}
+     */
+    public function hasUnread(int $userId): array
+    {
+        $count = (int) Db::name('pun_game_mail')
+            ->alias('m')
+            ->where('m.is_published', 1)
+            ->where(function ($q) use ($userId) {
+                $q->where('m.scope', self::SCOPE_ALL)
+                    ->whereOr('m.target_user_id', $userId);
+            })
+            ->whereNotExists(function ($q) use ($userId) {
+                $q->table('pun_game_mail_reads')
+                    ->whereColumn('mail_id', 'm.id')
+                    ->where('user_id', $userId);
+            })
+            ->count();
+
+        return [
+            'hasUnread' => $count > 0,
+            'count'     => $count,
+        ];
+    }
+
+    /**
      * 获取单条邮件详情（并标记已读）
      *
      * @return array<string, mixed>

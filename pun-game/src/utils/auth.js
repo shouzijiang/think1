@@ -273,6 +273,26 @@ export function getUserInfo() {
   return info
 }
 
+/**
+ * 更新内存 + globalData 中的用户信息缓存（用于头像/昵称保存后同步，避免
+ * 后续 loadUserInfo 读到旧值覆盖已保存的数据）。
+ */
+export function syncCachedUserInfo(partial) {
+  loadAuthCacheFromStorage()
+  const prev = cachedUserInfo && typeof cachedUserInfo === 'object' ? cachedUserInfo : {}
+  const next = { ...prev, ...partial }
+  const globalData = getGlobalDataRef()
+  if (globalData) {
+    globalData.__punAuthUserInfo = next
+    globalData.__punAuthCacheLoaded = true
+  }
+  cachedUserInfo = next
+  // 同步写入 uni storage，确保 storage 缓存中的 avatar/nickname 与内存一致
+  if (partial.avatar !== undefined || partial.nickname !== undefined) {
+    uni.setStorage({ key: 'userInfo', data: next, fail() {} })
+  }
+}
+
 // 读取当前登录 token（优先内存缓存，回退 storage）
 export function getAuthToken() {
   loadAuthCacheFromStorage()

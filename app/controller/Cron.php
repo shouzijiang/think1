@@ -39,5 +39,33 @@ class Cron extends BaseController
         $result = $this->cronService->sendRemind($targetUserId);
         return ResponseHelper::success($result, '定时任务执行完成');
     }
+
+    /**
+     * 每日凌晨 4:10：预生成当天每日挑战题目
+     */
+    public function genDailyChallenge()
+    {
+        try {
+            $result = $this->cronService->genDailyChallenge();
+            return ResponseHelper::success($result, $result['generated'] ? '已生成' : '已存在');
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('cron/gen-daily-challenge 异常: ' . $e->getMessage());
+            return ResponseHelper::error('生成失败: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * 每日凌晨：同步昨日全站视频单价（替代 php think pun:sync-channel-unit-price --yesterday）
+     */
+    public function syncChannelUnitPrice()
+    {
+        try {
+            $result = $this->cronService->syncChannelUnitPriceYesterday();
+            return ResponseHelper::success($result, '同步完成');
+        } catch (\Throwable $e) {
+            \think\facade\Log::error('cron/sync-channel-unit-price 异常: ' . $e->getMessage());
+            return ResponseHelper::error('同步失败: ' . $e->getMessage(), 500);
+        }
+    }
 }
 

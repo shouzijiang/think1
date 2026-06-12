@@ -67,7 +67,8 @@
     bottom: 0;
     z-index: 2;
     display: flex;
-    padding: 12rpx 16rpx 20rpx;
+    justify-content: flex-end;
+    padding: 10rpx 0;
     box-sizing: border-box;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.35) 100%);
   }

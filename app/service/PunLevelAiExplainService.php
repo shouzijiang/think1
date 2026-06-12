@@ -20,17 +20,56 @@ class PunLevelAiExplainService
 
     /**
      * 将 gameTier / mode 规范为表字段 game_tier：beginner | mid | xhs
+     *
+     * battle 模式需结合关卡编号反查所属题库。
      */
-    public static function normalizeGameTier(string $mode): string
+    public static function normalizeGameTier(string $mode, int $levelNo = 0): string
     {
         $normalized = PunService::normalizeMode($mode);
+
+        // battle / daily_challenge 模式：按关卡编号反查所属题库
+        if ($normalized === 'battle' || $normalized === 'daily_challenge') {
+            return self::resolveBattleTier($levelNo);
+        }
+
         if ($normalized === 'intermediate') {
             return 'mid';
         }
-        if ($normalized === 'xhs') {
+        if ($normalized === 'xhs' || $normalized === 'album') {
             return 'xhs';
         }
         if ($normalized === 'beginner') {
+            return 'beginner';
+        }
+
+        return '';
+    }
+
+    /**
+     * 战斗模式：根据关卡编号反查所属题库。
+     * xhs 关卡编号 >3000 不与其他题库重叠；mid 与 beginner 有重叠时优先匹配 mid。
+     */
+    private static function resolveBattleTier(int $levelNo): string
+    {
+        if ($levelNo <= 0) {
+            return '';
+        }
+
+        // xhs (issue3)：关卡编号通常 3001+
+        $xhsLevels = Config::get('pun_levels_issue3', []);
+        if (is_array($xhsLevels) && isset($xhsLevels[$levelNo])) {
+            return 'xhs';
+        }
+
+        // mid (issue2)
+        $midLevels = Config::get('pun_levels_issue2', []);
+        if (is_array($midLevels) && isset($midLevels[$levelNo])) {
+            return 'mid';
+        }
+
+        // beginner（battle 理论上不用，兜底）
+        $beginnerLevels = Config::get('pun_levels', []);
+        if (is_array($beginnerLevels) && isset($beginnerLevels[$levelNo])) {
             return 'beginner';
         }
 
@@ -42,7 +81,7 @@ class PunLevelAiExplainService
      */
     public function resolvePassExplain(string $mode, int $levelNo): string
     {
-        $tier = self::normalizeGameTier($mode);
+        $tier = self::normalizeGameTier($mode, $levelNo);
         if ($tier === '' || $levelNo < 0 || ($tier !== 'mid' && $levelNo <= 0)) {
             $this->logExplainFail('invalid_params', ['mode' => $mode, 'level' => $levelNo]);
             return $this->fallbackText();
@@ -199,7 +238,7 @@ class PunLevelAiExplainService
      */
     public function getExplainText(string $mode, int $levelNo): string
     {
-        $tier = self::normalizeGameTier($mode);
+        $tier = self::normalizeGameTier($mode, $levelNo);
         if ($tier === '' || $levelNo < 0 || ($tier !== 'mid' && $levelNo <= 0)) {
             return '';
         }

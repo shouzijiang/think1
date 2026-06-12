@@ -344,5 +344,47 @@ ALTER TABLE `users`
 -- DESC `pun_daily_answer_stat`;
 -- DESC `users`;
 
+-- 16. 每日挑战题目（每日一行，凌晨 cron 预生成）
+CREATE TABLE `pun_daily_challenge` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `challenge_date` date NOT NULL COMMENT '挑战日期（Asia/Shanghai）',
+  `level_ids` json NOT NULL COMMENT '当日10道题目ID数组',
+  `open_time` time NOT NULL DEFAULT '18:00:00' COMMENT '每日开放时间',
+  `close_time` time NOT NULL DEFAULT '23:00:00' COMMENT '每日关闭时间',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_date` (`challenge_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='每日挑战题目';
 
+-- 玩家通关后通过 pun_reward_claim_record (claim_type='daily_challenge') 记录发奖，每日限领 1 次。
 
+-- 17. 专辑分类元数据（单点维护，新增专辑 INSERT 即可，无需改代码）
+CREATE TABLE `pun_album_category` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `slug` varchar(50) NOT NULL COMMENT '唯一标识 如 dragonboat',
+  `label` varchar(50) NOT NULL COMMENT '显示名称 如 端午节',
+  `icon` varchar(300) NOT NULL DEFAULT '' COMMENT '封面图 CDN 地址',
+  `sort_order` int NOT NULL DEFAULT 0 COMMENT '排序',
+  `is_active` tinyint(1) NOT NULL DEFAULT 1 COMMENT '是否上架',
+  `answer_types` json DEFAULT NULL COMMENT '匹配的 answerType 列表',
+  `total_count` int unsigned NOT NULL DEFAULT 0 COMMENT '题目总数（gen_category_json 自动更新）',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_slug` (`slug`),
+  KEY `idx_active_sort` (`is_active`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='专辑分类';
+
+INSERT INTO `pun_album_category` (`slug`, `label`, `icon`, `sort_order`, `is_active`, `answer_types`) VALUES
+('character',  '人物篇',   'https://static2.sofun.online/categories/character.jpg',  1, 1, '["历史人物","漫威影视角色","世界著名音乐家","明星","科学家","动漫角色"]'),
+('city',       '城市篇',   'https://static2.sofun.online/categories/city.jpg',       2, 1, '["城市"]'),
+('landscape',  '风景名胜篇', 'https://static2.sofun.online/categories/landscape.jpg', 3, 1, '["风景名胜"]'),
+('food',       '食物篇',   'https://static2.sofun.online/categories/food.jpg',       4, 1, '["美食","食物","小吃","家常下饭菜","调料","茶","菜名","饮品","菜品"]'),
+('fruit',      '水果篇',   'https://static2.sofun.online/categories/fruit.jpg',      5, 1, '["水果"]'),
+('dessert',    '甜品篇',   'https://static2.sofun.online/categories/dessert.jpg',    6, 1, '["甜品","点心"]'),
+('idiom',      '成语篇',   'https://static2.sofun.online/categories/idiom.jpg',      7, 1, '["成语"]'),
+('plant',      '植物篇',   'https://static2.sofun.online/categories/plant.jpg',      8, 1, '["植物","中药材"]'),
+('christmas',  '圣诞节篇', 'https://static2.sofun.online/categories/christmas.jpg',  9, 1, '["圣诞节"]'),
+('newyear',    '新年篇',   'https://static2.sofun.online/categories/newyear.jpg',   10, 1, '["新年快乐"]'),
+('zodiac',     '生肖篇',   'https://static2.sofun.online/categories/zodiac.jpg',    11, 1, '["鼠","牛","虎","兔","马","羊"]'),
+('dragonboat', '端午节',   'https://static2.sofun.online/categories/dragonboat.jpg', 0, 1, '["端午节"]');

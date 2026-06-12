@@ -6,6 +6,8 @@ use app\common\WechatHelper;
 use app\model\MessageLog;
 use app\model\User;
 use app\model\UserSubscribe;
+use think\facade\Config;
+use think\facade\Db;
 use think\facade\Log;
 
 /**
@@ -132,6 +134,67 @@ class CronService
         if ($n > 0) {
             Log::info('订阅消息用户拒绝，已同步 user_subscribes 为 reject user_id=' . $userId . ' template_id=' . $templateId);
         }
+    }
+
+    /**
+     * 每日凌晨 4:10 执行：为当天预生成每日挑战的 10 道题目（所有玩家一致）。
+     *
+     * @return array{date:string, levels:list<int>, generated:bool}
+     */
+    public function genDailyChallenge(): array
+    {
+        $tz = new \DateTimeZone('Asia/Shanghai');
+        $today = (new \DateTime('now', $tz))->format('Y-m-d');
+
+        $existing = Db::name('pun_daily_challenge')
+            ->where('challenge_date', $today)
+            ->find();
+        if ($existing) {
+            $levelIds = is_string($existing['level_ids']) ? json_decode($existing['level_ids'], true) : $existing['level_ids'];
+            return [
+                'date'      => $today,
+                'levels'    => is_array($levelIds) ? $levelIds : [],
+                'generated' => false,
+            ];
+        }
+
+        $allLevels = array_keys(Config::get('pun_levels_issue3', []));
+        $seed = crc32($today);
+        mt_srand($seed);
+        shuffle($allLevels);
+        mt_srand();
+        $picked = array_slice($allLevels, 0, 10);
+        sort($picked, SORT_NUMERIC);
+
+        Db::name('pun_daily_challenge')->insert([
+            'challenge_date' => $today,
+            'level_ids'      => json_encode($picked, JSON_UNESCAPED_UNICODE),
+            'created_at'     => (new \DateTime('now', $tz))->format('Y-m-d H:i:s'),
+        ]);
+
+        Log::info('每日挑战题目已生成 date=' . $today . ' levels=' . implode(',', $picked));
+
+        return [
+            'date'      => $today,
+            'levels'    => $picked,
+            'generated' => true,
+        ];
+    }
+
+    /**
+     * 同步昨日全站视频单价（供 crontab 每天凌晨调用）。
+     *
+     * @return array{date:string, ...}
+     */
+    public function syncChannelUnitPriceYesterday(): array
+    {
+        $tz = new \DateTimeZone('Asia/Shanghai');
+        $yesterday = (new \DateTime('yesterday', $tz))->format('Y-m-d');
+
+        $svc = new ChannelUnitPriceService();
+        $result = $svc->syncUnitPriceForDate($yesterday, true);
+
+        return array_merge(['date' => $yesterday], $result);
     }
 }
 

@@ -279,8 +279,8 @@ onLoad(async (opts) => {
     loadFilteredXhsLevelList(ft).then(() => { filteredLevels.value = getFilteredXhsLevelListForType(ft) }).catch(() => {})
   }
   level.value = lv
-  // 加载揭字次数（仅取 quota，不使用进度数据）
-  api.getLevelProgress({ gameTier: "xhs" }).then((data) => {
+  // 加载揭字次数（轻量接口，60s 缓存）
+  api.getHintQuota().then((data) => {
     if (typeof data.hintAnswerQuota === "number") hintAnswerQuota.value = data.hintAnswerQuota
   }).catch(() => {})
   loading.value = true

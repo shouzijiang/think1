@@ -340,7 +340,7 @@ async function onRevealHint() {
 
 function refreshHintAnswerQuota() {
   api
-    .getLevelProgress({ gameTier: "mid" })
+    .getHintQuota()
     .then((data) => {
       if (typeof data.hintAnswerQuota === "number") {
         hintAnswerQuota.value = data.hintAnswerQuota;

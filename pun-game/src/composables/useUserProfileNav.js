@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { getUserInfo } from '../utils/auth'
+import { getUserInfo, syncCachedUserInfo } from '../utils/auth'
 import { api } from '../utils/api'
 import { useNavBar } from './useNavBar'
 
@@ -46,6 +46,8 @@ export function useUserProfileNav() {
       const result = await api.uploadAvatar(avatarUrl)
       const cosUrl = result.url
       const updated = { ...userInfo.value, avatar: cosUrl }
+      // 同步内存缓存 + uni storage，防止后续 saveNickname 读到旧头像
+      syncCachedUserInfo({ avatar: cosUrl })
       uni.setStorage({ key: 'userInfo', data: updated, fail() {} })
       userInfo.value = updated
       avatarTs.value = Date.now()
@@ -191,7 +193,10 @@ export function useUserProfileNav() {
   }
 
   async function saveNickname(nickname) {
-    loadUserInfo()
+    if (!userInfo.value || !userInfo.value.user_id) {
+      // userInfo 尚未加载（极少数场景），尝试加载一次
+      loadUserInfo()
+    }
     if (!userInfo.value || !userInfo.value.user_id) {
       uni.showToast({ title: '请先登录后再保存昵称', icon: 'none' })
       return
@@ -201,9 +206,10 @@ export function useUserProfileNav() {
     const prev =
       prevRaw === undefined || prevRaw === null ? '' : String(prevRaw).trim()
     if (trimmed === prev) return
-    const currentAvatar = userInfo.value.avatar || ''
     try {
-      await api.updateUserInfo({ nickname: trimmed, avatar: currentAvatar })
+      // 仅发送昵称，不携带 avatar，避免因缓存不一致覆盖已更新的头像
+      await api.updateUserInfo({ nickname: trimmed })
+      syncCachedUserInfo({ nickname: trimmed })
       const updated = { ...userInfo.value, nickname: trimmed }
       uni.setStorage({ key: 'userInfo', data: updated, fail() {} })
       userInfo.value = updated

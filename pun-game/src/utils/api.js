@@ -360,6 +360,36 @@ export const api = {
     })
   },
 
+  /** 答案次数（轻量，60s 缓存） */
+  getHintQuota() {
+    return request({ url: '/pun/hint/quota', method: 'GET' })
+  },
+
+  /**
+   * 每日挑战 — 配置（无需登录，首页倒计时）
+   * @returns {Promise<{openTime: string, closeTime: string, closed: boolean, message: string}>}
+   */
+  getDailyChallengeConfig() {
+    return request({ url: '/pun/daily-challenge/config', method: 'GET' })
+  },
+
+  /**
+   * 每日挑战 — 开始（返回当天题目；如已通关则 alreadyPassed=true）
+   * @returns {Promise<{levels: number[], alreadyPassed: boolean, createdAt: string}>}
+   */
+  startDailyChallenge() {
+    return request({ url: '/pun/daily-challenge/start', method: 'GET' })
+  },
+
+  /**
+   * 每日挑战 — 结算（通关后由后端写 pun_reward_claim_record 并发奖）
+   * @param {{score: number, totalTimeMs: number}} data
+   * @returns {Promise<{passed: boolean, score: number, totalTimeMs: number, hintReward: number}>}
+   */
+  finishDailyChallenge(data) {
+    return request({ url: '/pun/daily-challenge/finish', method: 'POST', data })
+  },
+
   /**
    * 当前用户关卡进度（历史答题情况）
    * 响应 data 含 hintAnswerQuota（剩余）、hintAnswerTotalUsed（累计消耗，需库表 total_used）
@@ -565,6 +595,17 @@ export const api = {
   },
 
   /**
+   * 未读邮件状态（用于首页小红点）
+   * @returns {Promise<{hasUnread: boolean, count: number}>}
+   */
+  getUnreadMailStatus() {
+    return request({
+      url: '/pun/mail/unread-status',
+      method: 'GET'
+    })
+  },
+
+  /**
    * 上报买量渠道（登录成功后调用一次）
    * @param {string} channel 渠道标识，如 toutiao_0501
    */
@@ -584,6 +625,11 @@ export const api = {
   /** 邀请好友赚收益：获取邀请数据（受邀用户 + 行为统计） */
   getStreamerStats() {
     return request({ url: '/pun/streamer/stats', method: 'GET' })
+  },
+
+  /** 获取专辑分类列表（从 DB 读取，替代硬编码常量） */
+  getAlbumCategories() {
+    return request({ url: '/pun/album/categories', method: 'GET', skipAuth: true })
   },
 
   /** 获取已解锁的分类专辑列表 */

@@ -38,10 +38,9 @@
                 </view>
                 <text class="book-label">{{ cat.label }}</text>
                 <text
+                  v-if="catTotal(cat) > 0"
                   class="book-count"
-                  :style="{
-                    background: !isUnlocked(cat.slug) ? '#b0b0b0' : cat.color,
-                  }"
+                  :style="{ background: !isUnlocked(cat.slug) ? '#b0b0b0' : '#6C5CE7' }"
                   >{{ catTotal(cat) }}关</text
                 >
               </view>
@@ -61,8 +60,8 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
-import { ALBUM_CATEGORIES } from "../constants/albumCategories";
+import { ref, computed, watch } from "vue";
+import { loadAlbumCategories } from "../constants/albumCategories";
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -71,13 +70,20 @@ const props = defineProps({
 
 const emit = defineEmits(["close", "select", "unlock"]);
 
-const categories = ALBUM_CATEGORIES;
+const categories = ref([]);
 const unlockedSet = computed(() => new Set(props.unlockedAlbums || []));
 
-const IMG_BASE = "https://static2.sofun.online/categories";
+// 弹窗打开时从服务端拉取最新专辑列表
+watch(() => props.show, async (visible) => {
+  if (visible) {
+    categories.value = await loadAlbumCategories();
+  }
+});
 
 function imgUrl(slug) {
-  return IMG_BASE + "/" + slug + ".jpg";
+  // icon 字段已经是完整 CDN URL，slug 兜底
+  const cat = categories.value.find((c) => c.slug === slug);
+  return (cat && cat.icon) || ('https://static2.sofun.online/categories/' + slug + '.jpg');
 }
 
 function catTotal(cat) {
@@ -99,7 +105,6 @@ function onCategoryClick(cat) {
       category: cat.slug,
       filterType: cat.subTypes.reduce((a, s) => { a.push(...s.answerTypes); return a }, []).join(","),
       label: cat.label,
-      color: cat.color,
     })
   } else {
     emit("unlock", { categorySlug: cat.slug, label: cat.label })

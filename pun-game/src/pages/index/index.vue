@@ -94,12 +94,15 @@
         :hover-stay-time="100"
         @click="goBattle"
       >
-        <view class="battle-badge">3分钟一局</view>
-        <image
-          class="btn-icon btn-icon-img"
-          src="https://sofun.online/static/mini/battle.png"
-          mode="aspectFit"
-        />
+        <view class="battle-badge">3分钟/局</view>
+        <view class="btn-battle-icon">
+          <view class="btn-battle-glow" />
+          <view class="btn-battle-clash-ring btn-battle-clash-ring--1" />
+          <view class="btn-battle-clash-ring btn-battle-clash-ring--2" />
+          <text class="btn-battle-sword">⚔️</text>
+          <text class="btn-battle-spark btn-battle-spark--1">✦</text>
+          <text class="btn-battle-spark btn-battle-spark--2">✧</text>
+        </view>
         <text class="btn-text">邀请好友</text>
         <text class="btn-sub-text">1V1对战</text>
       </view>
@@ -116,9 +119,16 @@
     </view>
 
     <view class="stats">
-      <text class="stats-text"
-        >已有 {{ stats.players }} 位好友在玩 · 累计 {{ stats.answers }} 次答题</text
-      >
+      <view class="stats-row">
+        <text class="stats-num">{{ stats.players }}</text>
+        <text class="stats-label">位好友在玩</text>
+        <text class="stats-divider">·</text>
+        <text class="stats-num">{{ stats.answers }}</text>
+        <text class="stats-label">次答题</text>
+      </view>
+      <view class="stats-unlock">
+        <text>全服累计 20 万次答题后，解锁1000关小红书关卡</text>
+      </view>
     </view>
 
     <!-- 本期更新弹窗 -->
@@ -228,6 +238,9 @@
         :hover-stay-time="100"
         @click.stop="goMail"
       >
+        <view v-if="unreadMailCount > 0" class="toolbar-mail-badge">{{
+          unreadMailCount > 99 ? "99+" : unreadMailCount
+        }}</view>
         <image
           class="btn-start-icon"
           src="https://sofun.online/static/mini/mail.png"
@@ -269,6 +282,24 @@
     </view>
 
     <view
+      class="daily-float"
+      hover-class="daily-float--hover"
+      :hover-start-time="20"
+      :hover-stay-time="100"
+      @click="goDailyChallenge"
+    >
+      <view class="daily-float-inner">
+        <text class="daily-float-icon">⚡</text>
+        <text class="daily-float-title">每日挑战</text>
+        <text
+          :class="['daily-float-label', dailyOpen ? 'daily-float-label--open' : '']"
+          >{{ dailyOpen ? "已开启" : "待开启" }}</text
+        >
+        <text class="daily-float-time">{{ dailyCountdownTime }}</text>
+      </view>
+    </view>
+
+    <view
       class="streamer-float"
       hover-class="streamer-float--hover"
       :hover-start-time="20"
@@ -284,7 +315,6 @@
         <text class="streamer-float-title">邀好友</text>
         <text class="streamer-float-sub">赚收益</text>
       </view>
-      <view class="streamer-float-dot" />
     </view>
 
     <view
@@ -434,6 +464,60 @@ const showAlbumPicker = ref(false);
 const unlockedAlbums = ref([]);
 const showGroupQr = ref(false);
 
+// 每日挑战倒计时
+const dailyCountdownTime = ref("");
+let dailyCountdownTimer = null;
+const dailyOpen = ref(false);
+let dailyOpenSec = 18 * 3600; // 默认 18:00，后续由 API 覆盖
+let dailyCloseSec = 23 * 3600; // 默认 23:00
+const dailyAlreadyPassed = ref(true); // 默认拦截，API 确认未通关后放行
+
+function getShanghaiNow() {
+  const now = new Date();
+  const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+  return new Date(utcMs + 8 * 3600000);
+}
+
+function updateDailyCountdown() {
+  const shanghaiNow = getShanghaiNow();
+  const h = shanghaiNow.getHours();
+  const m = shanghaiNow.getMinutes();
+  const s = shanghaiNow.getSeconds();
+  const currentSec = h * 3600 + m * 60 + s;
+
+  const fmt = (sec) => {
+    const hh = Math.floor(sec / 3600);
+    const mm = Math.floor((sec % 3600) / 60);
+    const ss = sec % 60;
+    return hh + ":" + String(mm).padStart(2, "0") + ":" + String(ss).padStart(2, "0");
+  };
+
+  if (currentSec >= dailyOpenSec && currentSec < dailyCloseSec) {
+    dailyOpen.value = true;
+    dailyCountdownTime.value = fmt(dailyCloseSec - currentSec);
+  } else {
+    dailyOpen.value = false;
+    let target = dailyOpenSec;
+    if (currentSec >= dailyCloseSec) target = dailyOpenSec + 24 * 3600;
+    dailyCountdownTime.value = fmt(target - currentSec);
+  }
+}
+updateDailyCountdown(); // 模块加载时立即初始化，不等 onShow
+
+// 未读邮件小红点
+const unreadMailCount = ref(0);
+
+async function fetchUnreadMailStatus() {
+  try {
+    const data = await api.getUnreadMailStatus();
+    if (data && typeof data.count === "number") {
+      unreadMailCount.value = data.count;
+    }
+  } catch (e) {
+    console.warn("unread mail status", e);
+  }
+}
+
 function dismissChangelog() {
   if (changelogVersion.value && changelogSuppressChecked.value) {
     const until = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -448,6 +532,7 @@ function dismissChangelog() {
 async function loadHomeStats() {
   try {
     const data = await api.getHomeStats();
+
     if (!data || typeof data !== "object") return;
     const p = data.players ?? data.player_count;
     const a = data.answers ?? data.answer_count;
@@ -457,6 +542,22 @@ async function loadHomeStats() {
     };
   } catch (e) {
     console.warn("home stats", e);
+  }
+}
+
+async function fetchDailyChallengeConfig() {
+  try {
+    const data = await api.getDailyChallengeConfig();
+    if (data && data.openTime && data.closeTime) {
+      const [oh, om] = data.openTime.split(":").map(Number);
+      const [ch, cm] = data.closeTime.split(":").map(Number);
+      dailyOpenSec = oh * 3600 + om * 60;
+      dailyCloseSec = ch * 3600 + cm * 60;
+      dailyAlreadyPassed.value = !!data.alreadyPassed;
+      updateDailyCountdown();
+    }
+  } catch (e) {
+    console.warn("daily config", e);
   }
 }
 
@@ -531,6 +632,8 @@ function runIndexAfterStorageWarm() {
         api.reportChannel(pendingChannel).catch(() => {});
         clearPendingChannel();
       }
+      // 登录完成后拉取每日挑战配置（需要登录态才能获取 alreadyPassed）
+      fetchDailyChallengeConfig();
     })
     .catch((e) => {
       console.warn("wechatLogin 失败", e);
@@ -538,6 +641,7 @@ function runIndexAfterStorageWarm() {
 }
 
 onShow(() => {
+  updateDailyCountdown(); // 立即显示，不等 storage warm
   indexPendingTimers.push(
     setTimeout(() => {
       warmStartupStorage().then(() => {
@@ -552,7 +656,17 @@ onShow(() => {
       warmStartupStorage().then(() => {
         if (indexPageDestroyed) return;
         loadHomeStats();
+        fetchUnreadMailStatus();
         tryShowChangelog();
+        updateDailyCountdown();
+        if (dailyCountdownTimer) clearInterval(dailyCountdownTimer);
+        dailyCountdownTimer = setInterval(() => {
+          if (indexPageDestroyed) {
+            clearInterval(dailyCountdownTimer);
+            return;
+          }
+          updateDailyCountdown();
+        }, 1000);
       });
     }, 300)
   );
@@ -562,6 +676,10 @@ onShow(() => {
 function clearIndexPageTimersOnly() {
   indexPendingTimers.forEach((id) => clearTimeout(id));
   indexPendingTimers.length = 0;
+  if (dailyCountdownTimer) {
+    clearInterval(dailyCountdownTimer);
+    dailyCountdownTimer = null;
+  }
 }
 
 /** 页面真正销毁时：清除定时器 + 移除本页注册的 wx 监听器（不重新注册，由下一次 onLoad 接管） */
@@ -569,6 +687,10 @@ function clearIndexPageSideEffects() {
   indexPageDestroyed = true;
   indexPendingTimers.forEach((id) => clearTimeout(id));
   indexPendingTimers.length = 0;
+  if (dailyCountdownTimer) {
+    clearInterval(dailyCountdownTimer);
+    dailyCountdownTimer = null;
+  }
   uninstallMpAppWxListeners();
 }
 
@@ -612,6 +734,23 @@ function goLevels() {
 
 function goBattle() {
   uni.navigateTo({ url: "/pages-sub/battleRoom/battleRoom" });
+}
+
+function goDailyChallenge() {
+  if (dailyAlreadyPassed.value) {
+    uni.showToast({ title: "今日已通关，明天再来", icon: "none" });
+    return;
+  }
+  const shanghaiNow = getShanghaiNow();
+  const currentSec =
+    shanghaiNow.getHours() * 3600 +
+    shanghaiNow.getMinutes() * 60 +
+    shanghaiNow.getSeconds();
+  if (currentSec < dailyOpenSec || currentSec >= dailyCloseSec) {
+    uni.showToast({ title: "每日挑战未开放", icon: "none" });
+    return;
+  }
+  uni.navigateTo({ url: "/pages-sub/dailyChallenge/dailyChallenge" });
 }
 
 function goStreamer() {
@@ -1218,8 +1357,20 @@ async function onAlbumUnlock({ categorySlug, label }) {
 .btn-start--hover {
   transform: translateY(10rpx) scale(0.985);
   filter: brightness(0.97);
-  box-shadow: 0 4rpx 8rpx rgba(0, 0, 0, 0.2), 0 1rpx 0 rgba(0, 0, 0, 0.12),
-    inset 0 3rpx 0 rgba(255, 255, 255, 0.2), inset 0 -8rpx 12rpx rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4rpx 8rpx rgba(245, 137, 163, 0.3), 0 1rpx 0 rgba(189, 90, 126, 0.2),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.2), inset 0 -7rpx 10rpx rgba(0, 0, 0, 0.12);
+}
+
+/* 梗图填词按钮：蓝调按压阴影 */
+.btn-start-2.btn-start--hover {
+  box-shadow: 0 4rpx 8rpx rgba(79, 167, 245, 0.35), 0 1rpx 0 rgba(34, 108, 186, 0.2),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.2), inset 0 -7rpx 10rpx rgba(0, 0, 0, 0.12);
+}
+
+/* 更多专辑按钮：紫调按压阴影 */
+.btn-start-classic.btn-start--hover {
+  box-shadow: 0 4rpx 8rpx rgba(108, 92, 231, 0.25), 0 1rpx 0 rgba(80, 60, 180, 0.16),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.2), inset 0 -7rpx 10rpx rgba(0, 0, 0, 0.12);
 }
 .btn-start-icon {
   width: 44rpx;
@@ -1311,6 +1462,138 @@ async function onAlbumUnlock({ categorySlug, label }) {
   flex-shrink: 0;
   filter: drop-shadow(0 3rpx 6rpx rgba(54, 84, 120, 0.2));
 }
+
+/* ===== 首页对战图标：迷你刀剑交锋 ===== */
+.btn-battle-icon {
+  position: relative;
+  width: 44rpx;
+  height: 44rpx;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-battle-glow {
+  position: absolute;
+  width: 28rpx;
+  height: 28rpx;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 140, 60, 0.4) 0%,
+    rgba(255, 80, 40, 0.12) 50%,
+    transparent 72%
+  );
+  animation: bglow-pulse 1.6s ease-in-out infinite;
+}
+.btn-battle-clash-ring {
+  position: absolute;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(255, 160, 80, 0.45);
+  animation: bring-burst 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+  pointer-events: none;
+}
+.btn-battle-clash-ring--2 {
+  animation-delay: 0.8s;
+  border-color: rgba(255, 200, 100, 0.3);
+}
+.btn-battle-sword {
+  position: relative;
+  z-index: 2;
+  font-size: 32rpx;
+  line-height: 1;
+  animation: bsword-clash 1.6s cubic-bezier(0.36, 0, 0.66, 1) infinite;
+}
+.btn-battle-spark {
+  position: absolute;
+  z-index: 3;
+  font-size: 12rpx;
+  opacity: 0;
+  pointer-events: none;
+}
+.btn-battle-spark--1 {
+  top: 6rpx;
+  left: 10rpx;
+  animation: bspark-tl 1.6s ease-out infinite;
+  color: #ffcc80;
+}
+.btn-battle-spark--2 {
+  top: 4rpx;
+  right: 8rpx;
+  animation: bspark-tr 1.6s ease-out infinite;
+  animation-delay: 0.4s;
+  color: #ffab40;
+}
+@keyframes bglow-pulse {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 0.95;
+  }
+}
+@keyframes bring-burst {
+  0% {
+    width: 12rpx;
+    height: 12rpx;
+    opacity: 0.75;
+    border-width: 3rpx;
+  }
+  100% {
+    width: 50rpx;
+    height: 50rpx;
+    opacity: 0;
+    border-width: 1rpx;
+  }
+}
+@keyframes bsword-clash {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  22% {
+    transform: scale(0.85) rotate(-8deg);
+  }
+  48% {
+    transform: scale(1.25) rotate(5deg);
+  }
+  72% {
+    transform: scale(1.06) rotate(-2deg);
+  }
+}
+@keyframes bspark-tl {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-10rpx, -12rpx) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-28rpx, -34rpx) scale(0.2);
+  }
+}
+@keyframes bspark-tr {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(10rpx, -12rpx) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(28rpx, -34rpx) scale(0.2);
+  }
+}
 .btn-text {
   font-size: 28rpx;
   line-height: 1.2;
@@ -1365,17 +1648,45 @@ async function onAlbumUnlock({ categorySlug, label }) {
   position: relative;
   z-index: 2;
   margin-top: auto;
-  padding: 32rpx;
+  padding: 14rpx 28rpx 20rpx;
   margin-bottom: 20rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14rpx;
+  background: rgba(255, 255, 255, 0.58);
+  border-radius: 20rpx;
+  border: 2rpx solid rgba(169, 201, 238, 0.35);
 }
-.stats-text {
-  font-size: 22rpx;
+.stats-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6rpx;
+}
+.stats-num {
+  font-size: 24rpx;
+  font-weight: 900;
   color: #3a86da;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stats-label {
+  font-size: 20rpx;
+  font-weight: 300;
+  color: #113ee1;
+}
+.stats-divider {
+  font-size: 24rpx;
+  margin: 0 8rpx;
+  color: #8aa0bd;
+  font-weight: 300;
+}
+.stats-unlock {
+  font-size: 20rpx;
+  color: #8aa0bd;
   letter-spacing: 0.03em;
-  background: rgba(255, 255, 255, 0.65);
-  padding: 10rpx 26rpx;
-  border-radius: 100rpx;
-  border: 2rpx solid rgba(169, 201, 238, 0.4);
+  text-align: center;
+  line-height: 1.4;
 }
 
 .side-toolbar {
@@ -1423,10 +1734,80 @@ async function onAlbumUnlock({ categorySlug, label }) {
   opacity: 0.92;
 }
 
+/* ===== 每日挑战左侧浮标 ===== */
+.daily-float {
+  position: fixed;
+  left: 0;
+  top: 25%;
+  transform: translateY(-50%);
+  z-index: 52;
+  width: 130rpx;
+  padding: 0;
+  box-sizing: border-box;
+  border-radius: 0 24rpx 24rpx 0;
+  border: 2rpx solid rgba(255, 255, 255, 0.85);
+  border-left: none;
+  background: linear-gradient(160deg, #fbbf24 0%, #f59e0b 55%, #d97706 100%);
+  box-shadow: 0 8rpx 28rpx rgba(245, 158, 11, 0.45),
+    inset 0 2rpx 0 rgba(255, 255, 255, 0.3);
+}
+.daily-float::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(to bottom, rgba(255, 255, 255, 0.22) 0%, transparent 100%);
+  pointer-events: none;
+  border-radius: 0 24rpx 0 0;
+}
+.daily-float--hover {
+  opacity: 0.9;
+  filter: brightness(0.96);
+}
+.daily-float-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rpx;
+  padding: 18rpx 10rpx;
+}
+.daily-float-icon {
+  font-size: 32rpx;
+  line-height: 1;
+}
+.daily-float-title {
+  font-size: 22rpx;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  text-shadow: 0 1rpx 3rpx rgba(120, 60, 0, 0.4);
+}
+.daily-float-label {
+  font-size: 18rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.2;
+}
+.daily-float-label--open {
+  color: #fff;
+}
+.daily-float-time {
+  font-size: 22rpx;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
 .streamer-float {
   position: fixed;
   right: 0;
-  top: 25%;
+  top: 20%;
   transform: translateY(-50%);
   z-index: 52;
   width: 120rpx;
@@ -1491,18 +1872,8 @@ async function onAlbumUnlock({ categorySlug, label }) {
   line-height: 1.2;
 }
 
-.streamer-float-dot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  background: #fff;
-  margin: 0 auto 14rpx;
-  opacity: 0.9;
-  animation: streamer-dot-pulse 1.4s ease-in-out infinite;
-}
-
 .group-float {
-  top: 38%;
+  top: 30%;
   background: linear-gradient(160deg, #26de81 0%, #20b868 55%, #16914a 100%);
   box-shadow: 0 8rpx 28rpx rgba(38, 222, 129, 0.45),
     inset 0 2rpx 0 rgba(255, 255, 255, 0.3);
@@ -1681,6 +2052,25 @@ async function onAlbumUnlock({ categorySlug, label }) {
   letter-spacing: 0.03em;
   box-shadow: 0 6rpx 14rpx rgba(255, 95, 109, 0.35);
   animation: tasksBadgePop 1.3s ease-in-out infinite;
+}
+
+.toolbar-mail-badge {
+  position: absolute;
+  top: -4rpx;
+  right: -4rpx;
+  min-width: 32rpx;
+  height: 32rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, #ff5252, #ff1744);
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 800;
+  line-height: 32rpx;
+  text-align: center;
+  padding: 0 8rpx;
+  box-shadow: 0 4rpx 12rpx rgba(255, 23, 68, 0.4);
+  animation: tasksBadgePop 1.3s ease-in-out infinite;
+  z-index: 1;
 }
 
 @keyframes tasksPulse {

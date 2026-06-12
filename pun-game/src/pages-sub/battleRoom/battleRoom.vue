@@ -20,7 +20,7 @@
           <text class="room-title">房间号: {{ roomId }}</text>
           <text v-if="roleHint" class="role-hint">{{ roleHint }}</text>
         </view>
-        
+
         <view class="players-area">
           <!-- 房主 -->
           <view class="player-box">
@@ -32,11 +32,11 @@
               />
               <view v-if="creatorReady" class="ready-badge">已准备</view>
             </view>
-            <text class="name">{{ creator?.nickname || '等待加入...' }}</text>
+            <text class="name">{{ creator?.nickname || "等待加入..." }}</text>
           </view>
-          
+
           <view class="vs-text">VS</view>
-          
+
           <!-- 挑战者 -->
           <view class="player-box">
             <view class="avatar-wrap">
@@ -47,7 +47,7 @@
               />
               <view v-if="challengerReady" class="ready-badge">已准备</view>
             </view>
-            <text class="name">{{ challenger?.nickname || '等待加入...' }}</text>
+            <text class="name">{{ challenger?.nickname || "等待加入..." }}</text>
           </view>
         </view>
 
@@ -73,7 +73,9 @@
             </view>
           </view>
           <view v-else class="bank-readonly">
-            <text class="bank-readonly-text">{{ questionBank === 'mid' ? '📘 经典题库' : '📕 小红书专辑' }}</text>
+            <text class="bank-readonly-text">{{
+              questionBank === "mid" ? "📘 经典题库" : "📕 小红书专辑"
+            }}</text>
           </view>
         </view>
 
@@ -122,15 +124,26 @@
       </view>
 
       <view v-else class="create-area">
-        <view class="hero-icon">⚔️</view>
+        <view class="hero-icon-wrap">
+          <view class="hero-icon-glow" />
+          <view class="hero-icon-clash-ring hero-icon-clash-ring--1" />
+          <view class="hero-icon-clash-ring hero-icon-clash-ring--2" />
+          <view class="hero-icon">⚔️</view>
+          <view class="hero-spark hero-spark--1">✦</view>
+          <view class="hero-spark hero-spark--2">✧</view>
+          <view class="hero-spark hero-spark--3">✦</view>
+          <view class="hero-spark hero-spark--4">⚡</view>
+        </view>
         <text class="desc">创建房间，邀请好友进行 1V1 谐音梗对战，5道题决胜负！</text>
-        <button class="btn-create" @click="createRoom" :loading="creating">创建对战房间</button>
-        <button class="btn-history-big" @click="goHistory">
-          历史对战记录
+        <button class="btn-create" @click="createRoom" :loading="creating">
+          创建对战房间
         </button>
+        <button class="btn-history-big" @click="goHistory">历史对战记录</button>
         <view class="join-by-id">
-          <text class="join-title">手动加入对战</text>
-          <text class="join-sub">输入 6 位房间号即可匹配成功</text>
+          <text class="join-title">加入对战/恢复对战</text>
+          <text class="join-sub"
+            >输入 6 位房间号即可匹配成功，输入历史房间号可重新恢复对战</text
+          >
           <input
             class="join-input"
             type="number"
@@ -163,468 +176,492 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { onLoad, onUnload, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
-import { api } from '../../utils/api'
-import { wsApi } from '../utils/ws'
-import { useNavBar } from '../../composables/useNavBar'
-import PunPageNavBar from '../../components/PunPageNavBar.vue'
-import { getUserInfo, getAuthToken, wechatLogin } from '../../utils/auth'
-import { DEFAULT_AVATAR_URL } from '../../utils/defaultAvatar'
-import { showInterstitialAd } from '../utils/interstitialAdRunner'
+import { ref, computed } from "vue";
+import {
+  onLoad,
+  onUnload,
+  onShow,
+  onShareAppMessage,
+  onShareTimeline,
+} from "@dcloudio/uni-app";
+import { api } from "../../utils/api";
+import { wsApi } from "../utils/ws";
+import { useNavBar } from "../../composables/useNavBar";
+import PunPageNavBar from "../../components/PunPageNavBar.vue";
+import { getUserInfo, getAuthToken, wechatLogin } from "../../utils/auth";
+import { DEFAULT_AVATAR_URL } from "../../utils/defaultAvatar";
+import { showInterstitialAd } from "../utils/interstitialAdRunner";
 
-const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar()
+const { statusBarHeight, navBarHeight, menuButtonHeight } = useNavBar();
 
-
-const roomId = ref('')
-const questionBank = ref('xhs')
-const creating = ref(false)
-const joining = ref(false)
+const roomId = ref("");
+const questionBank = ref("xhs");
+const creating = ref(false);
+const joining = ref(false);
 /** 手动输入的房间号（仅数字，最多6位） */
-const joinRoomInput = ref('')
+const joinRoomInput = ref("");
 /** 分享进房或手动加入：等待 WS 返回房间状态 */
-const shareJoinLoading = ref(false)
-const myUserId = ref(null)
-const myUserInfo = ref(getUserInfo())
+const shareJoinLoading = ref(false);
+const myUserId = ref(null);
+const myUserInfo = ref(getUserInfo());
 
-const creator = ref(null)
-const challenger = ref(null)
+const creator = ref(null);
+const challenger = ref(null);
 /** 来自 DB/WS，断线重连时即使连接对象为空也能判断身份 */
-const roomCreatorId = ref(0)
-const roomChallengerId = ref(null)
-const creatorReady = ref(false)
-const challengerReady = ref(false)
-let keepWsAliveForBattle = false
-let joinedRoomId = ''
-let joinRetryTimer = null
-let joinRetryCount = 0
-let hasReceivedRoomInfo = false
-const JOIN_RETRY_DELAY = 1500
-const MAX_JOIN_RETRY = 1
+const roomCreatorId = ref(0);
+const roomChallengerId = ref(null);
+const creatorReady = ref(false);
+const challengerReady = ref(false);
+let keepWsAliveForBattle = false;
+let joinedRoomId = "";
+let joinRetryTimer = null;
+let joinRetryCount = 0;
+let hasReceivedRoomInfo = false;
+const JOIN_RETRY_DELAY = 1500;
+const MAX_JOIN_RETRY = 1;
 
 // 分享进房/重连时序兜底
-let battleRedirecting = false
-let joinWaitTimeout = null
-let joinWaitRetryCount = 0
-let wsRedirectTimer = null  // WS 事件中的 setTimeout 句柄，onUnload 时清除
-const JOIN_WAIT_TIMEOUT_MS = 8000
-const MAX_JOIN_WAIT_RETRY = 2
+let battleRedirecting = false;
+let joinWaitTimeout = null;
+let joinWaitRetryCount = 0;
+let wsRedirectTimer = null; // WS 事件中的 setTimeout 句柄，onUnload 时清除
+const JOIN_WAIT_TIMEOUT_MS = 8000;
+const MAX_JOIN_WAIT_RETRY = 2;
 
 function normalizeUserId(v) {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : 0
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 const isCreator = computed(() => {
-  const me = normalizeUserId(myUserId.value)
-  if (!me) return false
-  const rid = normalizeUserId(roomCreatorId.value)
-  if (rid && me === rid) return true
-  return !!(creator.value && normalizeUserId(creator.value.id) === me)
-})
+  const me = normalizeUserId(myUserId.value);
+  if (!me) return false;
+  const rid = normalizeUserId(roomCreatorId.value);
+  if (rid && me === rid) return true;
+  return !!(creator.value && normalizeUserId(creator.value.id) === me);
+});
 const isChallenger = computed(() => {
-  const me = normalizeUserId(myUserId.value)
-  if (!me) return false
-  const hid = roomChallengerId.value
-  if (hid != null && hid !== '') {
-    return me === normalizeUserId(hid)
+  const me = normalizeUserId(myUserId.value);
+  if (!me) return false;
+  const hid = roomChallengerId.value;
+  if (hid != null && hid !== "") {
+    return me === normalizeUserId(hid);
   }
-  return !!(challenger.value && normalizeUserId(challenger.value.id) === me)
-})
-const isMyTurn = computed(() => isCreator.value || isChallenger.value)
-const amIReady = computed(() => (isCreator.value && creatorReady.value) || (isChallenger.value && challengerReady.value))
+  return !!(challenger.value && normalizeUserId(challenger.value.id) === me);
+});
+const isMyTurn = computed(() => isCreator.value || isChallenger.value);
+const amIReady = computed(
+  () =>
+    (isCreator.value && creatorReady.value) ||
+    (isChallenger.value && challengerReady.value)
+);
 
 const roleHint = computed(() => {
-  if (!roomId.value || !normalizeUserId(myUserId.value)) return ''
-  if (isCreator.value) return '你是房主'
-  if (isChallenger.value) return '你是挑战者'
-  return ''
-})
+  if (!roomId.value || !normalizeUserId(myUserId.value)) return "";
+  if (isCreator.value) return "你是房主";
+  if (isChallenger.value) return "你是挑战者";
+  return "";
+});
 
 onLoad((options) => {
-  initRoomPage(options)
-})
+  initRoomPage(options);
+});
 
 onShow(() => {
   // 分享进房时：首次 join 还在等待 WS 返回，不要重复触发 rejoin，避免状态错乱
-  if (shareJoinLoading.value) return
-  rejoinCurrentRoomIfNeeded()
-})
+  if (shareJoinLoading.value) return;
+  rejoinCurrentRoomIfNeeded();
+});
 
 onUnload(() => {
-  shareJoinLoading.value = false
+  shareJoinLoading.value = false;
   if (joinRetryTimer) {
-    clearTimeout(joinRetryTimer)
-    joinRetryTimer = null
+    clearTimeout(joinRetryTimer);
+    joinRetryTimer = null;
   }
   if (joinWaitTimeout) {
-    clearTimeout(joinWaitTimeout)
-    joinWaitTimeout = null
+    clearTimeout(joinWaitTimeout);
+    joinWaitTimeout = null;
   }
   if (wsRedirectTimer) {
-    clearTimeout(wsRedirectTimer)
-    wsRedirectTimer = null
+    clearTimeout(wsRedirectTimer);
+    wsRedirectTimer = null;
   }
-  joinWaitRetryCount = 0
-  battleRedirecting = false
-  wsApi.off('room_info')
-  wsApi.off('start_game')
-  wsApi.off('resume_game')
-  wsApi.off('game_over')
-  wsApi.off('error')
+  joinWaitRetryCount = 0;
+  battleRedirecting = false;
+  wsApi.off("room_info");
+  wsApi.off("start_game");
+  wsApi.off("resume_game");
+  wsApi.off("game_over");
+  wsApi.off("error");
   if (!keepWsAliveForBattle) {
-    wsApi.close()
+    wsApi.close();
   }
-})
+});
 
 onShareAppMessage(() => ({
-  title: '来和我1V1对战谐音梗猜一猜吧！',
+  title: "来和我1V1对战谐音梗猜一猜吧！",
   path: `/pages-sub/battleRoom/battleRoom?roomId=${roomId.value}`,
-}))
+}));
 
 onShareTimeline(() => {
-  const rid = roomId.value
+  const rid = roomId.value;
   return {
-    title: '来和我1V1对战谐音梗猜一猜吧！',
-    query: rid ? `roomId=${encodeURIComponent(rid)}` : '',
-  }
-})
+    title: "来和我1V1对战谐音梗猜一猜吧！",
+    query: rid ? `roomId=${encodeURIComponent(rid)}` : "",
+  };
+});
 
 function endShareJoinLoading() {
-  shareJoinLoading.value = false
+  shareJoinLoading.value = false;
   // 停止一切 join 兜底循环，避免 start_game/resume_game 之后又重复发送 join
-  hasReceivedRoomInfo = true
+  hasReceivedRoomInfo = true;
   if (joinRetryTimer) {
-    clearTimeout(joinRetryTimer)
-    joinRetryTimer = null
+    clearTimeout(joinRetryTimer);
+    joinRetryTimer = null;
   }
-  joinRetryCount = 0
+  joinRetryCount = 0;
   if (joinWaitTimeout) {
-    clearTimeout(joinWaitTimeout)
-    joinWaitTimeout = null
+    clearTimeout(joinWaitTimeout);
+    joinWaitTimeout = null;
   }
-  joinWaitRetryCount = 0
+  joinWaitRetryCount = 0;
 }
 
 function setupWsListeners() {
-  wsApi.on('room_info', (data) => {
-    const showJoinOk = shareJoinLoading.value
-    endShareJoinLoading()
+  wsApi.on("room_info", (data) => {
+    const showJoinOk = shareJoinLoading.value;
+    endShareJoinLoading();
     if (joinRetryTimer) {
-      clearTimeout(joinRetryTimer)
-      joinRetryTimer = null
+      clearTimeout(joinRetryTimer);
+      joinRetryTimer = null;
     }
-    joinRetryCount = 0
-    hasReceivedRoomInfo = true
-    if (data.creatorId != null) roomCreatorId.value = normalizeUserId(data.creatorId)
+    joinRetryCount = 0;
+    hasReceivedRoomInfo = true;
+    if (data.creatorId != null) roomCreatorId.value = normalizeUserId(data.creatorId);
     if (data.challengerId !== undefined) {
-      roomChallengerId.value = data.challengerId == null || data.challengerId === ''
-        ? null
-        : normalizeUserId(data.challengerId)
+      roomChallengerId.value =
+        data.challengerId == null || data.challengerId === ""
+          ? null
+          : normalizeUserId(data.challengerId);
     }
-    creator.value = data.creator
-    challenger.value = data.challenger
-    creatorReady.value = data.creatorReady
-    challengerReady.value = data.challengerReady
-    if (data.questionBank) questionBank.value = data.questionBank
+    creator.value = data.creator;
+    challenger.value = data.challenger;
+    creatorReady.value = data.creatorReady;
+    challengerReady.value = data.challengerReady;
+    if (data.questionBank) questionBank.value = data.questionBank;
     if (showJoinOk) {
-      uni.showToast({ title: '加入成功', icon: 'none' })
+      uni.showToast({ title: "加入成功", icon: "none" });
     }
-  })
+  });
 
-  wsApi.on('start_game', (data) => {
-    if (battleRedirecting) return
-    battleRedirecting = true
-    endShareJoinLoading()
-    uni.showToast({ title: '游戏开始！', icon: 'none' })
-    const levelsStr = JSON.stringify(data.levels)
-    keepWsAliveForBattle = true
-    if (wsRedirectTimer) clearTimeout(wsRedirectTimer)
+  wsApi.on("start_game", (data) => {
+    if (battleRedirecting) return;
+    battleRedirecting = true;
+    endShareJoinLoading();
+    uni.showToast({ title: "游戏开始！", icon: "none" });
+    const levelsStr = JSON.stringify(data.levels);
+    keepWsAliveForBattle = true;
+    if (wsRedirectTimer) clearTimeout(wsRedirectTimer);
     wsRedirectTimer = setTimeout(() => {
-      wsRedirectTimer = null
+      wsRedirectTimer = null;
       // 保留房间连接，跳转到游戏页
       uni.redirectTo({
-        url: `/pages-sub/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&myUserId=${myUserId.value}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}&questionBank=${data.questionBank || questionBank.value}`
-      })
-    }, 1000)
-  })
+        url: `/pages-sub/battlePlay/battlePlay?roomId=${
+          roomId.value
+        }&levels=${levelsStr}&myUserId=${myUserId.value}&myName=${encodeURIComponent(
+          data.myName
+        )}&opponentName=${encodeURIComponent(data.opponentName)}&questionBank=${
+          data.questionBank || questionBank.value
+        }`,
+      });
+    }, 1000);
+  });
 
-  wsApi.on('resume_game', (data) => {
-    if (battleRedirecting) return
-    battleRedirecting = true
-    endShareJoinLoading()
-    uni.showToast({ title: '正在恢复对战...', icon: 'none' })
-    const levelsStr = JSON.stringify(data.levels)
-    keepWsAliveForBattle = true
-    if (wsRedirectTimer) clearTimeout(wsRedirectTimer)
+  wsApi.on("resume_game", (data) => {
+    if (battleRedirecting) return;
+    battleRedirecting = true;
+    endShareJoinLoading();
+    uni.showToast({ title: "正在恢复对战...", icon: "none" });
+    const levelsStr = JSON.stringify(data.levels);
+    keepWsAliveForBattle = true;
+    if (wsRedirectTimer) clearTimeout(wsRedirectTimer);
     wsRedirectTimer = setTimeout(() => {
-      wsRedirectTimer = null
+      wsRedirectTimer = null;
       uni.redirectTo({
-        url: `/pages-sub/battlePlay/battlePlay?roomId=${roomId.value}&levels=${levelsStr}&resume=1&myUserId=${myUserId.value}&myProgress=${data.myProgress}&opponentProgress=${data.opponentProgress}&timePassed=${data.timePassed}&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(data.opponentName)}&questionBank=${data.questionBank || questionBank.value}`
-      })
-    }, 500)
-  })
+        url: `/pages-sub/battlePlay/battlePlay?roomId=${
+          roomId.value
+        }&levels=${levelsStr}&resume=1&myUserId=${myUserId.value}&myProgress=${
+          data.myProgress
+        }&opponentProgress=${data.opponentProgress}&timePassed=${
+          data.timePassed
+        }&myName=${encodeURIComponent(data.myName)}&opponentName=${encodeURIComponent(
+          data.opponentName
+        )}&questionBank=${data.questionBank || questionBank.value}`,
+      });
+    }, 500);
+  });
 
   // 如果断线期间游戏已经结束，服务端会在 join 后直接发送 game_over
-  wsApi.on('game_over', (data) => {
-    endShareJoinLoading()
+  wsApi.on("game_over", (data) => {
+    endShareJoinLoading();
     // 游戏已结束，直接跳去历史记录
-    uni.showToast({ title: '对战已结束', icon: 'none' })
-    if (wsRedirectTimer) clearTimeout(wsRedirectTimer)
+    uni.showToast({ title: "对战已结束", icon: "none" });
+    if (wsRedirectTimer) clearTimeout(wsRedirectTimer);
     wsRedirectTimer = setTimeout(() => {
-      wsRedirectTimer = null
-      uni.redirectTo({ url: '/pages-sub/battleHistory/battleHistory' })
-    }, 1000)
-  })
+      wsRedirectTimer = null;
+      uni.redirectTo({ url: "/pages-sub/battleHistory/battleHistory" });
+    }, 1000);
+  });
 
-  wsApi.on('error', (data) => {
-    endShareJoinLoading()
-    uni.showToast({ title: data.msg, icon: 'none' })
-    if (data.msg === '房间不存在或已解散~') {
-      if (wsRedirectTimer) clearTimeout(wsRedirectTimer)
+  wsApi.on("error", (data) => {
+    endShareJoinLoading();
+    uni.showToast({ title: data.msg, icon: "none" });
+    if (data.msg === "房间不存在或已解散~") {
+      if (wsRedirectTimer) clearTimeout(wsRedirectTimer);
       wsRedirectTimer = setTimeout(() => {
-        wsRedirectTimer = null
-        roomId.value = ''
+        wsRedirectTimer = null;
+        roomId.value = "";
         // 如果是通过链接进来的，清除链接上的参数防止刷新又进去
-        uni.redirectTo({ url: '/pages-sub/battleRoom/battleRoom' })
-      }, 1500)
+        uni.redirectTo({ url: "/pages-sub/battleRoom/battleRoom" });
+      }, 1500);
     }
-  })
+  });
 }
 
 function onJoinRoomInput(e) {
-  const raw = (e.detail && e.detail.value) != null ? String(e.detail.value) : ''
-  const digits = raw.replace(/\D/g, '').slice(0, 6)
-  joinRoomInput.value = digits
+  const raw = (e.detail && e.detail.value) != null ? String(e.detail.value) : "";
+  const digits = raw.replace(/\D/g, "").slice(0, 6);
+  joinRoomInput.value = digits;
 }
 
 /** 手动输入房间号加入；失败时与分享进房共用 WS error 处理（房间无效则跳转清空） */
 async function joinByInput() {
-  if (creating.value || joining.value) return
-  const id = String(joinRoomInput.value || '').trim()
+  if (creating.value || joining.value) return;
+  const id = String(joinRoomInput.value || "").trim();
   if (!/^\d{6}$/.test(id)) {
-    uni.showToast({ title: '请输入6位房间号', icon: 'none' })
-    return
+    uni.showToast({ title: "请输入6位房间号", icon: "none" });
+    return;
   }
 
-  let token = getAuthToken()
+  let token = getAuthToken();
   if (!token) {
     try {
-      await wechatLogin()
-      token = getAuthToken()
+      await wechatLogin();
+      token = getAuthToken();
     } catch (e) {
-      uni.showToast({ title: '请先登录', icon: 'none' })
-      return
+      uni.showToast({ title: "请先登录", icon: "none" });
+      return;
     }
   }
   if (!token) {
-    uni.showToast({ title: '请先登录', icon: 'none' })
-    return
+    uni.showToast({ title: "请先登录", icon: "none" });
+    return;
   }
 
-  joining.value = true
-  shareJoinLoading.value = true
-  roomId.value = id
-  creator.value = null
-  challenger.value = null
-  roomCreatorId.value = 0
-  roomChallengerId.value = null
-  creatorReady.value = false
-  challengerReady.value = false
+  joining.value = true;
+  shareJoinLoading.value = true;
+  roomId.value = id;
+  creator.value = null;
+  challenger.value = null;
+  roomCreatorId.value = 0;
+  roomChallengerId.value = null;
+  creatorReady.value = false;
+  challengerReady.value = false;
   try {
-    await rejoinCurrentRoomIfNeeded()
+    await rejoinCurrentRoomIfNeeded();
     if (!wsApi.isAuthReady()) {
-      throw new Error('WS not ready')
+      throw new Error("WS not ready");
     }
   } catch (e) {
-    console.warn('join by input failed', e)
-    endShareJoinLoading()
-    joinRoomInput.value = ''
-    roomId.value = ''
-    uni.showToast({ title: '连接失败，请重试', icon: 'none' })
+    console.warn("join by input failed", e);
+    endShareJoinLoading();
+    joinRoomInput.value = "";
+    roomId.value = "";
+    uni.showToast({ title: "连接失败，请重试", icon: "none" });
     setTimeout(() => {
-      uni.redirectTo({ url: '/pages-sub/battleRoom/battleRoom' })
-    }, 1500)
+      uni.redirectTo({ url: "/pages-sub/battleRoom/battleRoom" });
+    }, 1500);
   } finally {
-    joining.value = false
+    joining.value = false;
   }
 }
 
 async function onBankChange(bank) {
-  if (bank === questionBank.value) return
-  const oldBank = questionBank.value
-  questionBank.value = bank
-  if (!roomId.value) return
+  if (bank === questionBank.value) return;
+  const oldBank = questionBank.value;
+  questionBank.value = bank;
+  if (!roomId.value) return;
   try {
-    await api.updateBattleRoomBank(roomId.value, bank)
+    await api.updateBattleRoomBank(roomId.value, bank);
     // 通知 WebSocket 广播房间信息给对手
-    wsApi.send({ action: 'refresh_room' })
+    wsApi.send({ action: "refresh_room" });
   } catch (e) {
-    questionBank.value = oldBank
-    uni.showToast({ title: '切换题库失败', icon: 'none' })
+    questionBank.value = oldBank;
+    uni.showToast({ title: "切换题库失败", icon: "none" });
   }
 }
 
 async function createRoom() {
-  if (creating.value) return
-  creating.value = true
+  if (creating.value) return;
+  creating.value = true;
   try {
     const uid = normalizeUserId(
       myUserId.value || myUserInfo.value?.id || myUserInfo.value?.user_id
-    )
+    );
     // 乐观更新：立刻把自己设置为房主，减少等待延迟感
     creator.value = {
       id: uid,
-      nickname: myUserInfo.value?.nickname || '我',
-      avatar: myUserInfo.value?.avatar || ''
-    }
-    roomCreatorId.value = uid
-    roomChallengerId.value = null
+      nickname: myUserInfo.value?.nickname || "我",
+      avatar: myUserInfo.value?.avatar || "",
+    };
+    roomCreatorId.value = uid;
+    roomChallengerId.value = null;
 
-    const res = await api.createBattleRoom(questionBank.value)
-    roomId.value = res.roomId
-    joinRoom(res.roomId)
+    const res = await api.createBattleRoom(questionBank.value);
+    roomId.value = res.roomId;
+    joinRoom(res.roomId);
   } catch (err) {
-    uni.showToast({ title: err.message || '创建失败', icon: 'none' })
-    creator.value = null // 回滚
-    roomCreatorId.value = 0
-    roomChallengerId.value = null
+    uni.showToast({ title: err.message || "创建失败", icon: "none" });
+    creator.value = null; // 回滚
+    roomCreatorId.value = 0;
+    roomChallengerId.value = null;
   } finally {
-    creating.value = false
+    creating.value = false;
   }
 }
 
 function joinRoom(id) {
-  if (!id) return
+  if (!id) return;
   // 允许同一房间重复 join：退后台断线后需重新绑定连接，服务端按 userId 恢复角色
-  joinedRoomId = id
+  joinedRoomId = id;
   if (joinRetryTimer) {
-    clearTimeout(joinRetryTimer)
-    joinRetryTimer = null
+    clearTimeout(joinRetryTimer);
+    joinRetryTimer = null;
   }
-  joinRetryCount = 0
-  hasReceivedRoomInfo = false
-  wsApi.send({ action: 'join', roomId: id })
-  scheduleJoinRetry(id)
-  if (shareJoinLoading.value) startJoinWaitTimeout(id)
+  joinRetryCount = 0;
+  hasReceivedRoomInfo = false;
+  wsApi.send({ action: "join", roomId: id });
+  scheduleJoinRetry(id);
+  if (shareJoinLoading.value) startJoinWaitTimeout(id);
 }
 
 function scheduleJoinRetry(id) {
-  if (joinRetryCount >= MAX_JOIN_RETRY) return
+  if (joinRetryCount >= MAX_JOIN_RETRY) return;
   joinRetryTimer = setTimeout(() => {
     // 仍在等待同一房间信息时，重发一次 join 兜底
     if (joinedRoomId === id && !hasReceivedRoomInfo) {
-      joinRetryCount++
-      wsApi.send({ action: 'join', roomId: id })
+      joinRetryCount++;
+      wsApi.send({ action: "join", roomId: id });
     }
-  }, JOIN_RETRY_DELAY)
+  }, JOIN_RETRY_DELAY);
 }
 
 function startJoinWaitTimeout(id) {
-  if (!shareJoinLoading.value) return
+  if (!shareJoinLoading.value) return;
   if (joinWaitTimeout) {
-    clearTimeout(joinWaitTimeout)
-    joinWaitTimeout = null
+    clearTimeout(joinWaitTimeout);
+    joinWaitTimeout = null;
   }
 
   joinWaitTimeout = setTimeout(() => {
-    if (joinedRoomId !== id) return
-    joinWaitTimeout = null
+    if (joinedRoomId !== id) return;
+    joinWaitTimeout = null;
 
     if (joinWaitRetryCount >= MAX_JOIN_WAIT_RETRY) {
-      uni.showToast({ title: '加入房间超时，请稍后再试', icon: 'none' })
-      return
+      uni.showToast({ title: "加入房间超时，请稍后再试", icon: "none" });
+      return;
     }
 
-    joinWaitRetryCount++
+    joinWaitRetryCount++;
 
     // 清理当前 join 重试兜底，再触发一次重连 join
     if (joinRetryTimer) {
-      clearTimeout(joinRetryTimer)
-      joinRetryTimer = null
+      clearTimeout(joinRetryTimer);
+      joinRetryTimer = null;
     }
-    joinRetryCount = 0
+    joinRetryCount = 0;
 
-    rejoinCurrentRoomIfNeeded()
-  }, JOIN_WAIT_TIMEOUT_MS)
+    rejoinCurrentRoomIfNeeded();
+  }, JOIN_WAIT_TIMEOUT_MS);
 }
 
 async function rejoinCurrentRoomIfNeeded() {
-  if (!roomId.value) return
+  if (!roomId.value) return;
   try {
-    const token = getAuthToken()
-    if (!token) return
-    const local = getUserInfo()
+    const token = getAuthToken();
+    if (!token) return;
+    const local = getUserInfo();
     if (local) {
-      myUserId.value = normalizeUserId(local.id ?? local.user_id)
+      myUserId.value = normalizeUserId(local.id ?? local.user_id);
     }
-    const res = await wsApi.connect(token)
+    const res = await wsApi.connect(token);
     if (res && res.userInfo && res.userInfo.id) {
-      myUserId.value = normalizeUserId(res.userInfo.id)
+      myUserId.value = normalizeUserId(res.userInfo.id);
     }
-    joinRoom(roomId.value)
+    joinRoom(roomId.value);
   } catch (e) {
-    console.warn('rejoin room failed', e)
+    console.warn("rejoin room failed", e);
   }
 }
 
 async function initRoomPage(options) {
   // 监听 WebSocket 事件
-  setupWsListeners()
+  setupWsListeners();
   try {
-    let token = getAuthToken()
+    let token = getAuthToken();
     if (!token) {
-      await wechatLogin()
-      token = getAuthToken()
+      await wechatLogin();
+      token = getAuthToken();
     }
     if (!token) {
-      throw new Error('登录失败')
+      throw new Error("登录失败");
     }
 
-    const localUser = getUserInfo()
+    const localUser = getUserInfo();
     if (localUser) {
-      myUserId.value = normalizeUserId(localUser.id ?? localUser.user_id)
+      myUserId.value = normalizeUserId(localUser.id ?? localUser.user_id);
     }
 
-    const res = await wsApi.connect(token)
+    const res = await wsApi.connect(token);
     if (res && res.userInfo && res.userInfo.id) {
-      myUserId.value = normalizeUserId(res.userInfo.id)
+      myUserId.value = normalizeUserId(res.userInfo.id);
     }
 
     // 如果是通过分享链接进来的，自动加入房间
     if (options.roomId) {
-      shareJoinLoading.value = true
-      roomId.value = options.roomId
-      joinRoom(options.roomId)
+      shareJoinLoading.value = true;
+      roomId.value = options.roomId;
+      joinRoom(options.roomId);
     }
   } catch (err) {
-    endShareJoinLoading()
-    uni.showToast({ title: err.message || '连接服务器失败', icon: 'none' })
-    setTimeout(() => uni.navigateBack(), 1200)
+    endShareJoinLoading();
+    uni.showToast({ title: err.message || "连接服务器失败", icon: "none" });
+    setTimeout(() => uni.navigateBack(), 1200);
   }
 
   // 从对战结束返回：拉起插屏广告
-  if (options.fromBattle === '1') {
+  if (options.fromBattle === "1") {
     setTimeout(() => {
-      showInterstitialAd()
-    }, 800)
+      showInterstitialAd();
+    }, 800);
   }
 }
 
 function ready() {
-  wsApi.send({ action: 'ready' })
+  wsApi.send({ action: "ready" });
 }
 function goBack() {
-  const pages = getCurrentPages()
+  const pages = getCurrentPages();
   if (pages.length > 1) {
-    uni.navigateBack()
+    uni.navigateBack();
   } else {
-    uni.reLaunch({ url: '/pages/index/index' })
+    uni.reLaunch({ url: "/pages/index/index" });
   }
 }
 
 function goHistory() {
-  uni.navigateTo({ url: '/pages-sub/battleHistory/battleHistory' })
+  uni.navigateTo({ url: "/pages-sub/battleHistory/battleHistory" });
 }
 </script>
 
@@ -663,7 +700,7 @@ function goHistory() {
   flex-direction: column;
   align-items: center;
   // justify-content: center;
-  padding: 40rpx;
+  // padding: 40rpx;
   position: relative;
   z-index: 1;
 }
@@ -677,10 +714,132 @@ function goHistory() {
   justify-content: center;
   text-align: center;
 }
-.hero-icon {
-  font-size: 120rpx;
+/* ===== 对战图标：刀剑交锋动画 ===== */
+.hero-icon-wrap {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 40rpx;
-  filter: drop-shadow(0 10rpx 20rpx rgba(0,0,0,0.1));
+}
+
+/* 底部光晕 */
+.hero-icon-glow {
+  position: absolute;
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 140, 60, 0.45) 0%, rgba(255, 80, 40, 0.18) 40%, transparent 70%);
+  animation: glow-pulse 1.6s ease-in-out infinite;
+}
+
+/* 冲击环 */
+.hero-icon-clash-ring {
+  position: absolute;
+  width: 60rpx;
+  height: 60rpx;
+  border-radius: 50%;
+  border: 3rpx solid rgba(255, 160, 80, 0.5);
+  animation: clash-ring-burst 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+  pointer-events: none;
+}
+.hero-icon-clash-ring--2 {
+  animation-delay: 0.8s;
+  border-color: rgba(255, 200, 100, 0.35);
+}
+
+/* 刀剑本体：周期性交锋震动 */
+.hero-icon {
+  position: relative;
+  z-index: 2;
+  font-size: 120rpx;
+  filter: drop-shadow(0 0 16rpx rgba(255, 130, 50, 0.55)) drop-shadow(0 6rpx 12rpx rgba(0, 0, 0, 0.15));
+  animation: sword-clash 1.6s cubic-bezier(0.36, 0, 0.66, 1) infinite;
+}
+
+/* 火花粒子 */
+.hero-spark {
+  position: absolute;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+}
+.hero-spark--1 { top: 30rpx; left: 50rpx; animation-delay: 0s; font-size: 22rpx; color: #ffcc80; }
+.hero-spark--2 { top: 24rpx; right: 46rpx; animation-delay: 0.4s; font-size: 28rpx; color: #ffab40; }
+.hero-spark--3 { bottom: 36rpx; left: 38rpx; animation-delay: 0.8s; font-size: 20rpx; color: #ffd54f; }
+.hero-spark--4 { bottom: 28rpx; right: 52rpx; animation-delay: 1.2s; font-size: 26rpx; color: #ff8a65; }
+
+@keyframes glow-pulse {
+  0%, 100% {
+    transform: scale(0.9);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+}
+
+@keyframes clash-ring-burst {
+  0% {
+    width: 40rpx;
+    height: 40rpx;
+    opacity: 0.8;
+    border-width: 4rpx;
+  }
+  100% {
+    width: 180rpx;
+    height: 180rpx;
+    opacity: 0;
+    border-width: 1rpx;
+  }
+}
+
+@keyframes sword-clash {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  /* 蓄力后拉 */
+  22% {
+    transform: scale(0.9) rotate(-7deg);
+  }
+  /* 猛烈撞击 */
+  48% {
+    transform: scale(1.22) rotate(4deg);
+  }
+  /* 反弹微震 */
+  72% {
+    transform: scale(1.05) rotate(-2deg);
+  }
+}
+
+/* 火花粒子 — 每个独立方向 */
+.hero-spark--1 { top: 30rpx; left: 50rpx; animation: spark-fly-tl 1.6s ease-out infinite; font-size: 22rpx; color: #ffcc80; }
+.hero-spark--2 { top: 24rpx; right: 46rpx; animation: spark-fly-tr 1.6s ease-out infinite; animation-delay: 0.4s; font-size: 28rpx; color: #ffab40; }
+.hero-spark--3 { bottom: 36rpx; left: 38rpx; animation: spark-fly-bl 1.6s ease-out infinite; animation-delay: 0.8s; font-size: 20rpx; color: #ffd54f; }
+.hero-spark--4 { bottom: 28rpx; right: 52rpx; animation: spark-fly-br 1.6s ease-out infinite; animation-delay: 1.2s; font-size: 26rpx; color: #ff8a65; }
+
+@keyframes spark-fly-tl {
+  0% { opacity: 0; transform: translate(0, 0) scale(0); }
+  30% { opacity: 1; transform: translate(-18rpx, -22rpx) scale(1.3); }
+  100% { opacity: 0; transform: translate(-54rpx, -66rpx) scale(0.3); }
+}
+@keyframes spark-fly-tr {
+  0% { opacity: 0; transform: translate(0, 0) scale(0); }
+  30% { opacity: 1; transform: translate(20rpx, -24rpx) scale(1.3); }
+  100% { opacity: 0; transform: translate(60rpx, -72rpx) scale(0.3); }
+}
+@keyframes spark-fly-bl {
+  0% { opacity: 0; transform: translate(0, 0) scale(0); }
+  30% { opacity: 1; transform: translate(-22rpx, 20rpx) scale(1.3); }
+  100% { opacity: 0; transform: translate(-66rpx, 60rpx) scale(0.3); }
+}
+@keyframes spark-fly-br {
+  0% { opacity: 0; transform: translate(0, 0) scale(0); }
+  30% { opacity: 1; transform: translate(24rpx, 18rpx) scale(1.3); }
+  100% { opacity: 0; transform: translate(72rpx, 54rpx) scale(0.3); }
 }
 .desc {
   font-size: 28rpx;
@@ -764,7 +923,7 @@ function goHistory() {
 }
 .join-sub {
   font-size: 24rpx;
-  color: #94a3b8;
+  color: rgb(228, 103, 103);
   text-align: center;
   line-height: 1.4;
   margin-bottom: 2rpx;
@@ -818,7 +977,9 @@ function goHistory() {
   font-weight: bold;
   box-shadow: 0 16rpx 32rpx rgba(111, 184, 104, 0.28);
   margin-bottom: 30rpx;
-  &::after { border: none; }
+  &::after {
+    border: none;
+  }
 }
 .btn-history-big {
   background: #fff;
@@ -835,7 +996,9 @@ function goHistory() {
   justify-content: center;
   gap: 12rpx;
   box-shadow: 0 8rpx 20rpx rgba(169, 201, 238, 0.12);
-  &::after { border: none; }
+  &::after {
+    border: none;
+  }
 }
 
 .room-card {
@@ -891,7 +1054,7 @@ function goHistory() {
   height: 140rpx;
   border-radius: 50%;
   border: 6rpx solid #fff;
-  box-shadow: 0 8rpx 16rpx rgba(0,0,0,0.1);
+  box-shadow: 0 8rpx 16rpx rgba(0, 0, 0, 0.1);
 }
 .ready-badge {
   position: absolute;
@@ -1015,8 +1178,7 @@ function goHistory() {
 .btn-ready--primary {
   background: linear-gradient(145deg, #34d399 0%, #10b981 42%, #059669 100%);
   color: #fff;
-  box-shadow:
-    0 12rpx 28rpx rgba(16, 185, 129, 0.35),
+  box-shadow: 0 12rpx 28rpx rgba(16, 185, 129, 0.35),
     inset 0 1rpx 0 rgba(255, 255, 255, 0.25);
 }
 

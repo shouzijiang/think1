@@ -1,5 +1,15 @@
 {
     "categories": {
+        "dragonboat": {
+            "label": "端午节",
+            "icon": "🐲",
+            "color": "#16A34A",
+            "fileName": "issue3_dragonboat.json",
+            "answerTypes": [
+                "端午节"
+            ],
+            "totalCount": 1
+        },
         "character": {
             "label": "人物篇",
             "icon": "🧑‍🎨",
@@ -13,7 +23,7 @@
                 "科学家",
                 "动漫角色"
             ],
-            "totalCount": 99
+            "totalCount": 98
         },
         "city": {
             "label": "城市篇",

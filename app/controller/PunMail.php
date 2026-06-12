@@ -40,6 +40,20 @@ class PunMail extends BaseController
     }
 
     /**
+     * 未读状态 GET /pun/mail/unread-status
+     */
+    public function unreadStatus(Request $request)
+    {
+        $userId = (int) ($request->user_id ?? 0);
+        if ($userId <= 0) {
+            return ResponseHelper::unauthorized();
+        }
+
+        $result = $this->mailService->hasUnread($userId);
+        return ResponseHelper::success($result);
+    }
+
+    /**
      * 邮件详情 GET /pun/mail/detail?id=xxx
      */
     public function mailDetail(Request $request)

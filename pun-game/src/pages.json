@@ -107,7 +107,14 @@
           "path": "battlePlay/battlePlay",
           "style": {
             "navigationStyle": "custom",
-            "navigationBarTitleText": "对战中"
+            "navigationBarTitleText": "好友1V1对战"
+          }
+        },
+        {
+          "path": "dailyChallenge/dailyChallenge",
+          "style": {
+            "navigationStyle": "custom",
+            "navigationBarTitleText": "每日挑战"
           }
         },
         {

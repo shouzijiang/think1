@@ -112,6 +112,9 @@ class PunService
         if ($m === 'album') {
             return 'album';
         }
+        if ($m === 'daily_challenge') {
+            return 'daily_challenge';
+        }
         return 'beginner';
     }
 
@@ -123,7 +126,7 @@ class PunService
         if ($mode === 'intermediate') {
             return 'mid';
         }
-        if ($mode === 'xhs') {
+        if ($mode === 'xhs' || $mode === 'album') {
             return 'xhs';
         }
         return 'beg';
@@ -213,6 +216,24 @@ class PunService
         ]);
 
         return $default;
+    }
+
+    /**
+     * 获取用户答案次数（轻量接口，仅读 pun_user_hint_quota 一行）。
+     *
+     * @return array{hintAnswerQuota:int}
+     */
+    public function getHintQuota(int $userId): array
+    {
+        $key = 'hint_quota_' . $userId;
+        $cached = Cache::get($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+        $quota = $this->getOrCreateHintAnswerQuota($userId);
+        $result = ['hintAnswerQuota' => $quota];
+        Cache::set($key, $result, 60);
+        return $result;
     }
 
     private function shanghaiNow(): \DateTime
@@ -629,24 +650,51 @@ class PunService
     }
 
     /**
-     * 有效的专辑 slug → label 映射（与 ALBUM_CATEGORIES 保持一致）
+     * 获取所有上架专辑分类（按 sort_order 升序，slug 兜底）。
+     * 前端页面加载时调用一次，替代硬编码的 ALBUM_CATEGORIES。
+     *
+     * @return list<array{slug:string, label:string, icon:string, color:string, answerTypes:list<string>}>
+     */
+    public function getAlbumCategories(): array
+    {
+        $rows = Db::name('pun_album_category')
+            ->where('is_active', 1)
+            ->order('sort_order', 'asc')
+            ->order('slug', 'asc')
+            ->select()
+            ->toArray();
+
+        return array_map(function ($row) {
+            $answerTypes = is_string($row['answer_types'] ?? null)
+                ? json_decode($row['answer_types'], true)
+                : ($row['answer_types'] ?? []);
+            return [
+                'slug'        => (string) ($row['slug'] ?? ''),
+                'label'       => (string) ($row['label'] ?? ''),
+                'icon'        => (string) ($row['icon'] ?? ''),
+                'answerTypes' => is_array($answerTypes) ? $answerTypes : [],
+                'totalCount'  => (int) ($row['total_count'] ?? 0),
+            ];
+        }, $rows);
+    }
+
+    /**
+     * 有效的专辑 slug → label 映射（从 DB 读取，含上/下架）。
      * @return array<string,string>
      */
     public function getValidAlbumSlugs(): array
     {
-        return [
-            'character' => '人物篇',
-            'city'      => '城市篇',
-            'landscape' => '风景名胜篇',
-            'food'      => '食物篇',
-            'fruit'     => '水果篇',
-            'dessert'   => '甜品篇',
-            'idiom'     => '成语篇',
-            'plant'     => '植物篇',
-            'christmas' => '圣诞节篇',
-            'newyear'   => '新年篇',
-            'zodiac'    => '生肖篇',
-        ];
+        $rows = Db::name('pun_album_category')
+            ->where('is_active', 1)
+            ->order('sort_order', 'asc')
+            ->select()
+            ->toArray();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $map[(string) $row['slug']] = (string) ($row['label'] ?? $row['slug']);
+        }
+        return $map;
     }
 
     /**
@@ -919,7 +967,7 @@ class PunService
             $configKey = $battleBank === 'mid' ? 'pun_levels_issue2' : 'pun_levels_issue3';
             $answersRaw = Config::get($configKey, []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
-        } elseif ($mode === 'xhs') {
+        } elseif ($mode === 'xhs' || $mode === 'album' || $mode === 'daily_challenge') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
@@ -938,7 +986,7 @@ class PunService
             $cacheKey = $this->hintCacheKeyBattle($userId, $roomId, $questionIndex, $level);
         } elseif ($mode === 'intermediate') {
             $cacheKey = $this->hintCacheKeySolo($userId, 'mid', $level);
-        } elseif ($mode === 'xhs') {
+        } elseif ($mode === 'xhs' || $mode === 'album' || $mode === 'daily_challenge') {
             $cacheKey = $this->hintCacheKeySolo($userId, 'xhs', $level);
         } else {
             $cacheKey = $this->hintCacheKeySolo($userId, 'beg', $level);
@@ -1001,7 +1049,7 @@ class PunService
 
         if ($mode === 'intermediate') {
             $answersRaw = Config::get('pun_levels_issue2', []);
-        } elseif ($mode === 'xhs') {
+        } elseif ($mode === 'xhs' || $mode === 'album') {
             $answersRaw = Config::get('pun_levels_issue3', []);
         } else {
             $answersRaw = Config::get('pun_levels', []);
@@ -1037,7 +1085,7 @@ class PunService
         $this->invalidateLevelProgressCache($userId);
 
         $allKeys = array_keys($answersRaw);
-        if ($mode === 'xhs' || $mode === 'beginner') {
+        if ($mode === 'xhs' || $mode === 'album' || $mode === 'beginner') {
             sort($allKeys, SORT_NUMERIC);
         }
         $idx = $this->indexOfLevelIdInOrderedKeys($allKeys, $level);
@@ -1135,7 +1183,7 @@ class PunService
         if ($mode === 'intermediate') {
             return 'last_pass_at_mid';
         }
-        if ($mode === 'xhs') {
+        if ($mode === 'xhs' || $mode === 'album') {
             return 'last_pass_at_xhs';
         }
 
@@ -1153,9 +1201,17 @@ class PunService
     {
         $mode = $this->normalizeMode($mode);
         $pageSize = min(max(1, $pageSize), 100);
+
+        // 本地缓存：按 mode + page + pageSize 缓存，5 分钟过期
+        $cacheKey = 'rank_list:' . $mode . ':' . $page . ':' . $pageSize;
+        $cached = Cache::get($cacheKey);
+        if ($cached !== null && is_array($cached)) {
+            return $cached;
+        }
+
         $orderField = $mode === 'intermediate'
             ? 'max_level_mid'
-            : ($mode === 'xhs' ? 'max_level_xhs' : 'max_level');
+            : ($mode === 'xhs' || $mode === 'album' ? 'max_level_xhs' : 'max_level');
         $tieCol = $this->rankTiebreakTimeColumn($mode);
 
         $query = PunGameRank::with('user')
@@ -1179,7 +1235,9 @@ class PunService
                 ];
             })
             ->toArray();
-        return ['list' => $list, 'total' => $total];
+        $result = ['list' => $list, 'total' => $total];
+        Cache::set($cacheKey, $result, 300);
+        return $result;
     }
 
     /**
@@ -1201,7 +1259,7 @@ class PunService
             $configKey = in_array($questionBank, ['mid', 'intermediate'], true) ? 'pun_levels_issue2' : 'pun_levels_issue3';
             $answersRaw = Config::get($configKey, []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
-        } elseif ($mode === 'xhs' || $mode === 'album') {
+        } elseif ($mode === 'xhs' || $mode === 'album' || $mode === 'daily_challenge') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $correct = isset($answersRaw[$level]) && is_array($answersRaw[$level]) ? $answersRaw[$level] : [];
         } else {
@@ -1232,7 +1290,7 @@ class PunService
             $allCorrect = false;
         }
         if ($allCorrect) {
-            $this->removeSkipLevel($userId, $mode, $level, $mode === 'intermediate' ? $answersRaw : ($mode === 'xhs' || $mode === 'battle' ? $answersRaw : $answers));
+            $this->removeSkipLevel($userId, $mode, $level, $mode === 'intermediate' ? $answersRaw : ($mode === 'xhs' || $mode === 'album' || $mode === 'battle' || $mode === 'daily_challenge' ? $answersRaw : $answers));
             // 单机模式：先写 progress/rank，成功后再计每日答对，避免 pun_daily_answer_stat 有记录但 progress 为空
             if ($mode === 'intermediate') {
                 $this->updateMidProgress($userId, $level, $answersRaw);
@@ -1240,30 +1298,33 @@ class PunService
             } elseif ($mode === 'xhs') {
                 $this->updateXhsProgress($userId, $level, $answersRaw);
                 $this->incrementDailyAnswerCount($userId);
-                } elseif ($mode === 'album') {
-                    $this->incrementDailyAnswerCount($userId);
+            } elseif ($mode === 'album') {
+                $this->incrementDailyAnswerCount($userId);
             } elseif ($mode === 'beginner') {
                 $this->updateRankAndProgress($userId, $level, $mode);
                 $this->incrementDailyAnswerCount($userId);
-            } elseif ($mode === 'battle') {
-                // 对战答对只计每日任务，不写个人 progress/rank
+            } elseif ($mode === 'battle' || $mode === 'daily_challenge') {
+                // 对战 / 每日挑战答对只计每日任务，不写个人 progress/rank
                 $this->incrementDailyAnswerCount($userId);
             }
-            // mode === 'battle' 时，不更新个人进度和排行榜，对战逻辑在 WebSocket 中处理
-            if ($mode !== 'battle') {
+            // mode 为 battle / daily_challenge 时，不更新个人进度和排行榜
+            if ($mode !== 'battle' && $mode !== 'daily_challenge') {
                 $nextMeta = $this->resolveNextLevelAfterCorrect($userId, $level, $mode);
                 $nextLevel = $nextMeta['nextLevel'];
                 $nextTotalLevels = $nextMeta['totalLevels'];
             }
         }
 
+        // 对战模式：用房间题库（mid/xhs）定位 AI 解读；每日挑战不生成解读
+        $explainMode = ($mode === 'battle' && $questionBank !== '') ? $questionBank : $mode;
+
         $passExplain = '';
         if ($allCorrect) {
             try {
-                $passExplain = $this->resolvePassExplainForUser($mode, $level);
+                $passExplain = $this->resolvePassExplainForUser($explainMode, $level);
             } catch (\Throwable $e) {
                 \think\facade\Log::warning('resolvePassExplainForUser 异常: ' . $e->getMessage());
-                $passExplain = (new PunLevelAiExplainService())->resolvePassExplain($mode, $level);
+                $passExplain = (new PunLevelAiExplainService())->resolvePassExplain($explainMode, $level);
             }
         }
 
@@ -1317,6 +1378,21 @@ class PunService
         $totalLevels = max(0, (int) ($progress['totalLevels'] ?? 0));
         $currentRaw = $progress['currentLevel'] ?? null;
         $currentLevel = is_numeric($currentRaw) ? (int) $currentRaw : null;
+
+        // 出序作答（如"我的关卡"选关）：用题库排序的下一关
+        if ($currentLevel !== null && $answeredLevel !== $currentLevel) {
+            $answersRaw = $mode === 'intermediate'
+                ? Config::get('pun_levels_issue2', [])
+                : ($mode === 'xhs' || $mode === 'album' ? Config::get('pun_levels_issue3', []) : Config::get('pun_levels', []));
+            $allKeys = array_keys($answersRaw);
+            sort($allKeys, SORT_NUMERIC);
+            $idx = array_search($answeredLevel, array_map('intval', $allKeys), true);
+            if ($idx !== false && isset($allKeys[$idx + 1])) {
+                return ['nextLevel' => (int) $allKeys[$idx + 1], 'totalLevels' => $totalLevels];
+            }
+            // 已是最后一关 → 通关
+            return ['nextLevel' => null, 'totalLevels' => $totalLevels];
+        }
 
         // beginner 兼容历史 currentLevel 语义：全部通关时可能停留在最后一关，需显式转成 nextLevel=null
         if ($mode === 'beginner') {
@@ -1823,7 +1899,7 @@ class PunService
             Cache::set($cacheKey, $result, 60);
             return $result;
         }
-        if ($mode === 'xhs') {
+        if ($mode === 'xhs' || $mode === 'album') {
             $answersRaw = Config::get('pun_levels_issue3', []);
             $state = $this->buildXhsProgressState($userId, $answersRaw, $progress);
             $skippedLevels = $this->getSkipLevels($userId, $mode, $answersRaw);

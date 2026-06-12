@@ -140,12 +140,12 @@ $pt-font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Micro
 
 @mixin pt-report-entry {
   @include pt-card-float-btn;
-  right: 5rpx;
+  left: 5rpx;
 }
 
 @mixin pt-skip-entry {
   @include pt-card-float-btn;
-  right: 100rpx;
+  left: 100rpx;
 }
 
 /* ========== 答题区公共样式 ========== */
@@ -178,9 +178,9 @@ $pt-font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei UI', 'Micro
 // 导致下方的 mid-action-bar 整体向左跳。
 @mixin pt-answer-input-cover {
   position: absolute;
-  left: -50%;
+  left: -10%;
   top: 0;
-  width: 300%;
+  width: 200%;
   height: 100%;
   opacity: 0.001;
   z-index: 3;

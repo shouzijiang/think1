@@ -9,18 +9,10 @@ import {
 
 /* ===== 分类专辑 CDN 地址 ===== */
 const CATEGORY_BASE_URL = 'https://sofun.online/static/punGame'
-const CATEGORY_FILE_MAP = {
-  character: CATEGORY_BASE_URL + '/issue3_character.json',
-  food: CATEGORY_BASE_URL + '/issue3_food.json',
-  fruit: CATEGORY_BASE_URL + '/issue3_fruit.json',
-  dessert: CATEGORY_BASE_URL + '/issue3_dessert.json',
-  city: CATEGORY_BASE_URL + '/issue3_city.json',
-  landscape: CATEGORY_BASE_URL + '/issue3_landscape.json',
-  idiom: CATEGORY_BASE_URL + '/issue3_idiom.json',
-  plant: CATEGORY_BASE_URL + '/issue3_plant.json',
-  christmas: CATEGORY_BASE_URL + '/issue3_christmas.json',
-  newyear: CATEGORY_BASE_URL + '/issue3_newyear.json',
-  zodiac: CATEGORY_BASE_URL + '/issue3_zodiac.json',
+
+/** 约定优于配置：issue3_{slug}.json */
+function categoryFileUrl(slug) {
+  return CATEGORY_BASE_URL + '/issue3_' + slug + '.json'
 }
 
 /* ===== 内部缓存 ===== */
@@ -38,7 +30,7 @@ function fetchCategoryIssues(categorySlug) {
   if (categoryCache[categorySlug]) return Promise.resolve(categoryCache[categorySlug])
   if (categoryPromise[categorySlug]) return categoryPromise[categorySlug]
 
-  const url = CATEGORY_FILE_MAP[categorySlug]
+  const url = categoryFileUrl(categorySlug)
   if (!url) return Promise.resolve([])
 
   categoryPromise[categorySlug] = request({ url, method: 'GET' })
