@@ -27,28 +27,40 @@
         <PunGlobalWatermark />
         <PunWrongAnswerFloat :items="wrongFloatItems" />
         <view class="stack-block">
-          <image
-            v-if="puzzle.imageUrlTop"
-            class="stack-img"
-            :src="puzzle.imageUrlTop"
-            mode="aspectFill"
-          />
-          <view v-else-if="loading" class="stack-placeholder">加载中...</view>
-          <view v-else class="stack-placeholder">暂无配图</view>
+          <view class="stack-img-box">
+            <image
+              v-if="puzzle.imageUrlTop"
+              class="stack-img"
+              :src="puzzle.imageUrlTop"
+              mode="aspectFill"
+              @load="imageReadyTop = true"
+              @error="imageReadyTop = true"
+            />
+            <view v-if="!imageReadyTop" class="stack-placeholder">
+              <text v-if="puzzle.imageUrlTop || loading">加载中...</text>
+              <text v-else>暂无配图</text>
+            </view>
+          </view>
           <text v-if="puzzle.topCaption" class="stack-caption">{{
             puzzle.topCaption
           }}</text>
         </view>
 
         <view class="stack-block">
-          <image
-            v-if="puzzle.imageUrlBottom"
-            class="stack-img"
-            :src="puzzle.imageUrlBottom"
-            mode="aspectFill"
-          />
-          <view v-else-if="loading" class="stack-placeholder">加载中...</view>
-          <view v-else class="stack-placeholder">暂无下图</view>
+          <view class="stack-img-box">
+            <image
+              v-if="puzzle.imageUrlBottom"
+              class="stack-img"
+              :src="puzzle.imageUrlBottom"
+              mode="aspectFill"
+              @load="imageReadyBottom = true"
+              @error="imageReadyBottom = true"
+            />
+            <view v-if="!imageReadyBottom" class="stack-placeholder">
+              <text v-if="puzzle.imageUrlBottom || loading">加载中...</text>
+              <text v-else>暂无配图</text>
+            </view>
+          </view>
           <!-- 你给的数据里 bottomcaption 没有单独字段，这里预留留白 -->
           <text v-if="puzzle.bottomCaption" class="stack-caption">{{
             puzzle.bottomCaption
@@ -172,6 +184,8 @@ const puzzle = ref({
   keywordHint: "",
 });
 const loading = ref(true);
+const imageReadyTop = ref(false);
+const imageReadyBottom = ref(false);
 const submitting = ref(false);
 const hideKeywordHint = ref(false);
 
@@ -397,6 +411,8 @@ onLoad(async (opts) => {
 
   level.value = lv;
   loading.value = true;
+  imageReadyTop.value = false;
+  imageReadyBottom.value = false;
 
   try {
     const raw = uni.getStorageSync("pun_hide_keyword_hint");
@@ -531,6 +547,10 @@ onShareTimeline(() => {
   gap: 0;
   position: relative;
 }
+.stack-img-box {
+  position: relative;
+  width: 100%;
+}
 .stack-img {
   width: 100%;
   border-radius: 20rpx;
@@ -538,8 +558,12 @@ onShareTimeline(() => {
   max-height: 400px;
 }
 .stack-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 220rpx;
+  height: 100%;
+  min-height: 220rpx;
   border-radius: 20rpx;
   background: rgba(240, 244, 248, 0.95);
   display: flex;

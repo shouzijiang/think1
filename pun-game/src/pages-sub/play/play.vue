@@ -20,13 +20,20 @@
     <view class="card">
       <view class="card-inner">
         <PunGlobalWatermark />
-        <image
-          v-if="puzzle.imageUrl"
-          class="puzzle-img"
-          :src="puzzle.imageUrl"
-          mode="aspectFill"
-        />
-        <view v-else-if="loading" class="puzzle-loading">加载中...</view>
+        <view class="img-box">
+          <image
+            v-if="puzzle.imageUrl"
+            class="puzzle-img"
+            :src="puzzle.imageUrl"
+            mode="aspectFill"
+            @load="imageReady = true"
+            @error="imageReady = true"
+          />
+          <view v-if="!imageReady" class="puzzle-loading">
+            <text v-if="puzzle.imageUrl || loading">加载中...</text>
+            <text v-else>暂无配图</text>
+          </view>
+        </view>
         <text class="puzzle-hint">{{ puzzle.hintText }}</text>
         <view class="skip-entry" @click="onSkipLevel">跳关</view>
         <view class="report-entry" @click="goFeedback">报错</view>
@@ -141,6 +148,7 @@ const puzzle = ref({
   hintText: "",
 });
 const loading = ref(true);
+const imageReady = ref(false);
 const submitting = ref(false);
 
 const feedback = ref([]);
@@ -194,6 +202,7 @@ onLoad((opts) => {
   }
   level.value = lv;
   loading.value = true;
+  imageReady.value = false;
   getLevelPuzzle(level.value)
     .then((data) => {
       answerLen.value = data.answerLength;
@@ -477,18 +486,31 @@ onShareTimeline(() => {
 .skip-entry {
   @include pt-skip-entry;
 }
+.img-box {
+  position: relative;
+  width: 100%;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
 .puzzle-img {
   width: 110%;
   height: 750rpx;
   border-radius: 16rpx;
 }
 .puzzle-loading {
-  height: 420rpx;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 420rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 28rpx;
   color: #8eadcf;
+  background: rgba(240, 244, 248, 0.95);
+  border-radius: 16rpx;
 }
 .puzzle-hint {
   margin-top: 24rpx;

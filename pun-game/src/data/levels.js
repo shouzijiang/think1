@@ -265,7 +265,7 @@ export function getXhsLevelImageUrl(levelNum) {
 export function prefetchImageUrls(urls, concurrency = 4) {
   const list = [...new Set((urls || []).filter(Boolean))]
   if (!list.length) return Promise.resolve()
-  if (typeof uni === 'undefined' || typeof uni.downloadFile !== 'function') {
+  if (typeof uni === 'undefined' || typeof uni.getImageInfo !== 'function') {
     return Promise.resolve()
   }
   const limit = Math.max(1, parseInt(concurrency, 10) || 4)
@@ -276,8 +276,10 @@ export function prefetchImageUrls(urls, concurrency = 4) {
         chunk.map(
           (url) =>
             new Promise((resolve) => {
-              uni.downloadFile({
-                url,
+              uni.getImageInfo({
+                src: url,
+                success: () => resolve(),
+                fail: () => resolve(),
                 complete: () => resolve(),
               })
             })

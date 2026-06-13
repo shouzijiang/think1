@@ -27,14 +27,20 @@
       <view class="card-inner">
         <PunGlobalWatermark />
         <PunWrongAnswerFloat :items="wrongFloatItems" />
-        <image
-          v-if="puzzle.imageUrlTop"
-          class="main-img"
-          :src="puzzle.imageUrlTop"
-          mode="aspectFill"
-        />
-        <view v-else-if="loading" class="img-placeholder">加载中...</view>
-        <view v-else class="img-placeholder">暂无配图</view>
+        <view class="img-box">
+          <image
+            v-if="puzzle.imageUrlTop"
+            class="main-img"
+            :src="puzzle.imageUrlTop"
+            mode="aspectFill"
+            @load="imageReady = true"
+            @error="imageReady = true"
+          />
+          <view v-if="!imageReady" class="img-placeholder">
+            <text v-if="puzzle.imageUrlTop || loading">加载中...</text>
+            <text v-else>暂无配图</text>
+          </view>
+        </view>
         <view class="report-entry" @click="goFeedback">报错</view>
       </view>
     </view>
@@ -135,6 +141,7 @@ const answerLen = ref(3)
 const answerChars = ref([])
 const puzzle = ref({ imageUrlTop: "", keywordHint: "", author: "" })
 const loading = ref(true)
+const imageReady = ref(false)
 const submitting = ref(false)
 const hideKeywordHint = ref(false)
 const filteredLevels = ref([])
@@ -284,6 +291,7 @@ onLoad(async (opts) => {
     if (typeof data.hintAnswerQuota === "number") hintAnswerQuota.value = data.hintAnswerQuota
   }).catch(() => {})
   loading.value = true
+  imageReady.value = false
   try { const raw = uni.getStorageSync("pun_hide_keyword_hint"); hideKeywordHint.value = raw === true || raw === "true" || raw === 1 || raw === "1" } catch {}
   getFilteredXhsLevelPuzzle(lv, ft).then((data) => {
     answerLen.value = data.answerLength || 3
@@ -336,9 +344,20 @@ onShareAppMessage(() => {
 .card-inner { position: relative; min-height: 420rpx; padding: 20rpx; }
 .report-entry { @include pt-report-entry; }
 
-.main-img { width: 100%; height: 846rpx; border-radius: 20rpx; background: #f0f4f8; }
+.img-box {
+  position: relative;
+  width: 100%;
+  height: 846rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  background: #f0f4f8;
+}
+.main-img { width: 100%; height: 100%; }
 .img-placeholder {
-  width: 100%; height: 520rpx; border-radius: 20rpx; background: rgba(240,244,248,.95);
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  border-radius: 20rpx; background: rgba(240,244,248,.95);
   display: flex; align-items: center; justify-content: center; font-size: 28rpx; color: #8a9aaa;
 }
 

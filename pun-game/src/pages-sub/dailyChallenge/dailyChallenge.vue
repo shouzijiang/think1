@@ -46,14 +46,20 @@
       <view class="card-inner">
         <PunGlobalWatermark />
         <PunWrongAnswerFloat :items="wrongFloatItems" />
-        <image
-          v-if="puzzle.imageUrlTop"
-          class="card-img"
-          :src="puzzle.imageUrlTop"
-          mode="aspectFill"
-        />
-        <view v-else-if="loading" class="card-placeholder">加载中...</view>
-        <view v-else class="card-placeholder">暂无配图</view>
+        <view class="img-box">
+          <image
+            v-if="puzzle.imageUrlTop"
+            class="card-img"
+            :src="puzzle.imageUrlTop"
+            mode="aspectFill"
+            @load="imageReady = true"
+            @error="imageReady = true"
+          />
+          <view v-if="!imageReady" class="card-placeholder">
+            <text v-if="puzzle.imageUrlTop || loading">加载中...</text>
+            <text v-else>暂无配图</text>
+          </view>
+        </view>
       </view>
     </view>
 
@@ -183,6 +189,7 @@ const score = ref(0);
 const wrongIndex = ref(-1);
 const slotShake = ref(false);
 const loading = ref(true);
+const imageReady = ref(false);
 const finished = ref(false);
 const submitting = ref(false);
 const hintLoading = ref(false);
@@ -283,6 +290,7 @@ function stopTimer() {
 
 async function loadPuzzle(levelNo) {
   loading.value = true;
+  imageReady.value = false;
   answerChars.value = [];
   answerInputValue.value = "";
   feedback.value = [];
@@ -616,15 +624,24 @@ onLoad(async () => {
   min-height: 420rpx;
   padding: 20rpx;
 }
-.card-img {
+.img-box {
+  position: relative;
   width: 100%;
   height: 846rpx;
   border-radius: 20rpx;
+  overflow: hidden;
   background: #f0f4f8;
 }
-.card-placeholder {
+.card-img {
   width: 100%;
-  height: 520rpx;
+  height: 100%;
+}
+.card-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   border-radius: 20rpx;
   background: rgba(240, 244, 248, 0.95);
   display: flex;
