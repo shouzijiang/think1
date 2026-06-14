@@ -252,8 +252,6 @@ INSERT INTO `pun_game_changelog` (`version_code`, `title`, `body`, `is_published
 ('2026.04.29', '最新更新',
 '修复小红书专辑已知错题;\n优化修复系列已知反馈问题;\n新增多项每日任务;\n更换1V1对战玩法题库，从经典变更为小红书专辑。',
 1, NOW());
-INSERT INTO `pun_game_mail` (`scope`, `target_user_id`, `sender_user_id`, `title`, `content`, `is_published`)
-VALUES ('all', NULL, NULL, '最新更新', '修复小红书专辑已知错题;\n优化修复系列已知反馈问题;\n新增多项每日任务;\n更换1V1对战玩法题库，从经典变更为小红书专辑。', 1);
 
 -- 13. 游戏站内信邮件（信箱）与已读记录
 CREATE TABLE `pun_game_mail` (
