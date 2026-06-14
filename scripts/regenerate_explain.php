@@ -11,7 +11,7 @@ declare(strict_types=1);
 
 // 加载 ThinkPHP
 require __DIR__ . '/../vendor/autoload.php';
-$app = require __DIR__ . '/../app/App.php';
+$app = new \think\App();
 $app->initialize();
 
 use app\service\PunLevelAiExplainService;
